@@ -8,7 +8,7 @@
 Pipeline R pour automatiser l’analyse de la **complétude d’inventaires fongiques** et de leur **représentativité** (Taux d’Espèces Exceptionnelles, **TEE** / Indice de représentativité, **Ir**), avec sorties tabulaires et graphiques prêtes à exploiter.
 
 **Auteur :** Eddy Boite  
-**Projet :** `statistics`  
+**Projet :** `nom_du_projet` (portable)  
 **Dernière mise à jour :** 22 Mars 2026
 
 ---
@@ -37,6 +37,7 @@ En fin d'exécution, un **manifeste automatique** journalise l'état de chaque f
 
 *   [Quick Start](#-quick-start)
 *   [Structure du projet](#-structure-du-projet)
+*   [Configurer le nom du projet (portabilité)](#-configurer-le-nom-du-projet-portabilit%C3%A9)
 *   [Structure attendue des données](#-structure-attendue-des-donn%C3%A9es)
 *   [Sorties générées](#-sorties-g%C3%A9n%C3%A9r%C3%A9es)
 *   [Installation et dépendances](#-installation-et-d%C3%A9pendances)
@@ -49,10 +50,10 @@ En fin d'exécution, un **manifeste automatique** journalise l'état de chaque f
 
 ## 📁 Structure du projet
 
-Le script s'inscrit dans le projet `statistics` dont voici la structure complète :
+Le script s'inscrit dans un projet R standard dont voici une structure type :
 
 ```
-statistics/
+<nom_du_projet>/
 ├── .github/
 │   └── workflows/
 │       └── r-phase4-ci.yml              # Pipeline CI (tests unitaires)
@@ -91,10 +92,51 @@ statistics/
 │   ├── run_tests.R
 │   └── testthat/
 │       └── test_inventaires_core.R
-└── statistics.Rproj
+└── <nom_du_projet>.Rproj
 ```
 
 > **Convention de nommage :** tous les fichiers générés par ce script sont préfixés `ICR_` pour les distinguer des sorties des autres scripts du projet.
+
+---
+
+## 🏷️ Configurer le nom du projet (portabilité)
+
+Ce document est conçu pour être **copié tel quel** dans un autre dépôt.
+
+### Ce qui dépend du nom du projet
+
+Le script n'utilise **pas** le nom du dépôt dans son code métier. Le « nom de projet » intervient surtout pour :
+
+*   l'affichage documentaire (`<nom_du_projet>`),
+*   le nom du fichier RStudio (`<nom_du_projet>.Rproj`),
+*   l'organisation de vos dossiers dans votre repo.
+
+### Procédure recommandée (2 minutes)
+
+1.  Remplacez les placeholders `<nom_du_projet>` par votre vrai nom de dépôt (ex. `inventaires_fongiques_public`).
+2.  Si vous utilisez RStudio, renommez le fichier projet en conséquence :
+    *   `<nom_du_projet>.Rproj`
+3.  Conservez la structure relative standard : `data/`, `scripts/`, `results/`, `docs/`.
+
+### Configuration sans modifier le script
+
+Le script supporte des variables d'environnement pour s'adapter à votre projet :
+
+*   `INVENTAIRES_INPUT_FILE` : chemin d'entrée (défaut : `data/observations.csv`)
+*   `INVENTAIRES_OUTPUT_DIR` : dossier de sortie (défaut : `results/ICR`)
+*   `INVENTAIRES_DATE_FORMAT` : format de date (défaut : `%Y-%m-%d`)
+
+Exemple d'usage portable :
+
+*   entrée personnalisée : `data/observations_public.csv`
+*   sorties personnalisées : `results/public_release`
+*   même script : `scripts/Inventaires_completude_representativite.R`
+
+### Bonnes pratiques pour diffusion publique
+
+*   Évitez les chemins absolus locaux (`/Users/...`).
+*   Gardez uniquement des chemins relatifs dans les docs et scripts.
+*   Vérifiez que vos noms de dossiers ne révèlent pas d'information interne.
 
 ---
 
@@ -110,7 +152,7 @@ Placer un fichier d’observations dans `data/` avec le nom recommandé :
 
 ### 2) Lancer l’analyse
 
-Depuis la racine du projet `statistics` :
+Depuis la racine du projet (quel que soit son nom) :
 
 *   `Rscript scripts/Inventaires_completude_representativite.R`
 
@@ -268,13 +310,19 @@ La configuration est centralisée dans l’objet `CONFIG` du script.
 | Paramètre | Défaut | Description |
 | --- | --- | --- |
 | `input_file` | `data/observations.csv` | Chemin du fichier d’entrée des observations. |
-| `output_dir` | `results` | Dossier de sortie pour les CSV et graphiques. |
+| `output_dir` | `results/ICR` | Dossier de sortie pour les CSV et graphiques. |
 | `date_format` | `%Y-%m-%d` | Format attendu pour parser la colonne `date`. |
 | `make_ca` | `TRUE` | Active l’ordination AFC/CA si les conditions sont réunies. |
 | `min_visits_for_model` | `5` | Nombre minimal de visites pour ajuster les modèles de complétude. |
 | `width` | `10` | Largeur (en pouces) des graphiques exportés. |
 | `height` | `6` | Hauteur (en pouces) des graphiques exportés. |
 | `dpi` | `300` | Résolution d’export des graphiques (dots per inch). |
+
+Le script accepte aussi des surcharges via variables d'environnement :
+
+*   `INVENTAIRES_INPUT_FILE`
+*   `INVENTAIRES_OUTPUT_DIR`
+*   `INVENTAIRES_DATE_FORMAT`
 
 Si besoin, adapter ces valeurs directement dans :
 
@@ -561,7 +609,7 @@ Nécessite :
 ## 📬 Contact
 
 **Auteur :** Eddy Boite  
-Pour les évolutions du script, ouvrir une issue ou documenter les changements dans le projet `statistics`.
+Pour les évolutions du script, ouvrir une issue ou documenter les changements dans votre projet hôte.
 
 ---
 

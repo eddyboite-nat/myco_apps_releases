@@ -4,7 +4,7 @@
 
 ---
 
-**Projet** : Statistics / Inventaires fongiques  
+**Projet** : Projet hôte / Inventaires fongiques  
 **Auteur** : Eddy Boite  
 **Version script** : 1.4 (selon en-tête du script)  
 **Date doc** : Mars 2026  
@@ -19,14 +19,15 @@
 3.  [Analyses de complétude](#3-analyses-de-compl%C3%A9tude)
 4.  [Analyses de représentativité](#4-analyses-de-repr%C3%A9sentativit%C3%A9)
 5.  [Configuration réelle du script](#5-configuration-r%C3%A9elle-du-script)
-6.  [Journalisation et traçabilité](#6-journalisation-et-tra%C3%A7abilit%C3%A9)
-7.  [Rapports et livrables](#7-rapports-et-livrables)
-8.  [Flux de traitement](#8-flux-de-traitement)
-9.  [Structures de données (exhaustif)](#9-structures-de-donn%C3%A9es-exhaustif)
-10.  [Métriques et interprétation](#10-m%C3%A9triques-et-interpr%C3%A9tation)
-11.  [Versioning et maintenance](#11-versioning-et-maintenance)
-12.  [Exécution, dépendances et limites](#12-ex%C3%A9cution-d%C3%A9pendances-et-limites)
-13.  [Annexes](#13-annexes)
+6.  [Portabilité et nom du projet](#6-portabilit%C3%A9-et-nom-du-projet)
+7.  [Journalisation et traçabilité](#7-journalisation-et-tra%C3%A7abilit%C3%A9)
+8.  [Rapports et livrables](#8-rapports-et-livrables)
+9.  [Flux de traitement](#9-flux-de-traitement)
+10.  [Structures de données (exhaustif)](#10-structures-de-donn%C3%A9es-exhaustif)
+11.  [Métriques et interprétation](#11-m%C3%A9triques-et-interpr%C3%A9tation)
+12.  [Versioning et maintenance](#12-versioning-et-maintenance)
+13.  [Exécution, dépendances et limites](#13-ex%C3%A9cution-d%C3%A9pendances-et-limites)
+14.  [Annexes](#14-annexes)
 
 ---
 
@@ -34,7 +35,7 @@
 
 ### 1.1 Objectif
 
-Le script `statistics/scripts/Inventaires_completude_representativite.R` automatise l'analyse de complétude et de représentativité des inventaires fongiques, par site et globalement.
+Le script `scripts/Inventaires_completude_representativite.R` automatise l'analyse de complétude et de représentativité des inventaires fongiques, par site et globalement.
 
 Il produit notamment :
 
@@ -220,7 +221,7 @@ Le script n'utilise pas de `.Renviron` dédié ; la configuration est portée pa
 | Clé CONFIG | Défaut | Rôle |
 | --- | --- | --- |
 | `input_file` | `data/observations.csv` | Fichier d'entrée |
-| `output_dir` | `results` | Répertoire de sortie |
+| `output_dir` | `results/ICR` | Répertoire de sortie |
 | `date_format` | `%Y-%m-%d` | Format de parsing des dates |
 | `freq_breaks` | `c(0,0.10,0.25,0.50,0.75,1.00)` | Bornes de classes de fréquence |
 | `freq_labels` | `exceptionnelle`…`constante` | Labels des classes |
@@ -239,7 +240,39 @@ Le script n'utilise pas de `.Renviron` dédié ; la configuration est portée pa
 
 ---
 
-## 6\. Journalisation et traçabilité
+## 6\. Portabilité et nom du projet
+
+### 6.1 Principe
+
+Le script est **indépendant du nom du dépôt** : aucun identifiant de projet (ex. `statistics`) n'est requis dans le code d'analyse.
+
+La portabilité repose sur :
+
+*   des chemins relatifs (`data/`, `scripts/`, `results/`),
+*   la résolution dynamique du dossier projet (`PROJECT_DIR`),
+*   des variables d'environnement pour adapter les chemins/fomat de date.
+
+### 6.2 Variables d'environnement à utiliser
+
+Le nom du projet se configure indirectement en adaptant les chemins à votre repo :
+
+*   `INVENTAIRES_INPUT_FILE` (ex. `data/observations_public.csv`)
+*   `INVENTAIRES_OUTPUT_DIR` (ex. `results/public_release`)
+*   `INVENTAIRES_DATE_FORMAT` (ex. `%d/%m/%Y` si nécessaire)
+
+Ainsi, un même script peut être déplacé d'un projet à l'autre sans modification du code source.
+
+### 6.3 Recommandation de documentation
+
+Pour la diffusion, employer systématiquement un placeholder explicite :
+
+*   `<nom_du_projet>` pour l'arborescence,
+*   `<nom_du_projet>.Rproj` pour le fichier RStudio,
+*   chemins d'exécution relatifs (`Rscript scripts/...`).
+
+---
+
+## 7\. Journalisation et traçabilité
 
 ### 6.1 Mécanisme réel
 
@@ -263,7 +296,7 @@ Ce manifeste sert de contrôle qualité de production.
 
 ---
 
-## 7\. Rapports et livrables
+## 8\. Rapports et livrables
 
 ### 7.1 CSV globaux (toujours)
 
@@ -300,7 +333,7 @@ Ce manifeste sert de contrôle qualité de production.
 
 ---
 
-## 8\. Flux de traitement
+## 9\. Flux de traitement
 
 ```
 run_analysis(CONFIG)
@@ -326,7 +359,7 @@ run_analysis(CONFIG)
 
 ---
 
-## 9\. Structures de données (exhaustif)
+## 10\. Structures de données (exhaustif)
 
 ### 9.1 Entrée
 
@@ -373,7 +406,7 @@ run_analysis(CONFIG)
 
 ---
 
-## 10\. Métriques et interprétation
+## 11\. Métriques et interprétation
 
 ### 10.1 Seuils de classes implémentés
 
@@ -397,7 +430,7 @@ run_analysis(CONFIG)
 
 ---
 
-## 11\. Versioning et maintenance
+## 12\. Versioning et maintenance
 
 ### 11.1 Version du script
 
@@ -411,7 +444,7 @@ La version est portée dans l'en-tête du fichier script (`Version : 1.4`).
 
 ---
 
-## 12\. Exécution, dépendances et limites
+## 13\. Exécution, dépendances et limites
 
 ### 12.1 Dépendances
 
@@ -427,13 +460,13 @@ La version est portée dans l'en-tête du fichier script (`Version : 1.4`).
 ### 12.2 Exécution
 
 ```
-Rscript statistics/scripts/Inventaires_completude_representativite.R
+Rscript scripts/Inventaires_completude_representativite.R
 ```
 
 Désactiver l'auto-exécution :
 
 ```
-INVENTAIRES_AUTO_RUN=FALSE Rscript statistics/scripts/Inventaires_completude_representativite.R
+INVENTAIRES_AUTO_RUN=FALSE Rscript scripts/Inventaires_completude_representativite.R
 ```
 
 ### 12.3 Limites connues
@@ -445,7 +478,7 @@ INVENTAIRES_AUTO_RUN=FALSE Rscript statistics/scripts/Inventaires_completude_rep
 
 ---
 
-## 13\. Annexes
+## 14\. Annexes
 
 ### 13.1 Glossaire
 

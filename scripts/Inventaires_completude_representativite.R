@@ -126,9 +126,9 @@ SCRIPT_DIR <- local({
 PROJECT_DIR <- dirname(SCRIPT_DIR)
 
 CONFIG <- list(
-  input_file = "data/observations.csv",       # Chemin relatif au projet (ou absolu)
-  output_dir = "results/ICR",                  # Répertoire de sortie des CSV et graphiques
-  date_format = "%Y-%m-%d",                   # Format de date R attendu dans le fichier d'entrée
+  input_file = Sys.getenv("INVENTAIRES_INPUT_FILE", unset = "data/observations.csv"),  # Surchargable via env
+  output_dir = Sys.getenv("INVENTAIRES_OUTPUT_DIR", unset = "results/ICR"),             # Surchargable via env
+  date_format = Sys.getenv("INVENTAIRES_DATE_FORMAT", unset = "%Y-%m-%d"),              # Surchargable via env
   freq_breaks = c(0, 0.10, 0.25, 0.50, 0.75, 1.00),  # Bornes des classes de fréquence (en proportion)
   freq_labels = c("exceptionnelle", "très_rare", "occasionnelle", "fréquente", "constante"),  # Noms des classes
   make_ca = TRUE,                              # Activer l'ordination CA (nécessite vegan)
