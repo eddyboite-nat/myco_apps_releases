@@ -23,11 +23,10 @@
 #                    - TEE/Ir: diagramme 2 panneaux avec zones scientifiques (seuils)
 #                    - Comparaisons sites: classement par complétude/Ir, annotations
 #                    - Export multi-formats (PNG, PDF, SVG)
-#   Phase 4 [v1.4] : Industrialisation & métriques de pertinence scientifique
-#                    - Tests unitaires + CI + rapport Quarto
-#                    - Metŕiques de robustesse/stabilité/pertinence exportées par site et globalement
-# ============================================================================================================================
-#
+#   Phase 4 [v1.4] : Métriques de pertinence scientifique
+#                    - Stabilité, robustesse, cohérence spatio-temporelle
+#                    - Score agrégé pondéré
+#                    - Manifeste automatique des sorties avec traçabilité
 # Usage : Rscript inventaires_completude_representativite.R
 #         (ou source("inventaires_completude_representativite.R") dans R interactif)
 #
