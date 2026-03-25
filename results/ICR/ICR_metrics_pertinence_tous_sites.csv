@@ -1,0 +1,2 @@
+site,nb_visites,terminal_window_k,tee_final,ir_final,completude,r2_lineaire,r2_hyperbolique,slope_terminal_cumul,tail_novelty_share,spearman_temporal_spatial,discordance_rate,score_pertinence,class_ir,class_completude
+BoisLarge,47,5,0.41566265060240964,0.5843373493975903,0.7445341939757067,0.8430145272558078,0.993649187985045,0.7999999999999797,0.008032128514056224,0.9697713777427466,0.13453815261044177,0.7628635332763473,faible,intermediaire
