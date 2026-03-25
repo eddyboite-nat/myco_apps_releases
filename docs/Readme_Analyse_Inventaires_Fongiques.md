@@ -8,7 +8,7 @@
 Pipeline R pour automatiser l’analyse de la **complétude d’inventaires fongiques** et de leur **représentativité** (Taux d’Espèces Exceptionnelles, **TEE** / Indice de représentativité, **Ir**), avec sorties tabulaires et graphiques prêtes à exploiter.
 
 **Auteur :** Eddy Boite  
-**Projet :** `nom_du_projet` (portable)  
+**Projet :** `myco_apps_releases`  
 **Dernière mise à jour :** 22 Mars 2026
 
 ---
@@ -53,13 +53,9 @@ En fin d'exécution, un **manifeste automatique** journalise l'état de chaque f
 Le script s'inscrit dans un projet R standard dont voici une structure type :
 
 ```
-<nom_du_projet>/
-├── .github/
-│   └── workflows/
-│       └── r-phase4-ci.yml              # Pipeline CI (tests unitaires)
+myco_apps_releases/
 ├── data/
 │   ├── observations.csv                 # Données d'entrée ICR (à personnaliser)
-│   └── mais.txt
 ├── docs/
 │   ├── Readme_Analyse_Inventaires_Fongiques.md
 │   ├── rapport_inventaires_fongiques.qmd          # Rapport Quarto
@@ -89,10 +85,7 @@ Le script s'inscrit dans un projet R standard dont voici une structure type :
 ├── scripts/
 │   └── Inventaires_completude_representativite.R  # ← Script principal (v1.4 Phase 4)
 ├── tests/
-│   ├── run_tests.R
-│   └── testthat/
-│       └── test_inventaires_core.R
-└── <nom_du_projet>.Rproj
+└── myco_.pps_releases.Rproj
 ```
 
 > **Convention de nommage :** tous les fichiers générés par ce script sont préfixés `ICR_` pour les distinguer des sorties des autres scripts du projet.
@@ -113,9 +106,9 @@ Le script n'utilise **pas** le nom du dépôt dans son code métier. Le « nom d
 
 ### Procédure recommandée (2 minutes)
 
-1.  Remplacez les placeholders `<nom_du_projet>` par votre vrai nom de dépôt (ex. `inventaires_fongiques_public`).
+1.  Remplacez les placeholders `myco_apps_releases` par votre vrai nom de dépôt.
 2.  Si vous utilisez RStudio, renommez le fichier projet en conséquence :
-    *   `<nom_du_projet>.Rproj`
+    *   `myco_apps_releases.Rproj`
 3.  Conservez la structure relative standard : `data/`, `scripts/`, `results/`, `docs/`.
 
 ### Configuration sans modifier le script
@@ -131,12 +124,6 @@ Exemple d'usage portable :
 *   entrée personnalisée : `data/observations_public.csv`
 *   sorties personnalisées : `results/public_release`
 *   même script : `scripts/Inventaires_completude_representativite.R`
-
-### Bonnes pratiques pour diffusion publique
-
-*   Évitez les chemins absolus locaux (`/Users/...`).
-*   Gardez uniquement des chemins relatifs dans les docs et scripts.
-*   Vérifiez que vos noms de dossiers ne révèlent pas d'information interne.
 
 ---
 
@@ -161,7 +148,7 @@ Depuis la racine du projet (quel que soit son nom) :
 Les sorties sont produites dans :
 
 *   `results/`
-*   puis un sous-dossier par site (`results/<site_sanitize>/`)
+*   puis un sous-dossier par site (`results/<site>/`)
 
 ---
 
@@ -613,4 +600,4 @@ Pour les évolutions du script, ouvrir une issue ou documenter les changements d
 
 ---
 
-_Document généré sur le modèle éditorial du README du projet FongiFrance (version adaptée au script d’inventaires)._
+_Document basé sur le modèle éditorial du README du projet FongiFrance (version adaptée au script d’inventaires)._
