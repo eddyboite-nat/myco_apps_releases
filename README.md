@@ -8,7 +8,7 @@ Dépôt de publication des scripts R prêts à l'emploi issus des projets de myc
 Chaque application est autonome : données d'exemple, script principal et documentation inclus.
 
 **Auteur :** Eddy Boite  
-**Dernière mise à jour :** 23 Mars 2026
+**Dernière mise à jour :** 30 Mars 2026
 
 ---
 
@@ -70,6 +70,8 @@ Pipeline R pour automatiser l'analyse de la **complétude d'inventaires fongique
 *   les comparaisons multi-sites avec classement et heatmap
 
 Le script produit automatiquement des tableaux CSV et des graphiques PNG (export PDF et SVG également disponibles), par site et en synthèse globale, avec un manifeste automatique de traçabilité en fin d'exécution.
+
+Validation CSV renforcée incluse : contrôle de schéma, audit `readr::problems()`, rapport de conformité exporté, et arrêt en mode strict si non-conformité.
 
 > Documentation complète : [docs/Readme\_Analyse\_Inventaires\_Fongiques.md](docs/Readme_Analyse_Inventaires_Fongiques.md)  
 > Conception technique : [docs/Inventaires\_completude\_representativite\_Conception\_Technique.md](docs/Inventaires_completude_representativite_Conception_Technique.md)
@@ -401,6 +403,8 @@ Toutes les sorties sont créées dans `results/` (le dossier est créé automati
 
 | Fichier | Type | Description |
 | --- | --- | --- |
+| `ICR_00_csv_conformite_report.csv` | CSV | Rapport de conformité CSV (schéma + parsing) avant traitement. |
+| `ICR_00_csv_conformite_problems.csv` | CSV | Détails des problèmes de parsing (si présents). |
 | `ICR_donnees_preparees.csv` | CSV | Données nettoyées et standardisées |
 | `ICR_resume_tous_sites.csv` | CSV | Synthèse complétude + représentativité tous sites |
 | `ICR_metrics_pertinence_tous_sites.csv` | CSV | Métriques de pertinence scientifique multi-sites |
@@ -479,8 +483,12 @@ La configuration est centralisée dans l'objet `CONFIG` au début du script (`sc
 | Paramètre | Valeur par défaut | Description |
 | --- | --- | --- |
 | `input_file` | `data/observations.csv` | Chemin du fichier d'entrée (relatif à la racine du projet) |
-| `output_dir` | `results` | Dossier de sortie des CSV et graphiques |
+| `output_dir` | `results/ICR` | Dossier de sortie des CSV et graphiques |
 | `date_format` | `%Y-%m-%d` | Format de date R attendu (ex. `2026-03-18`) |
+| `csv_strict_mode` | `TRUE` | Stoppe l'exécution si le CSV n'est pas conforme |
+| `csv_allow_extra_cols` | `FALSE` | Autorise/refuse les colonnes supplémentaires |
+| `csv_required_cols` | `c("site","date","visite_id","espece")` | Colonnes obligatoires du schéma CSV |
+| `csv_optional_cols` | `c("placette")` | Colonnes optionnelles autorisées |
 | `make_ca` | `TRUE` | Active l'ordination CA/AFC si les conditions sont réunies |
 | `min_visits_for_model` | `5` | Nombre minimal de visites pour ajuster les modèles |
 | `freq_breaks` | `c(0, .10, .25, .50, .75, 1)` | Bornes des classes de fréquence (en proportion) |
@@ -498,6 +506,14 @@ CONFIG$date_format <- "%d/%m/%Y"   # si vos dates sont au format jour/mois/anné
 CONFIG$make_ca <- FALSE            # désactiver la CA/AFC
 CONFIG$min_visits_for_model <- 3   # assouplir le seuil si peu de visites
 ```
+
+**Variables d'environnement utiles :**
+
+* `INVENTAIRES_INPUT_FILE`
+* `INVENTAIRES_OUTPUT_DIR`
+* `INVENTAIRES_DATE_FORMAT`
+* `INVENTAIRES_CSV_STRICT`
+* `INVENTAIRES_CSV_ALLOW_EXTRA_COLS`
 
 ---
 
@@ -643,6 +659,14 @@ Dashboard panoramique par site : barres horizontales pour chacun des 7 indicateu
 
 **Le script ne trouve pas mon fichier d'entrée**  
 Vérifier qu'un fichier existe dans `data/` sous : `observations.csv`, `observations.txt` ou `observations.tsv`, et que les 4 colonnes obligatoires (`site`, `date`, `visite_id`, `espece`) sont présentes.
+
+**Le script s'arrête avec "CSV non conforme"**  
+Consulter :
+
+* `results/ICR/ICR_00_csv_conformite_report.csv`
+* `results/ICR/ICR_00_csv_conformite_problems.csv` (si présent)
+
+Causes typiques : colonne obligatoire manquante, colonne supplémentaire non autorisée, ou ligne mal formée.
 
 **Erreur "Packages requis manquants"**  
 Le script affiche la commande `install.packages(...)` exacte à exécuter. Copier-coller cette commande dans R, puis relancer le script.

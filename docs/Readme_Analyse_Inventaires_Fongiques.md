@@ -9,7 +9,7 @@ Pipeline R pour automatiser l’analyse de la **complétude d’inventaires fong
 
 **Auteur :** Eddy Boite  
 **Projet :** `myco_apps_releases`  
-**Dernière mise à jour :** 22 Mars 2026
+**Dernière mise à jour :** 30 Mars 2026
 
 ---
 
@@ -39,6 +39,7 @@ En fin d'exécution, un **manifeste automatique** journalise l'état de chaque f
 *   [Structure du projet](#-structure-du-projet)
 *   [Configurer le nom du projet (portabilité)](#-configurer-le-nom-du-projet-portabilit%C3%A9)
 *   [Structure attendue des données](#-structure-attendue-des-donn%C3%A9es)
+*   [Validation CSV stricte (robustesse)](#-validation-csv-stricte-robustesse)
 *   [Sorties générées](#-sorties-g%C3%A9n%C3%A9r%C3%A9es)
 *   [Installation et dépendances](#-installation-et-d%C3%A9pendances)
 *   [Configuration](#-configuration)
@@ -60,6 +61,8 @@ myco_apps_releases/
 │   ├── Readme_Analyse_Inventaires_Fongiques.md
 │   ├── rapport_inventaires_fongiques.qmd          # Rapport Quarto
 ├── results/
+│   ├── ICR_00_csv_conformite_report.csv
+│   ├── ICR_00_csv_conformite_problems.csv
 │   ├── ICR_donnees_preparees.csv
 │   ├── ICR_resume_tous_sites.csv
 │   ├── ICR_metrics_pertinence_tous_sites.csv
@@ -169,6 +172,28 @@ Les sorties sont produites dans :
 
 Par défaut : `%Y-%m-%d` (ex. `2026-03-18`).
 
+## 🛡️ Validation CSV stricte (robustesse)
+
+Le script contrôle la conformité du fichier d'entrée avant analyse :
+
+1. contrôle du schéma de colonnes,
+2. contrôle des colonnes supplémentaires,
+3. audit des problèmes de parsing via `readr::problems()`.
+
+Par défaut (`csv_strict_mode = TRUE`), l'exécution est interrompue si le CSV est non conforme.
+
+Rapports générés :
+
+* `results/ICR/ICR_00_csv_conformite_report.csv` (toujours)
+* `results/ICR/ICR_00_csv_conformite_problems.csv` (si anomalies)
+
+Paramètres concernés :
+
+* `csv_strict_mode`
+* `csv_allow_extra_cols`
+* `csv_required_cols`
+* `csv_optional_cols`
+
 ### Définition d'une visite distincte (important)
 
 Le script considère une visite unique via la clé :
@@ -233,6 +258,8 @@ Cela permet de gérer les jeux de données où un même `visite_id` peut être r
 
 | Fichier | Type | Description |
 | --- | --- | --- |
+| `ICR_00_csv_conformite_report.csv` | CSV | Rapport de conformité CSV (schéma + parsing). |
+| `ICR_00_csv_conformite_problems.csv` | CSV | Détail des anomalies de parsing détectées (si présentes). |
 | `ICR_donnees_preparees.csv` | CSV | Données nettoyées et standardisées utilisées pour l'analyse. |
 | `ICR_resume_tous_sites.csv` | CSV | Synthèse finale multi-sites (complétude, représentativité, etc.). |
 | `ICR_metrics_pertinence_tous_sites.csv` | CSV | Métriques de pertinence scientifique agrégées pour tous les sites. |
@@ -299,6 +326,10 @@ La configuration est centralisée dans l’objet `CONFIG` du script.
 | `input_file` | `data/observations.csv` | Chemin du fichier d’entrée des observations. |
 | `output_dir` | `results/ICR` | Dossier de sortie pour les CSV et graphiques. |
 | `date_format` | `%Y-%m-%d` | Format attendu pour parser la colonne `date`. |
+| `csv_strict_mode` | `TRUE` | Stoppe l'exécution si le CSV n'est pas conforme. |
+| `csv_allow_extra_cols` | `FALSE` | Autorise/refuse les colonnes supplémentaires non prévues. |
+| `csv_required_cols` | `c("site","date","visite_id","espece")` | Colonnes obligatoires du schéma CSV. |
+| `csv_optional_cols` | `c("placette")` | Colonnes optionnelles autorisées. |
 | `make_ca` | `TRUE` | Active l’ordination AFC/CA si les conditions sont réunies. |
 | `min_visits_for_model` | `5` | Nombre minimal de visites pour ajuster les modèles de complétude. |
 | `width` | `10` | Largeur (en pouces) des graphiques exportés. |
@@ -310,6 +341,8 @@ Le script accepte aussi des surcharges via variables d'environnement :
 *   `INVENTAIRES_INPUT_FILE`
 *   `INVENTAIRES_OUTPUT_DIR`
 *   `INVENTAIRES_DATE_FORMAT`
+*   `INVENTAIRES_CSV_STRICT`
+*   `INVENTAIRES_CSV_ALLOW_EXTRA_COLS`
 
 Si besoin, adapter ces valeurs directement dans :
 
@@ -557,6 +590,15 @@ Vérifier qu’un fichier existe dans `data/` sous l’un des noms suivants :
 *   `observations.tsv`
 
 et que les colonnes obligatoires sont présentes.
+
+### Le script s'arrête avec "CSV non conforme"
+
+Consulter :
+
+* `results/ICR/ICR_00_csv_conformite_report.csv`
+* `results/ICR/ICR_00_csv_conformite_problems.csv` (si présent)
+
+Causes principales : colonne obligatoire manquante, colonne non autorisée, parsing défectueux.
 
 ### J’ai une erreur sur les dates
 

@@ -21,7 +21,8 @@
 5.  [Configuration réelle du script](#5-configuration-r%C3%A9elle-du-script)
 6.  [Portabilité et nom du projet](#6-portabilit%C3%A9-et-nom-du-projet)
 7.  [Journalisation et traçabilité](#7-journalisation-et-tra%C3%A7abilit%C3%A9)
-8.  [Rapports et livrables](#8-rapports-et-livrables)
+8.  [Validation CSV et conformité](#8-validation-csv-et-conformit%C3%A9)
+9.  [Rapports et livrables](#9-rapports-et-livrables)
 9.  [Flux de traitement](#9-flux-de-traitement)
 10.  [Structures de données (exhaustif)](#10-structures-de-donn%C3%A9es-exhaustif)
 11.  [Métriques et interprétation](#11-m%C3%A9triques-et-interpr%C3%A9tation)
@@ -89,7 +90,10 @@ Le script suit la chaîne suivante :
 
 ### 2.2 Fonctions clés
 
-*   `read_delim_auto()` : détection automatique du séparateur (`,` `;` `TAB`).
+*   `read_delim_auto()` : détection automatique du séparateur + récupération des problèmes de parsing.
+*   `build_csv_colspec()` : schéma de lecture CSV.
+*   `audit_csv_conformity()` : audit de conformité (colonnes + parsing).
+*   `export_csv_conformity_report()` : export des rapports `ICR_00_*`.
 *   `prepare_data()` : validation stricte + déduplication.
 *   `calc_cumulative_metrics()` : richesse par visite et cumul.
 *   `calc_tee_ir()` : calcul dynamique de `TEE`/`Ir`.
@@ -223,6 +227,10 @@ Le script n'utilise pas de `.Renviron` dédié ; la configuration est portée pa
 | `input_file` | `data/observations.csv` | Fichier d'entrée |
 | `output_dir` | `results/ICR` | Répertoire de sortie |
 | `date_format` | `%Y-%m-%d` | Format de parsing des dates |
+| `csv_strict_mode` | `TRUE` | Stoppe l'exécution si CSV non conforme |
+| `csv_allow_extra_cols` | `FALSE` | Autorise/refuse les colonnes supplémentaires |
+| `csv_required_cols` | `c("site","date","visite_id","espece")` | Colonnes obligatoires attendues |
+| `csv_optional_cols` | `c("placette")` | Colonnes optionnelles autorisées |
 | `freq_breaks` | `c(0,0.10,0.25,0.50,0.75,1.00)` | Bornes de classes de fréquence |
 | `freq_labels` | `exceptionnelle`…`constante` | Labels des classes |
 | `make_ca` | `TRUE` | Active CA/AFC (si `vegan`) |
@@ -259,6 +267,8 @@ Le nom du projet se configure indirectement en adaptant les chemins à votre rep
 *   `INVENTAIRES_INPUT_FILE` (ex. `data/observations_public.csv`)
 *   `INVENTAIRES_OUTPUT_DIR` (ex. `results/public_release`)
 *   `INVENTAIRES_DATE_FORMAT` (ex. `%d/%m/%Y` si nécessaire)
+*   `INVENTAIRES_CSV_STRICT`
+*   `INVENTAIRES_CSV_ALLOW_EXTRA_COLS`
 
 Ainsi, un même script peut être déplacé d'un projet à l'autre sans modification du code source.
 
@@ -296,13 +306,37 @@ Ce manifeste sert de contrôle qualité de production.
 
 ---
 
-## 8\. Rapports et livrables
+## 8\. Validation CSV et conformité
+
+### 8.1 Contrôles appliqués
+
+Avant `prepare_data()`, le script exécute un audit de conformité :
+
+1. contrôle des colonnes obligatoires,
+2. contrôle des colonnes supplémentaires,
+3. audit des anomalies de parsing (`readr::problems()`).
+
+### 8.2 Mode strict
+
+Si `csv_strict_mode = TRUE` (défaut), toute non-conformité bloque l'exécution.
+
+### 8.3 Rapports générés
+
+* `results/ICR/ICR_00_csv_conformite_report.csv`
+* `results/ICR/ICR_00_csv_conformite_problems.csv` (si parsing anormal)
+
+## 9\. Rapports et livrables
 
 ### 7.1 CSV globaux (toujours)
 
+*   `results/ICR/ICR_00_csv_conformite_report.csv`
 *   `results/ICR_donnees_preparees.csv`
 *   `results/ICR_resume_tous_sites.csv`
 *   `results/ICR_metrics_pertinence_tous_sites.csv`
+
+### 7.1 bis CSV globaux (conditionnels)
+
+*   `results/ICR/ICR_00_csv_conformite_problems.csv`
 
 ### 7.2 CSV par site (`results/<site>/`)
 
@@ -340,6 +374,9 @@ run_analysis(CONFIG)
   ├─ validate_config()
   ├─ resolve_input_file()
   ├─ read_delim_auto()
+  ├─ audit_csv_conformity()
+  ├─ export_csv_conformity_report()
+  ├─ stop si non conforme (mode strict)
   ├─ prepare_data()
   ├─ write ICR_donnees_preparees.csv
   ├─ for each site:
@@ -370,9 +407,11 @@ run_analysis(CONFIG)
 ### 9.2 Règles de validation d'entrée
 
 1.  Colonnes obligatoires présentes.
-2.  Parsing date selon `CONFIG$date_format`.
-3.  `site`, `visite_id`, `espece` non vides.
-4.  Déduplication sur (`site`, `placette`, `date`, `visite_id`, `espece`).
+2.  Colonnes supplémentaires refusées par défaut (configurable).
+3.  Audit de parsing (`readr::problems()`).
+4.  Parsing date selon `CONFIG$date_format`.
+5.  `site`, `visite_id`, `espece` non vides.
+6.  Déduplication sur (`site`, `placette`, `date`, `visite_id`, `espece`).
 
 ### 9.3 Colonnes de sortie principales
 
@@ -474,6 +513,7 @@ INVENTAIRES_AUTO_RUN=FALSE Rscript scripts/Inventaires_completude_representativi
 *   sans `placette` : pas d'analyse spatiale dédiée ;
 *   sans `minpack.lm` : complétude asymptotique potentiellement `NA` ;
 *   dates non conformes à `CONFIG$date_format` : arrêt de l'exécution ;
+*   en mode strict, un CSV non conforme bloque volontairement l'exécution ;
 *   faible nombre de visites : qualité des modèles limitée.
 
 ---
