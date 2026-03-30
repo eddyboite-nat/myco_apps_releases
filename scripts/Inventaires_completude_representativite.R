@@ -2,7 +2,7 @@
 # ==================================================================================================================================
 # Script : inventaires_completude_representativite.R
 # Objet  : Automatiser les analyses d'inventaires fongiques
-#          inspirées des diapositives 25-48 du cours 24 DU Mycologie
+#          inspirées des diapositives 25-48 du cours 24 DU Mycologie 2026
 #
 # Analyses produites :
 #   1) Courbe temps-espèces
@@ -24,8 +24,8 @@
 #                    - Comparaisons sites: classement par complétude/Ir, annotations
 #                    - Export multi-formats (PNG, PDF, SVG)
 #   Phase 4 [v1.4] : Industrialisation & métriques de pertinence scientifique
-#                    - Tests unitaires + CI + rapport Quarto
-#                    - Metŕiques de robustesse/stabilité/pertinence exportées par site et globalement
+#                    - Rapport Quarto
+#                    - Métriques de robustesse/stabilité/pertinence exportées par site et globalement
 # ==================================================================================================================================
 
 #
@@ -129,6 +129,16 @@ CONFIG <- list(
   input_file = Sys.getenv("INVENTAIRES_INPUT_FILE", unset = "data/observations.csv"),  # Surchargable via env
   output_dir = Sys.getenv("INVENTAIRES_OUTPUT_DIR", unset = "results/ICR"),             # Surchargable via env
   date_format = Sys.getenv("INVENTAIRES_DATE_FORMAT", unset = "%Y-%m-%d"),              # Surchargable via env
+  csv_strict_mode = {
+    strict_env <- tolower(trimws(Sys.getenv("INVENTAIRES_CSV_STRICT", unset = "TRUE")))
+    !(strict_env %in% c("0", "false", "no", "off"))
+  },
+  csv_allow_extra_cols = {
+    extra_env <- tolower(trimws(Sys.getenv("INVENTAIRES_CSV_ALLOW_EXTRA_COLS", unset = "FALSE")))
+    !(extra_env %in% c("0", "false", "no", "off"))
+  },
+  csv_required_cols = c("site", "date", "visite_id", "espece"),
+  csv_optional_cols = c("placette"),
   freq_breaks = c(0, 0.10, 0.25, 0.50, 0.75, 1.00),  # Bornes des classes de fréquence (en proportion)
   freq_labels = c("exceptionnelle", "très_rare", "occasionnelle", "fréquente", "constante"),  # Noms des classes
   make_ca = TRUE,                              # Activer l'ordination CA (nécessite vegan)
@@ -195,6 +205,7 @@ log_output_manifest <- function(output_dir, site_names = character(0), config = 
 
   log_info("[MANIFEST] Section globale")
   global_required <- c(
+    "ICR_00_csv_conformite_report.csv",
     "ICR_donnees_preparees.csv",
     "ICR_resume_tous_sites.csv",
     "ICR_metrics_pertinence_tous_sites.csv",
@@ -203,8 +214,14 @@ log_output_manifest <- function(output_dir, site_names = character(0), config = 
     "ICR_metrics_pertinence_heatmap_sites.png",
     "ICR_metrics_pertinence_score_sites.png"
   )
+  global_optional <- c(
+    "ICR_00_csv_conformite_problems.csv"
+  )
   for (fname in global_required) {
     log_file_status(file.path(output_dir, fname), optional = FALSE)
+  }
+  for (fname in global_optional) {
+    log_file_status(file.path(output_dir, fname), optional = TRUE)
   }
 
   if (length(site_names) == 0) {
@@ -271,6 +288,8 @@ print_startup_header <- function(config = CONFIG) {
   cat(sub_sep, "\n", sep = "")
   cat("Calculs qui seront exécutés (et sorties associées) :\n")
   cat("  1) Préparation/validation des données\n")
+  cat("     -> Global CSV : ICR_00_csv_conformite_report.csv\n")
+  cat("     -> Global CSV : ICR_00_csv_conformite_problems.csv (si anomalies parsing)\n")
   cat("     -> Global CSV : ICR_donnees_preparees.csv\n")
   cat("  2) Richesse observée et cumulée (courbe temps-espèces)\n")
   cat("     -> Site CSV   : <site>/ICR_01_courbe_temps_especes.csv\n")
@@ -325,6 +344,8 @@ print_startup_header <- function(config = CONFIG) {
   cat("    - ICR_06_occupation_spatiale.csv (si placette)\n")
   cat("    - ICR_07_metrics_pertinence.csv\n")
   cat("  Global :\n")
+  cat("    - ICR_00_csv_conformite_report.csv\n")
+  cat("    - ICR_00_csv_conformite_problems.csv (si anomalies parsing)\n")
   cat("    - ICR_donnees_preparees.csv\n")
   cat("    - ICR_resume_tous_sites.csv\n")
   cat("    - ICR_metrics_pertinence_tous_sites.csv\n")
@@ -388,7 +409,9 @@ log_model_result <- function(site_name, model_stats) {
 validate_config <- function(config = CONFIG) {
   log_info("Validation de la configuration ...")
   required_names <- c(
-    "input_file", "output_dir", "date_format", "freq_breaks", "freq_labels",
+    "input_file", "output_dir", "date_format",
+    "csv_strict_mode", "csv_allow_extra_cols", "csv_required_cols", "csv_optional_cols",
+    "freq_breaks", "freq_labels",
     "make_ca", "min_visits_for_model", "width", "height", "dpi"
   )
   missing_names <- setdiff(required_names, names(config))
@@ -404,6 +427,21 @@ validate_config <- function(config = CONFIG) {
   }
   if (!is.character(config$date_format) || length(config$date_format) != 1 || !nzchar(config$date_format)) {
     stop("CONFIG$date_format doit etre une chaine non vide.")
+  }
+  if (!is.logical(config$csv_strict_mode) || length(config$csv_strict_mode) != 1 || is.na(config$csv_strict_mode)) {
+    stop("CONFIG$csv_strict_mode doit etre un booleen.")
+  }
+  if (!is.logical(config$csv_allow_extra_cols) || length(config$csv_allow_extra_cols) != 1 || is.na(config$csv_allow_extra_cols)) {
+    stop("CONFIG$csv_allow_extra_cols doit etre un booleen.")
+  }
+  if (!is.character(config$csv_required_cols) || length(config$csv_required_cols) == 0) {
+    stop("CONFIG$csv_required_cols doit etre un vecteur de noms de colonnes.")
+  }
+  if (!is.character(config$csv_optional_cols)) {
+    stop("CONFIG$csv_optional_cols doit etre un vecteur de noms de colonnes (peut etre vide).")
+  }
+  if (length(intersect(config$csv_required_cols, config$csv_optional_cols)) > 0) {
+    stop("CONFIG$csv_required_cols et CONFIG$csv_optional_cols ne doivent pas se chevaucher.")
   }
   if (!is.numeric(config$freq_breaks) || length(config$freq_breaks) < 2) {
     stop("CONFIG$freq_breaks doit contenir au moins deux valeurs numeriques.")
@@ -428,16 +466,87 @@ validate_config <- function(config = CONFIG) {
   }
 
   log_info(
-    "Configuration validee : input='%s', output='%s', format_date='%s', seuil_modeles=%d, CA=%s",
+    "Configuration validee : input='%s', output='%s', format_date='%s', csv_strict=%s, extra_cols=%s, seuil_modeles=%d, CA=%s",
     config$input_file,
     config$output_dir,
     config$date_format,
+    ifelse(isTRUE(config$csv_strict_mode), "TRUE", "FALSE"),
+    ifelse(isTRUE(config$csv_allow_extra_cols), "TRUE", "FALSE"),
     config$min_visits_for_model,
     ifelse(isTRUE(config$make_ca), "activee", "desactivee")
   )
 }
 
-read_delim_auto <- function(path) {
+build_csv_colspec <- function(config = CONFIG) {
+  cols_spec <- purrr::set_names(
+    rep(list(readr::col_character()), length(unique(c(config$csv_required_cols, config$csv_optional_cols)))),
+    unique(c(config$csv_required_cols, config$csv_optional_cols))
+  )
+  do.call(readr::cols, c(cols_spec, list(.default = readr::col_character())))
+}
+
+audit_csv_conformity <- function(df_raw, parse_problems = tibble::tibble(), path = "", delim = ",", config = CONFIG) {
+  required <- unique(config$csv_required_cols)
+  optional <- unique(config$csv_optional_cols)
+  allowed <- unique(c(required, optional))
+  cols <- names(df_raw)
+
+  missing_required <- setdiff(required, cols)
+  extra_cols <- setdiff(cols, allowed)
+
+  parse_problem_count <- nrow(parse_problems)
+  required_ok <- length(missing_required) == 0
+  extra_ok <- isTRUE(config$csv_allow_extra_cols) || length(extra_cols) == 0
+  parse_ok <- parse_problem_count == 0
+  is_conform <- required_ok && extra_ok && parse_ok
+
+  report_tbl <- tibble::tibble(
+    horodatage = format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
+    fichier = normalizePath(path, mustWork = FALSE),
+    delimiteur = switch(delim, "\t" = "TAB", ";" = "SEMICOLON", "," = "COMMA", delim),
+    nb_lignes = nrow(df_raw),
+    nb_colonnes = ncol(df_raw),
+    csv_strict_mode = isTRUE(config$csv_strict_mode),
+    colonnes_requises = paste(required, collapse = ","),
+    colonnes_optionnelles = paste(optional, collapse = ","),
+    colonnes_lues = paste(cols, collapse = ","),
+    colonnes_manquantes = ifelse(length(missing_required) == 0, "", paste(missing_required, collapse = ",")),
+    colonnes_supplementaires = ifelse(length(extra_cols) == 0, "", paste(extra_cols, collapse = ",")),
+    nb_problemes_parse = parse_problem_count,
+    statut = ifelse(is_conform, "CONFORME", "NON_CONFORME")
+  )
+
+  list(
+    report = report_tbl,
+    problems = parse_problems,
+    is_conform = is_conform,
+    missing_required = missing_required,
+    extra_cols = extra_cols,
+    parse_problem_count = parse_problem_count
+  )
+}
+
+export_csv_conformity_report <- function(audit, output_dir) {
+  report_path <- file.path(output_dir, "ICR_00_csv_conformite_report.csv")
+  tryCatch(
+    readr::write_csv(audit$report, report_path),
+    error = function(e) stop("Echec d'ecriture de ICR_00_csv_conformite_report.csv : ", conditionMessage(e), call. = FALSE)
+  )
+  log_info("Rapport de conformité CSV exporté : %s", report_path)
+
+  if (!is.null(audit$problems) && nrow(audit$problems) > 0) {
+    problems_path <- file.path(output_dir, "ICR_00_csv_conformite_problems.csv")
+    tryCatch(
+      readr::write_csv(audit$problems, problems_path),
+      error = function(e) stop("Echec d'ecriture de ICR_00_csv_conformite_problems.csv : ", conditionMessage(e), call. = FALSE)
+    )
+    log_info("Détails des problèmes CSV exportés : %s", problems_path)
+  }
+
+  invisible(report_path)
+}
+
+read_delim_auto <- function(path, config = CONFIG) {
   # Détection automatique du délimiteur (CSV, CSV2, TSV, tab)
   first_line <- readLines(path, n = 1, warn = FALSE)
   
@@ -457,13 +566,17 @@ read_delim_auto <- function(path) {
   log_info("Lecture du fichier '%s' (délimiteur détecté : '%s').", 
            path, 
            switch(delim, "\t" = "TAB", ";" = "SEMICOLON", "," = "COMMA", delim))
-  
-  readr::read_delim(
+
+  df_raw <- readr::read_delim(
     path, 
     delim = delim, 
+    col_types = build_csv_colspec(config),
     show_col_types = FALSE, 
     locale = readr::locale(encoding = "UTF-8")
   )
+
+  parse_problems <- readr::problems(df_raw)
+  list(data = df_raw, delim = delim, problems = parse_problems)
 }
 
 # Nettoie une chaîne pour en faire un nom de fichier valide (remplace les caractères spéciaux par "_")
@@ -1729,7 +1842,49 @@ run_analysis <- function(config = CONFIG) {
   }
 
   log_info("Lecture : %s", input_file)
-  df_raw <- read_delim_auto(input_file)
+  read_res <- read_delim_auto(input_file, config = config)
+  df_raw <- read_res$data
+
+  csv_audit <- audit_csv_conformity(
+    df_raw = df_raw,
+    parse_problems = read_res$problems,
+    path = input_file,
+    delim = read_res$delim,
+    config = config
+  )
+  export_csv_conformity_report(csv_audit, output_dir)
+
+  if (!csv_audit$is_conform) {
+    msg <- paste0(
+      "CSV non conforme : ",
+      if (length(csv_audit$missing_required) > 0) {
+        paste0("colonnes manquantes [", paste(csv_audit$missing_required, collapse = ", "), "]")
+      } else {
+        ""
+      },
+      if (length(csv_audit$missing_required) > 0 && length(csv_audit$extra_cols) > 0) " ; " else "",
+      if (length(csv_audit$extra_cols) > 0) {
+        paste0("colonnes supplémentaires [", paste(csv_audit$extra_cols, collapse = ", "), "]")
+      } else {
+        ""
+      },
+      if ((length(csv_audit$missing_required) > 0 || length(csv_audit$extra_cols) > 0) && csv_audit$parse_problem_count > 0) " ; " else "",
+      if (csv_audit$parse_problem_count > 0) {
+        paste0("problèmes de parsing=", csv_audit$parse_problem_count)
+      } else {
+        ""
+      }
+    )
+
+    if (isTRUE(config$csv_strict_mode)) {
+      stop(msg, "\nVoir : ", file.path(output_dir, "ICR_00_csv_conformite_report.csv"), call. = FALSE)
+    }
+
+    log_warning("%s", msg)
+  } else {
+    log_info("Validation CSV : CONFORME (schéma + parsing).")
+  }
+
   df <- prepare_data(df_raw, config = config)
   tryCatch(
     readr::write_csv(df, file.path(output_dir, "ICR_donnees_preparees.csv")),

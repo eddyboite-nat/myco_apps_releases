@@ -8,8 +8,8 @@
 Pipeline R pour automatiser l’analyse de la **complétude d’inventaires fongiques** et de leur **représentativité** (Taux d’Espèces Exceptionnelles, **TEE** / Indice de représentativité, **Ir**), avec sorties tabulaires et graphiques prêtes à exploiter.
 
 **Auteur :** Eddy Boite  
-**Projet :** `myco_apps_releases`  
-**Dernière mise à jour :** 30 Mars 2026
+**Projet :** `nom_du_projet` (portable)  
+**Dernière mise à jour :** 22 Mars 2026
 
 ---
 
@@ -54,16 +54,17 @@ En fin d'exécution, un **manifeste automatique** journalise l'état de chaque f
 Le script s'inscrit dans un projet R standard dont voici une structure type :
 
 ```
-myco_apps_releases/
+<nom_du_projet>/
 ├── data/
 │   ├── observations.csv                 # Données d'entrée ICR (à personnaliser)
+│   └── mais.txt
 ├── docs/
 │   ├── Readme_Analyse_Inventaires_Fongiques.md
 │   ├── rapport_inventaires_fongiques.qmd          # Rapport Quarto
 ├── results/
+│   ├── ICR_donnees_preparees.csv
 │   ├── ICR_00_csv_conformite_report.csv
 │   ├── ICR_00_csv_conformite_problems.csv
-│   ├── ICR_donnees_preparees.csv
 │   ├── ICR_resume_tous_sites.csv
 │   ├── ICR_metrics_pertinence_tous_sites.csv
 │   ├── ICR_comparaison_completude_sites.png
@@ -88,7 +89,7 @@ myco_apps_releases/
 ├── scripts/
 │   └── Inventaires_completude_representativite.R  # ← Script principal (v1.4 Phase 4)
 ├── tests/
-└── myco_.pps_releases.Rproj
+└── <nom_du_projet>.Rproj
 ```
 
 > **Convention de nommage :** tous les fichiers générés par ce script sont préfixés `ICR_` pour les distinguer des sorties des autres scripts du projet.
@@ -109,9 +110,9 @@ Le script n'utilise **pas** le nom du dépôt dans son code métier. Le « nom d
 
 ### Procédure recommandée (2 minutes)
 
-1.  Remplacez les placeholders `myco_apps_releases` par votre vrai nom de dépôt.
+1.  Remplacez les placeholders `<nom_du_projet>` par votre vrai nom de dépôt (ex. `inventaires_fongiques_public`).
 2.  Si vous utilisez RStudio, renommez le fichier projet en conséquence :
-    *   `myco_apps_releases.Rproj`
+    *   `<nom_du_projet>.Rproj`
 3.  Conservez la structure relative standard : `data/`, `scripts/`, `results/`, `docs/`.
 
 ### Configuration sans modifier le script
@@ -127,6 +128,12 @@ Exemple d'usage portable :
 *   entrée personnalisée : `data/observations_public.csv`
 *   sorties personnalisées : `results/public_release`
 *   même script : `scripts/Inventaires_completude_representativite.R`
+
+### Bonnes pratiques pour diffusion publique
+
+*   Évitez les chemins absolus locaux (`/Users/...`).
+*   Gardez uniquement des chemins relatifs dans les docs et scripts.
+*   Vérifiez que vos noms de dossiers ne révèlent pas d'information interne.
 
 ---
 
@@ -151,7 +158,7 @@ Depuis la racine du projet (quel que soit son nom) :
 Les sorties sont produites dans :
 
 *   `results/`
-*   puis un sous-dossier par site (`results/<site>/`)
+*   puis un sous-dossier par site (`results/<site_sanitize>/`)
 
 ---
 
@@ -174,25 +181,38 @@ Par défaut : `%Y-%m-%d` (ex. `2026-03-18`).
 
 ## 🛡️ Validation CSV stricte (robustesse)
 
-Le script contrôle la conformité du fichier d'entrée avant analyse :
+Le script applique un contrôle de conformité CSV avant les analyses :
 
-1. contrôle du schéma de colonnes,
+1. schéma de colonnes attendu,
 2. contrôle des colonnes supplémentaires,
-3. audit des problèmes de parsing via `readr::problems()`.
+3. audit des problèmes de parsing remontés par `readr::problems()`.
 
-Par défaut (`csv_strict_mode = TRUE`), l'exécution est interrompue si le CSV est non conforme.
+### Schéma attendu
 
-Rapports générés :
+*   Colonnes requises (défaut) : `site`, `date`, `visite_id`, `espece`
+*   Colonnes optionnelles (défaut) : `placette`
 
-* `results/ICR/ICR_00_csv_conformite_report.csv` (toujours)
-* `results/ICR/ICR_00_csv_conformite_problems.csv` (si anomalies)
+### Comportement en mode strict
 
-Paramètres concernés :
+Par défaut, `csv_strict_mode = TRUE` (via `INVENTAIRES_CSV_STRICT`).
 
-* `csv_strict_mode`
-* `csv_allow_extra_cols`
-* `csv_required_cols`
-* `csv_optional_cols`
+Dans ce mode, l'exécution s'arrête si :
+
+*   une colonne obligatoire manque,
+*   une colonne non autorisée est détectée,
+*   un problème de parsing est présent.
+
+### Rapports produits
+
+*   `results/ICR/ICR_00_csv_conformite_report.csv` (toujours)
+*   `results/ICR/ICR_00_csv_conformite_problems.csv` (si anomalies de parsing)
+
+### Paramètres et variables d'environnement
+
+*   `CONFIG$csv_strict_mode` ↔ `INVENTAIRES_CSV_STRICT` (défaut `TRUE`)
+*   `CONFIG$csv_allow_extra_cols` ↔ `INVENTAIRES_CSV_ALLOW_EXTRA_COLS` (défaut `FALSE`)
+*   `CONFIG$csv_required_cols` (défaut : `site,date,visite_id,espece`)
+*   `CONFIG$csv_optional_cols` (défaut : `placette`)
 
 ### Définition d'une visite distincte (important)
 
@@ -258,7 +278,7 @@ Cela permet de gérer les jeux de données où un même `visite_id` peut être r
 
 | Fichier | Type | Description |
 | --- | --- | --- |
-| `ICR_00_csv_conformite_report.csv` | CSV | Rapport de conformité CSV (schéma + parsing). |
+| `ICR_00_csv_conformite_report.csv` | CSV | Rapport de conformité CSV (schéma + parsing) avant traitement. |
 | `ICR_00_csv_conformite_problems.csv` | CSV | Détail des anomalies de parsing détectées (si présentes). |
 | `ICR_donnees_preparees.csv` | CSV | Données nettoyées et standardisées utilisées pour l'analyse. |
 | `ICR_resume_tous_sites.csv` | CSV | Synthèse finale multi-sites (complétude, représentativité, etc.). |
@@ -593,12 +613,21 @@ et que les colonnes obligatoires sont présentes.
 
 ### Le script s'arrête avec "CSV non conforme"
 
-Consulter :
+Consulter en priorité :
 
-* `results/ICR/ICR_00_csv_conformite_report.csv`
-* `results/ICR/ICR_00_csv_conformite_problems.csv` (si présent)
+*   `results/ICR/ICR_00_csv_conformite_report.csv`
+*   `results/ICR/ICR_00_csv_conformite_problems.csv` (si présent)
 
-Causes principales : colonne obligatoire manquante, colonne non autorisée, parsing défectueux.
+Causes typiques :
+
+*   colonne obligatoire absente (`site`, `date`, `visite_id`, `espece`),
+*   colonne supplémentaire non autorisée (`csv_allow_extra_cols = FALSE`),
+*   ligne mal formée (parse failure).
+
+Pour assouplir temporairement :
+
+*   `INVENTAIRES_CSV_STRICT=FALSE`
+*   `INVENTAIRES_CSV_ALLOW_EXTRA_COLS=TRUE`
 
 ### J’ai une erreur sur les dates
 
@@ -642,4 +671,6 @@ Pour les évolutions du script, ouvrir une issue ou documenter les changements d
 
 ---
 
-_Document basé sur le modèle éditorial du README du projet FongiFrance (version adaptée au script d’inventaires)._
+_Document basé sur le modèle éditorial du README du projet FongiFrance (version adaptée au script d’inventaires)._ 
+
+_Dernière mise à jour : 30 Mars 2026_
