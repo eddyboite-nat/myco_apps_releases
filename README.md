@@ -51,7 +51,9 @@ myco_apps_releases/
 ├── docs/
 │   ├── Readme_Analyse_Inventaires_Fongiques.md            # Documentation détaillée (ICR)
 │   └── Inventaires_completude_representativite_Conception_Technique.md
-├── results/                              # Dossier de sortie (créé automatiquement)
+├── logs/                                 # Journaux d'exécution
+├── results/
+│   └── ICR/                             # Dossier de sortie (créé automatiquement)
 ├── scripts/
 │   └── Inventaires_completude_representativite.R          # Script principal (v1.4)
 └── README.md                             # Ce fichier
@@ -92,7 +94,13 @@ Validation CSV renforcée incluse : contrôle de schéma, audit `readr::problems
     *   **macOS** : cliquer sur [Download R for macOS](https://cran.r-project.org/bin/macosx/), puis télécharger le `.pkg` correspondant à votre architecture (Intel ou Apple Silicon)
     *   **Linux** : suivre les instructions pour Debian/Ubuntu, Fedora, Red Hat, CentOS, etc.
 3.  **Exécuter l'installateur** et suivre les instructions par défaut (tout en **Next** convient)
-4.  **Vérifier l'installation :** ouvrir un **Terminal** (macOS/Linux) ou **Invite de Commandes** (Windows) et taper :Vous devez voir `R version 4.x.x` ou plus récent.
+4.  **Vérifier l'installation :** ouvrir un **Terminal** (macOS/Linux) ou **Invite de Commandes** (Windows) et taper :
+
+```
+R --version
+```
+
+Vous devez voir `R version 4.x.x` ou plus récent.
 
 #### ➋ Installer RStudio Desktop (fortement recommandé, mais optionnel)
 
@@ -114,7 +122,12 @@ Les **packages** sont des extensions qui ajoutent des fonctionnalités à R. Le 
 
 1.  **Ouvrir RStudio**
 2.  **Dans le panneau en bas-à-droite** (onglet "Packages"), cliquer sur le bouton **Install**
-3.  **Copier-coller** la commande ci-dessous dans la zone qui s'ouvre :
+3.  **Copier-coller** la liste de packages ci-dessous dans la zone qui s'ouvre :
+
+```
+dplyr tidyr ggplot2 purrr readr stringr forcats tibble scales gridExtra
+```
+
 4.  **Vérifier** que "Install from: CRAN repository" est sélectionné
 5.  **Cliquer sur "Install"** et attendre (1–5 minutes selon la connexion)
 
@@ -122,6 +135,15 @@ Les **packages** sont des extensions qui ajoutent des fonctionnalités à R. Le 
 
 1.  **Ouvrir la console R** (application "R" sur Windows/macOS, ou console classique)
 2.  **Copier-coller** cette commande complète et appuyer sur **Entrée** :
+
+```r
+install.packages(c(
+  "dplyr", "tidyr", "ggplot2", "purrr",
+  "readr", "stringr", "forcats", "tibble",
+  "scales", "gridExtra"
+))
+```
+
 3.  **Répondre** `**y**` **ou** `**yes**` aux questions qui s'affichent
 4.  **Attendre** que l'installation se termine (aucune erreur rouge au final ne doit présager un problème ; une installation réussie se termine par `Done`)
 
@@ -362,7 +384,7 @@ En fin d'exécution, le **manifeste** liste l'état de chaque fichier attendu :
 
 ### 📊 Sorties générées
 
-Toutes les sorties sont créées dans `results/` (le dossier est créé automatiquement s'il n'existe pas).
+Toutes les sorties sont créées dans `results/ICR/` (le dossier est créé automatiquement s'il n'existe pas).
 
 #### Vue d'ensemble du pipeline (9 étapes → fichiers)
 
@@ -509,11 +531,11 @@ CONFIG$min_visits_for_model <- 3   # assouplir le seuil si peu de visites
 
 **Variables d'environnement utiles :**
 
-* `INVENTAIRES_INPUT_FILE`
-* `INVENTAIRES_OUTPUT_DIR`
-* `INVENTAIRES_DATE_FORMAT`
-* `INVENTAIRES_CSV_STRICT`
-* `INVENTAIRES_CSV_ALLOW_EXTRA_COLS`
+*   `INVENTAIRES_INPUT_FILE`
+*   `INVENTAIRES_OUTPUT_DIR`
+*   `INVENTAIRES_DATE_FORMAT`
+*   `INVENTAIRES_CSV_STRICT`
+*   `INVENTAIRES_CSV_ALLOW_EXTRA_COLS`
 
 ---
 
@@ -663,8 +685,8 @@ Vérifier qu'un fichier existe dans `data/` sous : `observations.csv`, `observat
 **Le script s'arrête avec "CSV non conforme"**  
 Consulter :
 
-* `results/ICR/ICR_00_csv_conformite_report.csv`
-* `results/ICR/ICR_00_csv_conformite_problems.csv` (si présent)
+*   `results/ICR/ICR_00_csv_conformite_report.csv`
+*   `results/ICR/ICR_00_csv_conformite_problems.csv` (si présent)
 
 Causes typiques : colonne obligatoire manquante, colonne supplémentaire non autorisée, ou ligne mal formée.
 
@@ -728,24 +750,3 @@ Activer `BENCHMARK_MODE <- TRUE` en tête du script pour identifier les goulots 
 
 **Auteur :** Eddy Boite  
 Pour toute question ou évolution, ouvrir une issue sur ce dépôt.
-
-```
-myco_apps_releases/scripts/Inventaires_completude_representativite.R
-```
-
-```
-install.packages(c(
-  "dplyr", "tidyr", "ggplot2", "purrr",
-  "readr", "stringr", "forcats", "tibble",
-  "scales", "gridExtra",
-  "minpack.lm", "vegan"
-))
-```
-
-```
-c("dplyr", "tidyr", "ggplot2", "purrr", "readr", "stringr", "forcats", "tibble", "scales", "gridExtra", "minpack.lm", "vegan")
-```
-
-```
-R --version
-```
