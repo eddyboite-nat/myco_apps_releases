@@ -743,6 +743,7 @@ Activer `BENCHMARK_MODE <- TRUE` en tête du script pour identifier les goulots 
 | **TSV** | Tab-Separated Values : fichier texte tabulaire, champs séparés par des tabulations |
 | **ICR** | Préfixe de nommage de tous les fichiers produits par ce script |
 | **CVD-friendly** | Compatible daltoniens (Color Vision Deficiency) : palette graphique accessible |
+| **vegan** | Package R (_Vegetation Ecology And other Nature data Group Analysis_) : outils d'analyse en écologie des communautés — ordinations (CA/AFC, PCA, NMDS), indices de diversité, tests de permutation, etc. Dans ce projet, utilisé pour l'ordination CA/AFC entre placettes et espèces |
 
 ---
 
