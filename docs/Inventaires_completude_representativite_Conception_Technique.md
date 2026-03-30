@@ -23,12 +23,12 @@
 7.  [Journalisation et traçabilité](#7-journalisation-et-tra%C3%A7abilit%C3%A9)
 8.  [Validation CSV et conformité](#8-validation-csv-et-conformit%C3%A9)
 9.  [Rapports et livrables](#9-rapports-et-livrables)
-9.  [Flux de traitement](#9-flux-de-traitement)
-10.  [Structures de données (exhaustif)](#10-structures-de-donn%C3%A9es-exhaustif)
-11.  [Métriques et interprétation](#11-m%C3%A9triques-et-interpr%C3%A9tation)
-12.  [Versioning et maintenance](#12-versioning-et-maintenance)
-13.  [Exécution, dépendances et limites](#13-ex%C3%A9cution-d%C3%A9pendances-et-limites)
-14.  [Annexes](#14-annexes)
+10.  [Flux de traitement](#9-flux-de-traitement)
+11.  [Structures de données (exhaustif)](#10-structures-de-donn%C3%A9es-exhaustif)
+12.  [Métriques et interprétation](#11-m%C3%A9triques-et-interpr%C3%A9tation)
+13.  [Versioning et maintenance](#12-versioning-et-maintenance)
+14.  [Exécution, dépendances et limites](#13-ex%C3%A9cution-d%C3%A9pendances-et-limites)
+15.  [Annexes](#14-annexes)
 
 ---
 
@@ -312,9 +312,9 @@ Ce manifeste sert de contrôle qualité de production.
 
 Avant `prepare_data()`, le script exécute un audit de conformité :
 
-1. vérification des colonnes obligatoires,
-2. détection de colonnes supplémentaires (selon `csv_allow_extra_cols`),
-3. comptage des problèmes de parsing `readr::problems()`.
+1.  vérification des colonnes obligatoires,
+2.  détection de colonnes supplémentaires (selon `csv_allow_extra_cols`),
+3.  comptage des problèmes de parsing `readr::problems()`.
 
 ### 8.2 Mode strict
 

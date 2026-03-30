@@ -183,9 +183,9 @@ Par défaut : `%Y-%m-%d` (ex. `2026-03-18`).
 
 Le script applique un contrôle de conformité CSV avant les analyses :
 
-1. schéma de colonnes attendu,
-2. contrôle des colonnes supplémentaires,
-3. audit des problèmes de parsing remontés par `readr::problems()`.
+1.  schéma de colonnes attendu,
+2.  contrôle des colonnes supplémentaires,
+3.  audit des problèmes de parsing remontés par `readr::problems()`.
 
 ### Schéma attendu
 
@@ -671,6 +671,6 @@ Pour les évolutions du script, ouvrir une issue ou documenter les changements d
 
 ---
 
-_Document basé sur le modèle éditorial du README du projet FongiFrance (version adaptée au script d’inventaires)._ 
+_Document basé sur le modèle éditorial du README du projet FongiFrance (version adaptée au script d’inventaires)._
 
 _Dernière mise à jour : 30 Mars 2026_
