@@ -128,15 +128,15 @@ Les **packages** sont des extensions qui ajoutent des fonctionnalités à R. Le 
 dplyr tidyr ggplot2 purrr readr stringr forcats tibble scales gridExtra
 ```
 
-4.  **Vérifier** que "Install from: CRAN repository" est sélectionné
-5.  **Cliquer sur "Install"** et attendre (1–5 minutes selon la connexion)
+1.  **Vérifier** que "Install from: CRAN repository" est sélectionné
+2.  **Cliquer sur "Install"** et attendre (1–5 minutes selon la connexion)
 
 ##### Méthode B — Via la console R (texte)
 
 1.  **Ouvrir la console R** (application "R" sur Windows/macOS, ou console classique)
 2.  **Copier-coller** cette commande complète et appuyer sur **Entrée** :
 
-```r
+```
 install.packages(c(
   "dplyr", "tidyr", "ggplot2", "purrr",
   "readr", "stringr", "forcats", "tibble",
@@ -144,8 +144,8 @@ install.packages(c(
 ))
 ```
 
-3.  **Répondre** `**y**` **ou** `**yes**` aux questions qui s'affichent
-4.  **Attendre** que l'installation se termine (aucune erreur rouge au final ne doit présager un problème ; une installation réussie se termine par `Done`)
+1.  **Répondre** `**y**` **ou** `**yes**` aux questions qui s'affichent
+2.  **Attendre** que l'installation se termine (aucune erreur rouge au final ne doit présager un problème ; une installation réussie se termine par `Done`)
 
 ##### Vérifier l'installation
 
