@@ -1,0 +1,2 @@
+horodatage,fichier,delimiteur,nb_lignes,nb_colonnes,csv_strict_mode,colonnes_requises,colonnes_optionnelles,colonnes_lues,colonnes_manquantes,colonnes_supplementaires,nb_problemes_parse,statut
+2026-03-31 15:37:23,/Users/fhe534/GitHub/myco_apps_releases/data/observations.csv,SEMICOLON,1674,5,TRUE,"site,date,visite_id,espece",placette,"site,placette,date,visite_id,espece",,,0,CONFORME
