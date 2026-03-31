@@ -12,7 +12,7 @@ Chaque application est autonome : données d'exemple, script principal et docume
 
 ---
 
-## 📋 Table des matières
+## Table des matières
 
 *   [Applications disponibles](#-applications-disponibles)
 *   [Structure du dépôt](#-structure-du-d%C3%A9p%C3%B4t)
@@ -34,7 +34,7 @@ Chaque application est autonome : données d'exemple, script principal et docume
 
 ---
 
-## 📦 Applications disponibles
+## Applications disponibles
 
 | # | Application | Script | Version | Domaine |
 | --- | --- | --- | --- | --- |
@@ -42,7 +42,7 @@ Chaque application est autonome : données d'exemple, script principal et docume
 
 ---
 
-## 🗂 Structure du dépôt
+## Structure du dépôt
 
 ```
 myco_apps_releases/
@@ -61,7 +61,7 @@ myco_apps_releases/
 
 ---
 
-## 🍄 Inventaires fongiques – Complétude & Représentativité
+## Inventaires fongiques – Complétude & Représentativité
 
 Pipeline R pour automatiser l'analyse de la **complétude d'inventaires fongiques** et de leur **représentativité**, via :
 
@@ -80,9 +80,9 @@ Validation CSV renforcée incluse : contrôle de schéma, audit `readr::problems
 
 ---
 
-### 💻 Prérequis système complets
+### Prérequis système complets
 
-#### ➊ Installer R (obligatoire)
+#### Installer R (obligatoire)
 
 **R** est un environnement de calcul statistique gratuit et open-source. Le script s'exécute avec **R ≥ 4.0** sur **Windows**, **macOS** et **Linux**.
 
@@ -102,7 +102,7 @@ R --version
 
 Vous devez voir `R version 4.x.x` ou plus récent.
 
-#### ➋ Installer RStudio Desktop (fortement recommandé, mais optionnel)
+#### Installer RStudio Desktop (fortement recommandé, mais optionnel)
 
 **RStudio** est un **IDE** (interface graphique) qui rend R beaucoup plus convivial pour les débutants. Ce n'est pas obligatoire, mais **très utile**.
 
@@ -114,7 +114,7 @@ Vous devez voir `R version 4.x.x` ou plus récent.
 4.  **Exécuter l'installateur** et suivre les instructions par défaut
 5.  **Ouvrir RStudio** pour la première fois — vous verrez une fenêtre avec 4 panneaux (Editeur, Console, Environnement, Fichiers)
 
-#### ➌ Installer les packages R requis
+#### Installer les packages R requis
 
 Les **packages** sont des extensions qui ajoutent des fonctionnalités à R. Le script utilise une dizaine de packages pour manipuler les données et générer les graphiques.
 
@@ -163,7 +163,7 @@ if (any(missing)) {
 
 ---
 
-#### ▶️ Résumé : les 3 étapes pour se préparer
+#### Résumé : les 3 étapes pour se préparer
 
 | # | Étape | Durée | Difficulté |
 | --- | --- | --- | --- |
@@ -175,7 +175,7 @@ if (any(missing)) {
 
 ---
 
-#### ℹ️ Besoin d'aide ? Dépannage initial
+#### Besoin d'aide ? Dépannage initial
 
 **"R n'est pas reconnu" dans le Terminal/Invite de Commandes**
 
@@ -199,7 +199,7 @@ if (any(missing)) {
 
 ---
 
-### 🚀 Quick Start
+### Quick Start
 
 **Pour les débutants qui viennent d'installer R et RStudio :**
 
@@ -235,7 +235,7 @@ Rscript scripts/Inventaires_completude_representativite.R
 
 ---
 
-### ✅ Vérifier que tout fonctionne
+### Vérifier que tout fonctionne
 
 Avant de lancer le script sur vos vraies données, un simple test de vérification :
 
@@ -271,13 +271,13 @@ Maintenant, lancez le script en cliquant sur "Source" (comme dans le Quick Start
 
 Si tout s'est bien passé, consultez le dossier `results/` — vous y trouverez les fichiers CSV et PNG.
 
-🎉 **Félicitations ! Vous êtes prêt à lancer le script sur vos propres données.**
+**Félicitations ! Vous êtes prêt à lancer le script sur vos propres données.**
 
 ---
 
 ---
 
-### 📥 Structure attendue des données
+### Structure attendue des données
 
 Le fichier d'entrée doit être en format **CSV** (ou TSV / TXT, détection automatique du séparateur).
 
@@ -311,7 +311,7 @@ Le fichier `data/observations.csv` fourni contient un jeu de données d'exemple 
 
 ---
 
-### ▶️ Lancer le script – guide détaillé
+### Lancer le script – guide détaillé
 
 #### Option A — Ligne de commande (Rscript)
 
@@ -382,7 +382,7 @@ En fin d'exécution, le **manifeste** liste l'état de chaque fichier attendu :
 
 ---
 
-### 📊 Sorties générées
+### Sorties générées
 
 Toutes les sorties sont créées dans `results/ICR/` (le dossier est créé automatiquement s'il n'existe pas).
 
@@ -458,7 +458,7 @@ Toutes les sorties sont créées dans `results/ICR/` (le dossier est créé auto
 
 ---
 
-### 🔧 Installation des dépendances
+### Installation des dépendances
 
 #### Packages requis
 
@@ -539,7 +539,7 @@ CONFIG$min_visits_for_model <- 3   # assouplir le seuil si peu de visites
 
 ---
 
-### 🧠 Interprétation des indicateurs
+### Interprétation des indicateurs
 
 #### TEE – Taux d'Espèces Exceptionnelles
 
@@ -666,7 +666,7 @@ Dashboard panoramique par site : barres horizontales pour chacun des 7 indicateu
 
 ---
 
-### ✅ Bonnes pratiques d'interprétation
+### Bonnes pratiques d'interprétation
 
 *   Interpréter **ensemble** : courbe cumulée + TEE/Ir + fréquences + spatial.
 *   Toujours contextualiser avec : saison, pression d'échantillonnage, météo, observateurs.
@@ -677,7 +677,7 @@ Dashboard panoramique par site : barres horizontales pour chacun des 7 indicateu
 
 ---
 
-### ❓ Dépannage (FAQ)
+### Dépannage (FAQ)
 
 **Le script ne trouve pas mon fichier d'entrée**  
 Vérifier qu'un fichier existe dans `data/` sous : `observations.csv`, `observations.txt` ou `observations.tsv`, et que les 4 colonnes obligatoires (`site`, `date`, `visite_id`, `espece`) sont présentes.
@@ -715,7 +715,7 @@ Activer `BENCHMARK_MODE <- TRUE` en tête du script pour identifier les goulots 
 
 ---
 
-### 🕓 Historique des versions
+### Historique des versions
 
 | Version | Phase | Principales évolutions |
 | --- | --- | --- |
@@ -726,7 +726,7 @@ Activer `BENCHMARK_MODE <- TRUE` en tête du script pour identifier les goulots 
 
 ---
 
-### 🧾 Glossaire
+### Glossaire
 
 | Terme | Définition |
 | --- | --- |
@@ -747,7 +747,7 @@ Activer `BENCHMARK_MODE <- TRUE` en tête du script pour identifier les goulots 
 
 ---
 
-## 📬 Contact
+## Contact
 
 **Auteur :** Eddy Boite  
 Pour toute question ou évolution, ouvrir une issue sur ce dépôt.
