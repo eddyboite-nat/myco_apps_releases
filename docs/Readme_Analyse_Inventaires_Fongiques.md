@@ -8,12 +8,12 @@
 Pipeline R pour automatiser l’analyse de la **complétude d’inventaires fongiques** et de leur **représentativité** (Taux d’Espèces Exceptionnelles, **TEE** / Indice de représentativité, **Ir**), avec sorties tabulaires et graphiques prêtes à exploiter.
 
 **Auteur :** Eddy Boite  
-**Projet :** `nom_du_projet` (portable)  
+**Projet :** `myco_apps_releases` (portable)  
 **Dernière mise à jour :** 22 Mars 2026
 
 ---
 
-## 📖 À Propos
+## À Propos
 
 Ce document décrit l’utilisation du script :
 
@@ -28,12 +28,12 @@ Le script produit automatiquement, par site :
 5.  Indice de représentativité $Ir = 1 - TEE$
 6.  Fréquence des espèces par visite
 7.  Occupation spatiale (si `placette` disponible)
-8.  Analyse Factorielle des Correspondances (**AFC**, aussi appelée Correspondence Analysis, **CA**) simple (si package `vegan` disponible)
+8.  Analyse Factorielle des Correspondances (**AFC**, aussi appelée Correspondence Analysis, **CA**)
 9.  **Métriques de pertinence scientifique** : stabilité, robustesse, cohérence spatiotemporelle et score agrégé, avec visualisations dédiées
 
 En fin d'exécution, un **manifeste automatique** journalise l'état de chaque fichier attendu (OK / MANQUANT / OPTIONNEL\_NON\_GENERE).
 
-## 📋 Table des Matières
+## Table des Matières
 
 *   [Quick Start](#-quick-start)
 *   [Structure du projet](#-structure-du-projet)
@@ -49,7 +49,7 @@ En fin d'exécution, un **manifeste automatique** journalise l'état de chaque f
 
 ---
 
-## 📁 Structure du projet
+## Structure du projet
 
 Le script s'inscrit dans un projet R standard dont voici une structure type :
 
@@ -96,7 +96,7 @@ Le script s'inscrit dans un projet R standard dont voici une structure type :
 
 ---
 
-## 🏷️ Configurer le nom du projet (portabilité)
+## Configurer le nom du projet (portabilité)
 
 Ce document est conçu pour être **copié tel quel** dans un autre dépôt.
 
@@ -137,7 +137,7 @@ Exemple d'usage portable :
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1) Préparer les données
 
@@ -162,7 +162,7 @@ Les sorties sont produites dans :
 
 ---
 
-## 📥 Structure attendue des données
+## Structure attendue des données
 
 ### Colonnes obligatoires
 
@@ -179,7 +179,7 @@ Les sorties sont produites dans :
 
 Par défaut : `%Y-%m-%d` (ex. `2026-03-18`).
 
-## 🛡️ Validation CSV stricte (robustesse)
+## Validation CSV stricte (robustesse)
 
 Le script applique un contrôle de conformité CSV avant les analyses :
 
@@ -233,7 +233,7 @@ Cela permet de gérer les jeux de données où un même `visite_id` peut être r
 
 ---
 
-## 📊 Sorties générées
+## Sorties générées
 
 ### Vue d'ensemble du pipeline (9 calculs → fichiers)
 
@@ -309,7 +309,7 @@ Cela permet de gérer les jeux de données où un même `visite_id` peut être r
 
 ---
 
-## 🔧 Installation et dépendances
+## Installation et dépendances
 
 ### Packages requis (base)
 
@@ -337,7 +337,7 @@ Le script vérifie les packages requis au démarrage et affiche une commande d'i
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 La configuration est centralisée dans l’objet `CONFIG` du script.
 
@@ -370,7 +370,7 @@ Si besoin, adapter ces valeurs directement dans :
 
 ---
 
-## 🧠 Interprétation des indicateurs
+## Interprétation des indicateurs
 
 ### TEE (Taux d’Espèces Exceptionnelles)
 
@@ -585,7 +585,7 @@ Dashboard panoramique par site : barres horizontales pour chacun des 7 indicateu
 
 ---
 
-## ❓ Dépannage (FAQ)
+## Dépannage (FAQ)
 
 ### Le manifeste de fin d'exécution signale des fichiers MANQUANT
 
@@ -647,7 +647,7 @@ Nécessite :
 
 ---
 
-## 🧾 Glossaire
+## Glossaire
 
 | Acronyme | Définition |
 | --- | --- |
@@ -664,10 +664,10 @@ Nécessite :
 
 ---
 
-## 📬 Contact
+## Contact
 
 **Auteur :** Eddy Boite  
-Pour les évolutions du script, ouvrir une issue ou documenter les changements dans votre projet hôte.
+Pour les évolutions du script, ouvrir une issue ou documenter les changements.
 
 ---
 

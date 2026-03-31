@@ -7,7 +7,7 @@
 **Projet** : Projet hôte / Inventaires fongiques  
 **Auteur** : Eddy Boite  
 **Version script** : 1.4 (selon en-tête du script)  
-**Date doc** : Mars 2026  
+**Date doc** : 30 Mars 2026  
 **Type de document** : Spécification technique (alignée code source)
 
 ---
@@ -530,6 +530,7 @@ INVENTAIRES_AUTO_RUN=FALSE Rscript scripts/Inventaires_completude_representativi
 | Complétude | Ratio richesse observée / asymptote hyperbolique |
 | Occupation spatiale | Proportion de placettes où l'espèce est observée |
 | Score de pertinence | Score synthétique pondéré multi-indicateurs |
+| vegan | Package R d'analyse en écologie des communautés (ordinations CA/AFC, ACP, NMDS ; indices de diversité ; tests de permutation). Utilisé ici pour l'AFC placettes-espèces si `make_ca = TRUE` et colonne `placette` disponible. |
 
 ### 13.2 Résumé ultra-compact (1 tableau)
 
