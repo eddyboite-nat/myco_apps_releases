@@ -31,6 +31,7 @@ Chaque application est autonome : données d'exemple, script principal et docume
     *   [Dépannage (FAQ)](#-d%C3%A9pannage-faq)
     *   [Historique des versions](#-historique-des-versions)
     *   [Glossaire](#-glossaire)
+    *   [Références](#-Références)
 
 ---
 
@@ -744,6 +745,13 @@ Activer `BENCHMARK_MODE <- TRUE` en tête du script pour identifier les goulots 
 | **ICR** | Préfixe de nommage de tous les fichiers produits par ce script |
 | **CVD-friendly** | Compatible daltoniens (Color Vision Deficiency) : palette graphique accessible |
 | **vegan** | Package R (_Vegetation Ecology And other Nature data Group Analysis_) : outils d'analyse en écologie des communautés — ordinations (CA/AFC, PCA, NMDS), indices de diversité, tests de permutation, etc. Dans ce projet, utilisé pour l'ordination CA/AFC entre placettes et espèces |
+
+---
+
+## Références
+
+*   Cours 24 Inventaires (diapositives N° 25-48 du ) - DU Mycologie 2026 du Professeur Pierre-Arthur Moreau, Université de Lille (UFR3S PHAR)
+*   Méthodes et définitions utilisées dans ce document (TEE, complétude, CA/AFC, cohérence tempo-spatiale) s’appuient sur les principes standards de l’écologie des communautés et de l’analyse multivariée sous R, en particulier via les packages **vegan**, **dplyr** et **ggplot2**. Pour un cadre théorique détaillé, se référer à la documentation officielle de ces packages ainsi qu’aux ouvrages de référence en ordination écologique.
 
 ---
 
