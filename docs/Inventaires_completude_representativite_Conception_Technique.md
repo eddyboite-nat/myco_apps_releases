@@ -7,8 +7,8 @@
 **Projet** : Projet hôte / Inventaires fongiques  
 **Auteur** : Eddy Boite  
 **Version script** : 1.4 (selon en-tête du script)  
-**Date doc** : 30 Mars 2026  
-**Type de document** : Spécification technique (alignée code source)
+**Date doc** : Mars 2026  
+**Type de document** : Spécification technique
 
 ---
 

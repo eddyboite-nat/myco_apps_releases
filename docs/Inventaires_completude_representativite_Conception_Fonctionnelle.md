@@ -7,13 +7,15 @@
 
 Pipeline R pour automatiser l’analyse de la **complétude d’inventaires fongiques** et de leur **représentativité** (Taux d’Espèces Exceptionnelles, **TEE** / Indice de représentativité, **Ir**), avec sorties tabulaires et graphiques prêtes à exploiter.
 
-**Auteur :** Eddy Boite  
-**Projet :** `myco_apps_releases` (portable)  
-**Dernière mise à jour :** 22 Mars 2026
+**Projet** : Projet hôte / Inventaires fongiques  
+**Auteur** : Eddy Boite  
+**Version script** : 1.4 (selon en-tête du script)  
+**Date doc** : 22 Mars 2026  
+**Type de document** : Spécification fonctionnelle
 
 ---
 
-## À Propos
+## 📖 À Propos
 
 Ce document décrit l’utilisation du script :
 
@@ -28,7 +30,7 @@ Le script produit automatiquement, par site :
 5.  Indice de représentativité $Ir = 1 - TEE$
 6.  Fréquence des espèces par visite
 7.  Occupation spatiale (si `placette` disponible)
-8.  Analyse Factorielle des Correspondances (**AFC**, aussi appelée Correspondence Analysis, **CA**)
+8.  Analyse Factorielle des Correspondances (**AFC**, aussi appelée Correspondence Analysis, **CA**) simple (si package `vegan` disponible)
 9.  **Métriques de pertinence scientifique** : stabilité, robustesse, cohérence spatiotemporelle et score agrégé, avec visualisations dédiées
 
 En fin d'exécution, un **manifeste automatique** journalise l'état de chaque fichier attendu (OK / MANQUANT / OPTIONNEL\_NON\_GENERE).
@@ -45,6 +47,7 @@ En fin d'exécution, un **manifeste automatique** journalise l'état de chaque f
 *   [Configuration](#-configuration)
 *   [Interprétation des indicateurs](#-interpr%C3%A9tation-des-indicateurs)
 *   [Glossaire](#-glossaire)
+*   [Références](#r%C3%A9f%C3%A9rences)
 *   [Dépannage (Foire Aux Questions, FAQ)](#-d%C3%A9pannage-faq)
 
 ---
@@ -57,7 +60,6 @@ Le script s'inscrit dans un projet R standard dont voici une structure type :
 <nom_du_projet>/
 ├── data/
 │   ├── observations.csv                 # Données d'entrée ICR (à personnaliser)
-│   └── mais.txt
 ├── docs/
 │   ├── Readme_Analyse_Inventaires_Fongiques.md
 │   ├── rapport_inventaires_fongiques.qmd          # Rapport Quarto
@@ -647,7 +649,7 @@ Nécessite :
 
 ---
 
-## Glossaire
+## 🧾 Glossaire
 
 | Acronyme | Définition |
 | --- | --- |
@@ -656,21 +658,26 @@ Nécessite :
 | **Robustesse** | Qualité d'ajustement du modèle d'asymptote : $R^2$ hyperbolique ou linéaire selon disponibilité. |
 | **Cohérence** | Corrélation Spearman entre fréquences temporelles et spatiales, normalisée en \[0,1\]. |
 | **Score pertinence** | Indicateur agrégé pondéré : $0.35 \\times Ir + 0.35 \\times \\text{complétude} + 0.20 \\times \\text{stabilité} + 0.10 \\times R^2$. |
+| **AFC** | **Analyse Factorielle des Correspondances** : méthode d’ordination exploratoire pour analyser les associations entre catégories (ex. espèces et placettes). |
 | **CA** | **Correspondence Analysis** : terme anglophone de l’AFC. |
-| **CSV** | **Comma-Separated Values** : format texte tabulaire avec champs séparés par des virgules. |
 | **TSV** | **Tab-Separated Values** : format texte tabulaire avec champs séparés par des tabulations. |
 | **FAQ** | **Foire Aux Questions** : section de réponses aux problèmes fréquents. |
 | **R** | Langage et environnement de calcul statistique utilisé pour ce pipeline. |
 
 ---
 
-## Contact
+## Références
 
-**Auteur :** Eddy Boite  
-Pour les évolutions du script, ouvrir une issue ou documenter les changements.
+*   Cours 24 Inventaires (diapositives N° 25-48 du ) - DU Mycologie 2026 du Professeur Pierre-Arthur Moreau, Université de Lille (UFR3S PHAR)
+*   Méthodes et définitions utilisées dans ce document (TEE, complétude, CA/AFC, cohérence tempo-spatiale) s’appuient sur les principes standards de l’écologie des communautés et de l’analyse multivariée sous R, en particulier via les packages **vegan**, **dplyr** et **ggplot2**. Pour un cadre théorique détaillé, se référer à la documentation officielle de ces packages ainsi qu’aux ouvrages de référence en ordination écologique.
 
 ---
 
-_Document basé sur le modèle éditorial du README du projet FongiFrance (version adaptée au script d’inventaires)._
+## Contact
+
+**Auteur :** Eddy Boite  
+Pour les évolutions du script, ouvrir une issue ou documenter les changements dans votre projet hôte.
+
+---
 
 _Dernière mise à jour : 30 Mars 2026_

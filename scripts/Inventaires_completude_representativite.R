@@ -3,6 +3,7 @@
 # Script : inventaires_completude_representativite.R
 # Objet  : Automatiser les analyses d'inventaires fongiques
 #          Inspirées des diapositives N° 25-48 du cours 24 Inventaires - DU Mycologie 2026 du Professeur Pierre-Arthur Moreau
+#          Université de Lille (UFR3S PHAR)
 #
 # Analyses produites :
 #   1) Courbe temps-espèces
