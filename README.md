@@ -31,7 +31,7 @@ Chaque application est autonome : données d'exemple, script principal et docume
     *   [Dépannage (FAQ)](#-d%C3%A9pannage-faq)
     *   [Historique des versions](#-historique-des-versions)
     *   [Glossaire](#-glossaire)
-    *   [Références](#-Références)
+    *   [Références](#-R%C3%A9f%C3%A9rences)
 
 ---
 
