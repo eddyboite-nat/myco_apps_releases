@@ -27,7 +27,7 @@
 
 \title{Conception Technique\\
 \large Evaluation\_Potentiel\_Fongique\_Interets\_Patrimoniaux\_CHEGD}
-\author{FongiFrance}
+\author{Statistics}
 \date{\today}
 
 \begin{document}
@@ -70,7 +70,7 @@ La configuration est intégrée via \texttt{get\_embedded\_config()} :
 input_file    = data/donnees_recoltes_chegd_pelouses.csv
 input_sheet   = NULL
 output_dir    = results
-output_prefix = eval_pelouses
+output_prefix = EPFIP_CHEGD
 columns       = {species, family, date, count, site, reliability}
 \end{lstlisting}
 
@@ -94,10 +94,10 @@ Colonnes obligatoires : espèce, famille, date, effectif, site, fiabilité.
 
 \subsection{Sorties}
 \begin{itemize}[leftmargin=1.2cm]
-  \item Répertoire horodaté :
-  \texttt{results/eval\_pelouses\_YYYYMMDD\_HHMMSS/}
+  \item Répertoire fixe :
+  \texttt{results/EPFIP\_CHEGD/}
   \item Logs :
-  \texttt{logs/eval\_pelouses\_YYYYMMDD\_HHMM.log}
+  \texttt{logs/EPFIP\_CHEGD\_YYYYMMDD\_HHMM.log}
   \item CSV de synthèse : résumés, indicateurs, QA, objectifs fiabilité
   \item Figures PNG/PDF : \texttt{fig1} à \texttt{fig7} + figures objectives.
 \end{itemize}

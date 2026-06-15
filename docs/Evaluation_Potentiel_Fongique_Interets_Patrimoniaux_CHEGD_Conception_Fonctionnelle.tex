@@ -18,7 +18,7 @@
 
 \title{Conception Fonctionnelle\\
 \large Evaluation\_Potentiel\_Fongique\_Interets\_Patrimoniaux\_CHEGD}
-\author{Projet FongiFrance}
+\author{Projet Statistics}
 \date{\today}
 
 \begin{document}
@@ -75,7 +75,7 @@ La configuration est \textbf{embarquée dans le script} via
 \texttt{input\_file} & \texttt{data/données\_récoltes\_chegd\_pelouses.csv} \\
 \texttt{input\_sheet} & \texttt{NULL} \\
 \texttt{output\_dir} & \texttt{results} \\
-\texttt{output\_prefix} & \texttt{eval\_pelouses} \\
+\texttt{output\_prefix} & \texttt{EPFIP\_CHEGD} \\
 \texttt{columns} & Mapping métier : espèce, famille, date, effectif, site, fiabilité \\
 \bottomrule
 \end{longtable}
@@ -181,7 +181,7 @@ avec \(nombre\_total = chegd\_total\) au niveau du site.
 \subsection{Répertoire résultats}
 Les sorties sont générées dans :
 \begin{quote}
-\texttt{results/eval\_pelouses\_YYYYMMDD\_HHMMSS/}
+\texttt{results/EPFIP\_CHEGD/}
 \end{quote}
 
 \subsection{Exports principaux}
@@ -203,7 +203,7 @@ Le script journalise :
 
 \subsection{Emplacement et format}
 \begin{quote}
-\texttt{logs/eval\_pelouses\_YYYYMMDD\_HHMM.log}
+\texttt{logs/EPFIP\_CHEGD\_YYYYMMDD\_HHMM.log}
 \end{quote}
 
 Le log contient un en-tête d'exécution, les étapes essentielles, warnings/erreurs,
