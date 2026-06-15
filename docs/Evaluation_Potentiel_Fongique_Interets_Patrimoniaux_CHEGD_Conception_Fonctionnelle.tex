@@ -1,0 +1,244 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[provide=*,french]{babel}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{enumitem}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=blue,
+  pdftitle={Conception fonctionnelle - Evaluation Potentiel Fongique CHEGD}
+}
+
+\title{Conception Fonctionnelle\\
+\large Evaluation\_Potentiel\_Fongique\_Interets\_Patrimoniaux\_CHEGD}
+\author{Projet FongiFrance}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\tableofcontents
+\newpage
+
+\section{Objet du document}
+Ce document décrit la conception fonctionnelle du script
+\texttt{Evaluation\_Potentiel\_Fongique\_Interets\_Patrimoniaux\_CHEGD.R}.
+Il précise les objectifs métier, les entrées/sorties, les règles de calcul,
+les traitements réalisés, ainsi que les mécanismes de contrôle et de traçabilité.
+
+\section{Contexte et finalité}
+Le script a pour finalité d'évaluer des pelouses à partir d'observations mycologiques,
+selon trois axes principaux :
+\begin{itemize}[leftmargin=1.2cm]
+  \item \textbf{Potentiel fongique},
+  \item \textbf{Intérêt patrimonial},
+  \item \textbf{Gradient CHEGD et indice de représentativité (IR)}.
+\end{itemize}
+Il ajoute un module d'analyse de la \textbf{fiabilité de détermination}
+(objectifs 1 à 4), et produit des exports exploitables pour l'analyse et l'aide à la décision.
+
+\section{Périmètre fonctionnel}
+\subsection{Fonctions couvertes}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Lecture de données d'observations (CSV/XLSX).
+  \item Nettoyage et normalisation des variables clés.
+  \item Calcul d'indicateurs de synthèse par site.
+  \item Génération de figures de restitution.
+  \item Analyse multi-objectifs de la fiabilité de détermination.
+  \item Export de résultats tabulaires et graphiques.
+  \item Journalisation (console + fichier log).
+\end{itemize}
+
+\subsection{Hors périmètre}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Saisie interactive utilisateur.
+  \item Persistance en base de données.
+  \item API web ou service temps réel.
+\end{itemize}
+
+\section{Configuration}
+La configuration est \textbf{embarquée dans le script} via
+\texttt{get\_embedded\_config()}.
+
+\subsection{Paramètres par défaut}
+\begin{longtable}{p{0.33\textwidth}p{0.6\textwidth}}
+\toprule
+\textbf{Paramètre} & \textbf{Valeur par défaut} \\
+\midrule
+\texttt{input\_file} & \texttt{data/données\_récoltes\_chegd\_pelouses.csv} \\
+\texttt{input\_sheet} & \texttt{NULL} \\
+\texttt{output\_dir} & \texttt{results} \\
+\texttt{output\_prefix} & \texttt{eval\_pelouses} \\
+\texttt{columns} & Mapping métier : espèce, famille, date, effectif, site, fiabilité \\
+\bottomrule
+\end{longtable}
+
+\section{Données d'entrée}
+\subsection{Formats supportés}
+\begin{itemize}[leftmargin=1.2cm]
+  \item \texttt{.csv} (détection automatique du séparateur),
+  \item \texttt{.xlsx} (avec/sans feuille explicitée).
+\end{itemize}
+
+\subsection{Colonnes métier requises}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Espèces
+  \item Famille
+  \item Date
+  \item Nombre d'espèces
+  \item Site
+  \item Fiabilité détermination
+\end{itemize}
+
+\subsection{Contrôles d'entrée}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Vérification de présence des colonnes obligatoires.
+  \item Conversion robuste des dates et numériques.
+  \item Suppression des colonnes techniques parasites (ex. \texttt{...14}).
+\end{itemize}
+
+\section{Chaîne de traitement fonctionnelle}
+\subsection{Étape 1 --- Lecture et préparation}
+\begin{enumerate}[leftmargin=1.2cm]
+  \item Résolution du fichier d'entrée (nom exact, normalisé, ou proche).
+  \item Chargement des données.
+  \item Nettoyage de structure et conversions de type.
+\end{enumerate}
+
+\subsection{Étape 2 --- Résumés descriptifs}
+Production de synthèses globales :
+\begin{itemize}[leftmargin=1.2cm]
+  \item par site,
+  \item par famille,
+  \item par espèce,
+  \item par date,
+  \item par niveau de fiabilité.
+\end{itemize}
+
+\subsection{Étape 3 --- Indicateurs par site}
+Le script calcule :
+\begin{itemize}[leftmargin=1.2cm]
+  \item score et classe de \textbf{potentiel fongique},
+  \item indice et classe d'\textbf{intérêt patrimonial},
+  \item \textbf{gradient CHEGD} par visite, total et moyen,
+  \item \textbf{indice de représentativité (IR)} par visite et moyen.
+\end{itemize}
+
+\subsection{Étape 4 --- Alignement de référence (optionnel)}
+Si un classeur de référence est détecté (feuilles attendues :
+\texttt{Visites sur sites}, \texttt{Analyse des résultats}, \texttt{Intérêt patrimonial}, \texttt{Évaluation CHEGD pelouses}),
+les sorties sont alignées sur les valeurs de référence pour reproduire
+les résultats métier attendus.
+
+\subsection{Étape 5 --- Module fiabilité (Objectifs 1 à 4)}
+\begin{itemize}[leftmargin=1.2cm]
+  \item \textbf{Objectif 1} : distribution descriptive des niveaux de fiabilité.
+  \item \textbf{Objectif 2} : comparaison de schémas de pondération (corrélation de rang + overlap top 5).
+  \item \textbf{Objectif 3} : sélection de modèles prédictifs (CV 5 folds ; ordinal/multinomial/baseline).
+  \item \textbf{Objectif 4} : test d'inférence site $\times$ fiabilité (Chi$^2$ ou Fisher, avec fallback simulé).
+\end{itemize}
+
+\subsection{Étape 6 --- Restitution}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Exports CSV de synthèse et de détail.
+  \item Génération de figures (PNG/PDF).
+  \item Écriture d'un résumé de sélection des meilleurs candidats pour les objectifs fiabilité.
+\end{itemize}
+
+\section{Règles métier principales}
+\subsection{Potentiel fongique}
+Le score est calculé par pondération de groupes/taxons clés.
+La classe est affectée selon :
+\begin{itemize}[leftmargin=1.2cm]
+  \item \textbf{faible} si score $\leq 10$,
+  \item \textbf{intéressant} si $10 < score < 30$,
+  \item \textbf{élevé} si score $\geq 30$.
+\end{itemize}
+
+\subsection{Intérêt patrimonial}
+L'indice est basé sur le maximum des composantes CHEGD (groupes C/H/E/G/D),
+puis traduit en classe d'intérêt (faible, local, régional, national, international).
+
+\subsection{Gradient CHEGD}
+Le gradient est calculé par visite puis agrégé en total et moyenne.
+Un contrôle de cohérence est produit entre gradients détaillés et total.
+
+\subsection{Indice de représentativité (IR)}
+L'IR est calculé pour chaque visite selon le modèle du classeur Excel :
+\[
+IR_{visite}=\max\left(0,1-\frac{gradient\_visite}{nombre\_total}\right)
+\]
+avec \(nombre\_total = chegd\_total\) au niveau du site.
+
+\section{Sorties fonctionnelles}
+\subsection{Répertoire résultats}
+Les sorties sont générées dans :
+\begin{quote}
+\texttt{results/eval\_pelouses\_YYYYMMDD\_HHMMSS/}
+\end{quote}
+
+\subsection{Exports principaux}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Données nettoyées : \texttt{donnees\_brutes\_nettoyees.csv}
+  \item Résumés : \texttt{resume\_global.csv}, \texttt{resume\_par\_site.csv}, etc.
+  \item Indicateurs site : \texttt{potentiel\_fongique\_par\_site.csv}, \texttt{indice\_patrimonial\_par\_site.csv}, \texttt{gradient\_chegd\_par\_site.csv}, \texttt{indice\_representativite\_ir\_par\_site.csv}
+  \item Fiabilité : fichiers \texttt{stat\_obj1\_...}, \texttt{stat\_obj2\_...}, \texttt{obj3\_...}/\texttt{stat\_obj3\_...}, \texttt{stat\_obj4\_...} et \texttt{stat\_model\_selection\_summary.csv}
+  \item Figures : \texttt{fig1\_...} à \texttt{fig7\_...} + figures objectives.
+\end{itemize}
+
+\section{Journalisation et traçabilité}
+\subsection{Principe}
+Le script journalise :
+\begin{itemize}[leftmargin=1.2cm]
+  \item en console,
+  \item dans un fichier log dédié.
+\end{itemize}
+
+\subsection{Emplacement et format}
+\begin{quote}
+\texttt{logs/eval\_pelouses\_YYYYMMDD\_HHMM.log}
+\end{quote}
+
+Le log contient un en-tête d'exécution, les étapes essentielles, warnings/erreurs,
+et un pied de page avec durée totale et chemin du log.
+
+\section{Gestion des erreurs}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Validation stricte des colonnes d'entrée.
+  \item Arrêt explicite en cas d'incohérence bloquante.
+  \item Encapsulation de l'exécution principale dans \texttt{tryCatch} avec journalisation d'erreur.
+\end{itemize}
+
+\section{Contrôles qualité}
+Le script produit des indicateurs QA, dont :
+\begin{itemize}[leftmargin=1.2cm]
+  \item \texttt{coherence\_chegd\_gradients\_ok}
+  \item \texttt{nb\_sites\_incoherents\_chegd}
+  \item \texttt{ir\_moyen\_global}
+\end{itemize}
+Ces éléments permettent un suivi de non-régression sur les calculs CHEGD.
+
+\section{Hypothèses et limites}
+\begin{itemize}[leftmargin=1.2cm]
+  \item La qualité des résultats dépend de la qualité des colonnes d'entrée.
+  \item Les valeurs de référence (si présentes) peuvent surcharger les calculs locaux (mode fidélité).
+  \item Les performances des modèles de fiabilité dépendent de la taille et de l'équilibre des classes.
+\end{itemize}
+
+\section{Critères d'acceptation fonctionnelle}
+Le script est considéré conforme si :
+\begin{enumerate}[leftmargin=1.2cm]
+  \item il s'exécute sans erreur sur le jeu de données cible,
+  \item il génère les CSV et figures attendus,
+  \item il produit un log horodaté complet,
+  \item les indicateurs QA sont présents dans \texttt{resume\_global.csv}.
+\end{enumerate}
+
+\end{document}
