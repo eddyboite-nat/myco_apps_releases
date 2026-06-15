@@ -16,7 +16,7 @@
 #   - Classeur de référence optionnel (détecté automatiquement)
 #
 # Sorties :
-#   - Répertoire horodaté dans cfg$output_dir contenant les CSV de synthèse.
+#   - Répertoire fixe dans cfg$output_dir contenant les CSV de synthèse.
 #
 # ================================================================================
 
@@ -67,8 +67,8 @@ library(nnet)
 .log_env$log_file <- NULL
 .log_env$start_time <- NULL
 
-# Initialise le logging avec un fichier log horodaté dans le répertoire de sortie.
-setup_logging <- function(base_dir, prefix = "eval_pelouses") {
+# Initialise le logging avec un fichier log horodaté à la racine du projet.
+setup_logging <- function(base_dir, prefix = "EPFIP_CHEGD") {
   timestamp <- format(Sys.time(), "%Y%m%d_%H%M")
   logs_dir <- file.path(base_dir, "logs")
   dir.create(logs_dir, recursive = TRUE, showWarnings = FALSE)
@@ -154,7 +154,7 @@ get_embedded_config <- function() {
     input_file = "data/données_récoltes_chegd_pelouses.csv",
     input_sheet = NULL,
     output_dir = "results",
-    output_prefix = "eval_pelouses",
+    output_prefix = "EPFIP_CHEGD",
     columns = list(
       species = "Espèces",
       family = "Famille",
@@ -760,10 +760,9 @@ read_reference_site_metrics <- function(reference_workbook, site_ref) {
 # Calculs métier et agrégations
 # -----------------------------------------------------------------------------
 
-# Crée un dossier de sortie horodaté.
+# Crée (ou réutilise) un dossier de sortie sans horodatage.
 build_output_dir <- function(base_dir, prefix) {
-  timestamp <- format(Sys.time(), "%Y%m%d_%H%M%S")
-  out_dir <- file.path(base_dir, paste0(prefix, "_", timestamp))
+  out_dir <- file.path(base_dir, prefix)
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
   out_dir
 }
