@@ -1,0 +1,87 @@
+──────────────────────────────────────────────────────────────────────────────── 
+  Évaluation du potentiel fongique, de l'intérêt patrimonial et du gradient CHEGD 
+──────────────────────────────────────────────────────────────────────────────── 
+Horodatage : 2026-06-15 22:31:48 
+Version de R : R version 4.5.2 (2025-10-31) 
+Répertoire de travail : /Users/eddyboite/GitHub 
+Configuration: Configuration intégrée (get_embedded_config) 
+Fichier d'entrée : /Users/eddyboite/GitHub/myco_apps_releases/data/données_récoltes_chegd_pelouses.csv 
+[22:31:48] Fichier d'entrée résolu : /Users/eddyboite/GitHub/myco_apps_releases/data/données_récoltes_chegd_pelouses.csv 
+[22:31:48] Répertoire de sortie : /Users/eddyboite/GitHub/myco_apps_releases/results/EPFIP_CHEGD 
+[22:31:48] Format CSV détecté, le paramètre de feuille est ignoré 
+──────────────────────────────────────────────────────────────────────────────── 
+  LECTURE ET TRAITEMENT DES DONNÉES D'ENTRÉE 
+──────────────────────────────────────────────────────────────────────────────── 
+──────────────────────────────────────────────────────────────────────────────── 
+  RÉSUMÉ DES DONNÉES 
+──────────────────────────────────────────────────────────────────────────────── 
+[22:31:48] Nombre total d'observations : 75 
+[22:31:48] Nombre d'espèces uniques : 44 
+[22:31:48] Nombre de sites uniques : 13 
+[22:31:48] Nombre de dates uniques : 7 
+[WARN] 9 observation(s) sans niveau de fiabilité (12 %) 
+──────────────────────────────────────────────────────────────────────────────── 
+  CONSTRUCTION DES MÉTRIQUES PAR SITE 
+──────────────────────────────────────────────────────────────────────────────── 
+[22:31:48] Répertoire de sortie : /Users/eddyboite/GitHub/myco_apps_releases/results/EPFIP_CHEGD 
+[22:31:48] Résumés descriptifs calculés 
+[22:31:48] Métriques par site calculées 
+──────────────────────────────────────────────────────────────────────────────── 
+  GÉNÉRATION DES FIGURES 
+──────────────────────────────────────────────────────────────────────────────── 
+[22:31:49] Figure 1 : tableau de bord des sites terminé 
+[22:31:49] Figure 2 : positionnement écologique terminé 
+[22:31:50] Figure 3 : décomposition du potentiel terminée 
+[22:31:50] Figure 4 : CHEGD par visite terminé 
+[22:31:50] Figure 5 : carte thermique des classes terminée 
+[22:31:50] Figure 6 : distribution des niveaux de fiabilité terminée 
+[22:31:50] Figure 7 : indice de représentativité (IR) terminé 
+──────────────────────────────────────────────────────────────────────────────── 
+  OBJECTIFS DE FIABILITÉ (1-4) 
+──────────────────────────────────────────────────────────────────────────────── 
+[22:31:52] Objectifs de fiabilité terminés - Meilleurs candidats : 
+[22:31:52]   - Objectif1_Descriptif: Descriptif 
+[22:31:52]   - Objectif2_Ponderation: S1 
+[22:31:52]   - Objectif3_Modeles: baseline_majority 
+[22:31:52]   - Objectif4_Inference: Fisher_simule 
+──────────────────────────────────────────────────────────────────────────────── 
+  EXPORT DES RÉSULTATS 
+──────────────────────────────────────────────────────────────────────────────── 
+[22:31:52] Tous les fichiers CSV ont été exportés 
+──────────────────────────────────────────────────────────────────────────────── 
+  RÉCAPITULATIF DES FICHIERS DE SORTIE 
+──────────────────────────────────────────────────────────────────────────────── 
+[22:31:52] Fichiers CSV : 
+[22:31:52]   - donnees_brutes_nettoyees.csv 
+[22:31:52]   - resume_global.csv 
+[22:31:52]   - resume_par_site.csv 
+[22:31:52]   - resume_par_famille.csv 
+[22:31:52]   - resume_par_espece.csv 
+[22:31:52]   - resume_par_date.csv 
+[22:31:52]   - resume_fiabilite_determination.csv 
+[22:31:52]   - niveaux_fiabilite_rencontres.csv 
+[22:31:52]   - potentiel_fongique_par_site.csv 
+[22:31:52]   - indice_patrimonial_par_site.csv 
+[22:31:52]   - gradient_chegd_par_site.csv 
+[22:31:52]   - indice_representativite_ir_par_site.csv 
+[22:31:52]   - synthese_evaluation_par_site.csv 
+[22:31:52] Figures : 
+[22:31:52]   - fig1_tableau_de_bord_pelouses.png / .pdf 
+[22:31:52]   - fig2_positionnement_ecologique.png / .pdf 
+[22:31:52]   - fig3_composition_potentiel.png / .pdf 
+[22:31:52]   - fig4_chegd_par_visite.png / .pdf 
+[22:31:52]   - fig5_heatmap_classes.png / .pdf 
+[22:31:52]   - fig6_niveaux_fiabilite.png / .pdf 
+[22:31:52]   - fig7_indice_representativite_ir.png / .pdf 
+[22:31:52] Objectifs de fiabilité : 
+[22:31:52]   - stat_obj1_reliability_distribution.csv + fig 
+[22:31:52]   - stat_obj2_weighting_candidates.csv + stat_obj2_best_weighting.csv + fig 
+[22:31:52]   - stat_obj3_model_metrics.csv + stat_confusion_matrix.csv + stat_coefficients.csv + figs 
+[22:31:52]   - stat_obj4_inference_tests.csv + fig 
+[22:31:52]   - stat_model_selection_summary.csv 
+──────────────────────────────────────────────────────────────────────────────── 
+  EXÉCUTION TERMINÉE 
+──────────────────────────────────────────────────────────────────────────────── 
+Durée totale d'exécution : 4.21 secondes 
+Heure de fin : 2026-06-15 22:31:52 
+Fichier log : /Users/eddyboite/GitHub/myco_apps_releases/logs/EPFIP_CHEGD_20260615_2231.log 

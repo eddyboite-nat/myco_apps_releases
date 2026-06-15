@@ -8,7 +8,7 @@ Dépôt de publication des scripts R prêts à l'emploi issus des projets de myc
 Chaque application est autonome : données d'exemple, script principal et documentation inclus.
 
 **Auteur :** Eddy Boite  
-**Dernière mise à jour :** 30 Mars 2026
+**Dernière mise à jour :** 15 Juin 2026
 
 ---
 
@@ -16,6 +16,7 @@ Chaque application est autonome : données d'exemple, script principal et docume
 
 *   [Applications disponibles](#-applications-disponibles)
 *   [Structure du dépôt](#-structure-du-d%C3%A9p%C3%B4t)
+*   [Évaluation du potentiel fongique, de l'intérêt patrimonial et du gradient CHEGD](#-evaluation-du-potentiel-fongique-de-lint%C3%A9r%C3%AAt-patrimonial-et-du-gradient-chegd)
 *   [Inventaires fongiques – Complétude & Représentativité](#-inventaires-fongiques--compl%C3%A9tude--repr%C3%A9sentativit%C3%A9)
     *   [Prérequis système](#-pr%C3%A9requis-syst%C3%A8me-complets)
     *   [Quick Start](#-quick-start)
@@ -40,6 +41,7 @@ Chaque application est autonome : données d'exemple, script principal et docume
 | # | Application | Script | Version | Domaine |
 | --- | --- | --- | --- | --- |
 | 1 | [Inventaires fongiques – Complétude & Représentativité](#-inventaires-fongiques--compl%C3%A9tude--repr%C3%A9sentativit%C3%A9) | `scripts/Inventaires_completude_representativite.R` | v1.4 | Mycologie / Écologie |
+| 2 | [Évaluation du potentiel fongique, de l'intérêt patrimonial et du gradient CHEGD](#-evaluation-du-potentiel-fongique-de-lint%C3%A9r%C3%AAt-patrimonial-et-du-gradient-chegd) | `scripts/Evaluation_Potentiel_Fongique_Interets_Patrimoniaux_CHEGD.R` | v1.0 | Mycologie / Patrimonialité |
 
 ---
 
@@ -51,14 +53,94 @@ myco_apps_releases/
 │   └── observations.csv                  # Données d'exemple (prêtes à utiliser)
 ├── docs/
 │   ├── Readme_Analyse_Inventaires_Fongiques.md            # Documentation détaillée (ICR)
-│   └── Inventaires_completude_representativite_Conception_Technique.md
+│   ├── Inventaires_completude_representativite_Conception_Technique.md
+│   ├── Evaluation_Potentiel_Fongique_Interets_Patrimoniaux_CHEGD_Conception_Fonctionnelle.tex
+│   └── Evaluation_Potentiel_Fongique_Interets_Patrimoniaux_CHEGD_Conception_technique.tex
 ├── logs/                                 # Journaux d'exécution
 ├── results/
-│   └── ICR/                             # Dossier de sortie (créé automatiquement)
+│   ├── ICR/                             # Dossier de sortie (créé automatiquement)
+│   └── EPFIP_CHEGD/                     # Sorties de l'évaluation CHEGD
 ├── scripts/
-│   └── Inventaires_completude_representativite.R          # Script principal (v1.4)
+│   ├── Inventaires_completude_representativite.R          # Script principal (v1.4)
+│   └── Evaluation_Potentiel_Fongique_Interets_Patrimoniaux_CHEGD.R
 └── README.md                             # Ce fichier
 ```
+
+---
+
+## Évaluation du potentiel fongique, de l'intérêt patrimonial et du gradient CHEGD
+
+Pipeline R dédié à l'évaluation multi-critères des pelouses sur trois axes :
+
+*   **Potentiel fongique** (score et classe),
+*   **Intérêt patrimonial** (indice et classe),
+*   **Gradient CHEGD** et **indice de représentativité (IR)**.
+
+Le script intègre également un module de **fiabilité de détermination** (objectifs 1 à 4),
+avec export des statistiques, figures et synthèses de sélection de modèles.
+
+**Script principal :** `scripts/Evaluation_Potentiel_Fongique_Interets_Patrimoniaux_CHEGD.R`
+
+**Conceptions associées :**
+
+*   `docs/Evaluation_Potentiel_Fongique_Interets_Patrimoniaux_CHEGD_Conception_Fonctionnelle.tex`
+*   `docs/Evaluation_Potentiel_Fongique_Interets_Patrimoniaux_CHEGD_Conception_technique.tex`
+
+### Entrées attendues
+
+Le script supporte :
+
+*   `CSV` (séparateur auto-détecté)
+*   `XLSX` (avec ou sans feuille explicitée)
+
+Colonnes métier attendues (configurables dans `get_embedded_config()`) :
+
+*   `Espèces`
+*   `Famille`
+*   `Date`
+*   `Nombre d'espèce`
+*   `Site`
+*   `Fiabilité détermination`
+
+Par défaut, le fichier d'entrée est :
+
+*   `data/données_récoltes_chegd_pelouses.csv`
+
+### Lancer l'analyse CHEGD
+
+En ligne de commande, depuis la racine du dépôt :
+
+`Rscript scripts/Evaluation_Potentiel_Fongique_Interets_Patrimoniaux_CHEGD.R`
+
+### Sorties principales
+
+Les résultats sont exportés dans :
+
+*   `results/EPFIP_CHEGD/`
+
+Fichiers de sortie majeurs :
+
+*   `resume_global.csv`
+*   `resume_par_site.csv`
+*   `potentiel_fongique_par_site.csv`
+*   `indice_patrimonial_par_site.csv`
+*   `gradient_chegd_par_site.csv`
+*   `indice_representativite_ir_par_site.csv`
+*   `synthese_evaluation_par_site.csv`
+
+Figures générées :
+
+*   `fig1_tableau_de_bord_pelouses` (PNG/PDF)
+*   `fig2_positionnement_ecologique` (PNG/PDF)
+*   `fig3_composition_potentiel` (PNG/PDF)
+*   `fig4_chegd_par_visite` (PNG/PDF)
+*   `fig5_heatmap_classes` (PNG/PDF)
+*   `fig6_niveaux_fiabilite` (PNG/PDF)
+*   `fig7_indice_representativite_ir` (PNG/PDF)
+
+Le journal d'exécution est écrit dans :
+
+*   `logs/EPFIP_CHEGD_YYYYMMDD_HHMM.log`
 
 ---
 
