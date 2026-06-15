@@ -13,23 +13,46 @@
   colorlinks=true,
   linkcolor=blue,
   urlcolor=blue,
-  pdftitle={Conception fonctionnelle - Evaluation Potentiel Fongique CHEGD}
+  pdftitle={Conception fonctionnel - Evaluation Potentiel Fongique CHEGD}
 }
 
 \title{Conception Fonctionnelle\\
 \large Evaluation\_Potentiel\_Fongique\_Interets\_Patrimoniaux\_CHEGD}
-\author{Projet Statistics}
+\author{Boite Eddy}
 \date{\today}
 
 \begin{document}
 \maketitle
 
+\begin{abstract}
+Ce document formalise la conception fonctionnelle d'un dispositif d'évaluation
+du potentiel fongique et des intérêts patrimoniaux de pelouses, fondé sur des observations mycologiques.
+La démarche adopte une logique d'ingénierie des exigences : définition du périmètre,
+spécification des règles de décision, explicitation des hypothèses et encadrement de la traçabilité.
+L'objectif est de garantir une interprétation homogène des résultats et une reproductibilité
+des arbitrages entre sites dans un contexte d'aide à la décision environnementale.
+\end{abstract}
+
 \tableofcontents
 \newpage
 
+\section{Problématique et questions directrices}
+La variabilité des observations de terrain, la diversité des contextes écologiques
+et l'hétérogénéité des niveaux de détermination taxonomique rendent nécessaire
+un cadre d'évaluation explicite et reproductible.
+
+Le présent document répond aux questions directrices suivantes :
+\begin{itemize}[leftmargin=1.2cm]
+  \item Comment produire une mesure \textit{comparative} du potentiel fongique entre sites ?
+  \item Comment traduire les composantes CHEGD en niveau d'intérêt patrimonial intelligible ?
+  \item Comment intégrer la fiabilité de détermination sans dégrader l'interprétabilité métier ?
+  \item Comment garantir la traçabilité des résultats pour un usage expert et institutionnel ?
+\end{itemize}
+
 \section{Objet du document}
 Ce document décrit la conception fonctionnelle du script
-\texttt{Evaluation\_Potentiel\_Fongique\_Interets\_Patrimoniaux\_CHEGD.R}.
+\texttt{Evaluation\_Potentiel\_Fongique\_Interets
+\_Patrimoniaux\_CHEGD.R}.
 Il précise les objectifs métier, les entrées/sorties, les règles de calcul,
 les traitements réalisés, ainsi que les mécanismes de contrôle et de traçabilité.
 
@@ -41,8 +64,35 @@ selon trois axes principaux :
   \item \textbf{Intérêt patrimonial},
   \item \textbf{Gradient CHEGD et indice de représentativité (IR)}.
 \end{itemize}
+
+\section{Cadre conceptuel}
+La conception repose sur trois principes conceptuels :
+\begin{enumerate}[leftmargin=1.2cm]
+  \item \textbf{Principe d'agrégation raisonnée} : les observations élémentaires
+  sont agrégées en indicateurs de site afin de soutenir la comparaison inter-sites.
+  \item \textbf{Principe de hiérarchisation explicite} : les classes (potentiel,
+  intérêt patrimonial) sont définies par des règles explicites et auditables.
+  \item \textbf{Principe d'incertitude intégrée} : la fiabilité de détermination
+  est traitée comme une dimension analytique à part entière.
+\end{enumerate}
 Il ajoute un module d'analyse de la \textbf{fiabilité de détermination}
 (objectifs 1 à 4), et produit des exports exploitables pour l'analyse et l'aide à la décision.
+
+\subsection{Parties prenantes et attentes}
+\begin{itemize}[leftmargin=1.2cm]
+  \item \textbf{Écologues et mycologues de terrain} : obtenir une lecture fiable du potentiel des sites et de leur intérêt patrimonial.
+  \item \textbf{Coordinateurs d'étude} : comparer les sites entre eux, prioriser les actions de prospection et de conservation.
+  \item \textbf{Décideurs (gestionnaires/collectivités)} : disposer d'indicateurs synthétiques, traçables et compréhensibles.
+  \item \textbf{Équipe data/statistiques} : garantir reproductibilité, robustesse et non-régression des résultats.
+\end{itemize}
+
+\subsection{Bénéfices attendus}
+\begin{itemize}[leftmargin=1.2cm]
+  \item \textbf{Standardisation} des évaluations entre campagnes et entre observateurs.
+  \item \textbf{Objectivation} de la priorisation des sites via des scores/indices explicites.
+  \item \textbf{Transparence} grâce aux logs, exports intermédiaires et indicateurs QA.
+  \item \textbf{Capitalisation} des analyses de fiabilité pour améliorer les futures collectes.
+\end{itemize}
 
 \section{Périmètre fonctionnel}
 \subsection{Fonctions couvertes}
@@ -61,7 +111,40 @@ Il ajoute un module d'analyse de la \textbf{fiabilité de détermination}
   \item Saisie interactive utilisateur.
   \item Persistance en base de données.
   \item API web ou service temps réel.
+  \item Gestion des droits utilisateurs (IAM) et workflow de validation documentaire.
+  \item Géoréférencement cartographique avancé (SIG, tuilage, webmap).
 \end{itemize}
+
+\section{Exigences fonctionnelles détaillées}
+\subsection{Exigences cœur de calcul}
+\begin{longtable}{p{0.12\textwidth}p{0.66\textwidth}p{0.16\textwidth}}
+\toprule
+\textbf{ID} & \textbf{Exigence} & \textbf{Priorité} \\
+\midrule
+EF-01 & Le système doit accepter un fichier CSV ou XLSX et résoudre automatiquement le chemin d'entrée lorsque le nom diffère légèrement. & Haute \\
+EF-02 & Le système doit vérifier la présence des colonnes métier obligatoires et stopper l'exécution en cas d'absence bloquante. & Haute \\
+EF-03 & Le système doit calculer un score de potentiel fongique et attribuer une classe associée pour chaque site. & Haute \\
+EF-04 & Le système doit calculer l'indice patrimonial et la classe d'intérêt associée pour chaque site. & Haute \\
+EF-05 & Le système doit calculer les gradients CHEGD par visite, total et moyen, avec contrôle de cohérence. & Haute \\
+EF-06 & Le système doit calculer l'IR par visite et l'IR moyen de site. & Haute \\
+EF-07 & Le système doit produire des exports tabulaires et graphiques dans un répertoire horodatable et structuré. & Haute \\
+EF-08 & Le système doit générer des résultats pour les objectifs fiabilité 1 à 4. & Haute \\
+EF-09 & Le système doit pouvoir s'aligner sur un classeur de référence lorsque celui-ci est détecté. & Moyenne \\
+EF-10 & Le système doit journaliser les étapes clés, warnings et erreurs dans un log lisible. & Haute \\
+\bottomrule
+\end{longtable}
+
+\subsection{Exigences non fonctionnelles}
+\begin{longtable}{p{0.12\textwidth}p{0.66\textwidth}p{0.16\textwidth}}
+\toprule
+\textbf{ID} & \textbf{Exigence} & \textbf{Critère} \\
+\midrule
+ENF-01 & Reproductibilité : à données identiques et configuration identique, les sorties doivent être identiques (hors horodatage). & 100\% \\
+ENF-02 & Traçabilité : chaque exécution doit produire un log horodaté avec sections principales. & Obligatoire \\
+ENF-03 & Lisibilité des sorties : noms de fichiers explicites et stables. & Obligatoire \\
+ENF-04 & Tolérance aux données imparfaites : conversion robuste des dates/numériques avec messages de contrôle. & Obligatoire \\
+\bottomrule
+\end{longtable}
 
 \section{Configuration}
 La configuration est \textbf{embarquée dans le script} via
@@ -102,6 +185,15 @@ La configuration est \textbf{embarquée dans le script} via
   \item Vérification de présence des colonnes obligatoires.
   \item Conversion robuste des dates et numériques.
   \item Suppression des colonnes techniques parasites (ex. \texttt{...14}).
+  \item Uniformisation des libellés de fiabilité (casse, espaces, variantes d'écriture).
+  \item Détection des valeurs manquantes critiques et émission d'alertes métier.
+\end{itemize}
+
+\subsection{Règles de gestion des données manquantes}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Les lignes sans \textbf{site} ou sans \textbf{espèce} sont exclues des calculs de score.
+  \item Les dates non parseables sont conservées si possible pour l'agrégation non temporelle, mais signalées dans le log.
+  \item Les effectifs non convertibles sont traités comme manquants et ignorés dans les agrégations nécessitant une mesure quantitative.
 \end{itemize}
 
 \section{Chaîne de traitement fonctionnelle}
@@ -152,6 +244,31 @@ les résultats métier attendus.
   \item Écriture d'un résumé de sélection des meilleurs candidats pour les objectifs fiabilité.
 \end{itemize}
 
+\subsection{Lecture méthodologique de la chaîne}
+D'un point de vue académique, la chaîne suit un schéma
+\textit{ingestion $\rightarrow$ transformation $\rightarrow$ inférence $\rightarrow$ restitution},
+classique en sciences des données environnementales. Cette structuration favorise
+l'isolement des sources d'erreur et la comparaison de versions successives du protocole.
+
+\section{Parcours fonctionnels (cas d'usage)}
+\subsection{Cas d'usage nominal --- Évaluation complète d'une campagne}
+\begin{enumerate}[leftmargin=1.2cm]
+  \item L'analyste dépose le fichier de collecte dans le dossier \texttt{data/}.
+  \item Le script est exécuté avec la configuration embarquée.
+  \item Le système valide et prépare les données.
+  \item Le système calcule les indicateurs par site et les objectifs fiabilité.
+  \item Le système produit les exports CSV, les figures et le log.
+  \item L'analyste contrôle \texttt{resume\_global.csv} et le log pour valider l'exécution.
+\end{enumerate}
+
+\subsection{Cas d'usage alternatif --- Données partielles ou hétérogènes}
+\begin{enumerate}[leftmargin=1.2cm]
+  \item Des colonnes sont mal typées ou partiellement manquantes.
+  \item Le système tente les conversions robustes et signale les anomalies.
+  \item Si les colonnes critiques manquent, l'exécution s'arrête proprement avec message explicite.
+  \item Sinon, l'exécution se poursuit avec avertissements et traçabilité complète.
+\end{enumerate}
+
 \section{Règles métier principales}
 \subsection{Potentiel fongique}
 Le score est calculé par pondération de groupes/taxons clés.
@@ -193,6 +310,25 @@ Les sorties sont générées dans :
   \item Figures : \texttt{fig1\_...} à \texttt{fig7\_...} + figures objectives.
 \end{itemize}
 
+\subsection{Table de lecture décisionnelle}
+\begin{longtable}{p{0.33\textwidth}p{0.60\textwidth}}
+\toprule
+\textbf{Sortie} & \textbf{Usage décisionnel principal} \\
+\midrule
+\texttt{resume\_par\_site.csv} & Comparer les sites et identifier les priorités d'inventaire/suivi. \\
+\texttt{potentiel\_fongique
+\_par\_site.csv} & Cibler les sites à fort potentiel biologique. \\
+\texttt{indice\_patrimonial
+\_par\_site.csv} & Argumenter les enjeux de conservation patrimoniale. \\
+\texttt{gradient\_chegd\_par
+\_site.csv} & Suivre la structure CHEGD et sa dynamique entre visites. \\
+\texttt{indice\_representativite\_ir
+\_par\_site.csv} & Évaluer la représentativité relative des observations par site. \\
+\texttt{stat\_model\_selection
+\_summary.csv} & Justifier le choix du modèle le plus pertinent pour la fiabilité. \\
+\bottomrule
+\end{longtable}
+
 \section{Journalisation et traçabilité}
 \subsection{Principe}
 Le script journalise :
@@ -214,6 +350,7 @@ et un pied de page avec durée totale et chemin du log.
   \item Validation stricte des colonnes d'entrée.
   \item Arrêt explicite en cas d'incohérence bloquante.
   \item Encapsulation de l'exécution principale dans \texttt{tryCatch} avec journalisation d'erreur.
+  \item Messages de diagnostic orientés action (fichier concerné, variable concernée, correction attendue).
 \end{itemize}
 
 \section{Contrôles qualité}
@@ -230,6 +367,40 @@ Ces éléments permettent un suivi de non-régression sur les calculs CHEGD.
   \item La qualité des résultats dépend de la qualité des colonnes d'entrée.
   \item Les valeurs de référence (si présentes) peuvent surcharger les calculs locaux (mode fidélité).
   \item Les performances des modèles de fiabilité dépendent de la taille et de l'équilibre des classes.
+  \item Les pondérations métier reposent sur des conventions expertes, révisables en comité scientifique.
+  \item Les analyses ne remplacent pas l'expertise naturaliste de terrain ; elles la complètent.
+\end{itemize}
+
+\subsection{Biais potentiels}
+\begin{itemize}[leftmargin=1.2cm]
+  \item \textbf{Biais d'observation} : effort d'échantillonnage et compétence variable selon observateurs.
+  \item \textbf{Biais taxonomique} : groupes plus faciles à identifier pouvant être surreprésentés.
+  \item \textbf{Biais temporel} : phénologie et fenêtre de prospection influençant la détectabilité.
+\end{itemize}
+
+\subsection{Validité fonctionnelle}
+La validité fonctionnelle est considérée satisfaisante si les règles produisent des
+classements stables sous variations mineures de données (robustesse locale)
+et si les sorties restent interprétables par les experts métier (validité de contenu).
+
+\section{Gouvernance fonctionnelle et cycle de vie}
+\subsection{Versionnement des règles}
+Chaque évolution des seuils, classes ou pondérations doit être versionnée et documentée
+avec : date d'effet, justification métier et impact attendu sur les indicateurs.
+
+\subsection{Rythme de revue}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Revue \textbf{mensuelle} en phase active de campagne.
+  \item Revue \textbf{de clôture} pour figer les paramètres d'une édition de rapport.
+\end{itemize}
+
+\subsection{Traçabilité métier minimale}
+Chaque lot de résultats validé doit conserver :
+\begin{itemize}[leftmargin=1.2cm]
+  \item l'empreinte du fichier source (nom, date, taille),
+  \item la date d'exécution,
+  \item le jeu de sorties associé (CSV + figures + log),
+  \item les éventuelles décisions de recalage manuel/externe.
 \end{itemize}
 
 \section{Critères d'acceptation fonctionnelle}
@@ -240,5 +411,20 @@ Le script est considéré conforme si :
   \item il produit un log horodaté complet,
   \item les indicateurs QA sont présents dans \texttt{resume\_global.csv}.
 \end{enumerate}
+
+\subsection{Critères complémentaires de recette}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Les classes de potentiel et d'intérêt patrimonial sont explicables pour au moins 3 sites échantillons.
+  \item Les résultats fiabilité (objectifs 1 à 4) sont présents même en cas de fallback statistique.
+  \item L'écart entre gradients détaillés et total reste nul ou explicité pour tout site signalé.
+\end{itemize}
+
+\section{Références bibliographiques indicatives}
+\begin{itemize}[leftmargin=1.2cm]
+  \item ISO/IEC/IEEE 29148:2018. \textit{Systems and software engineering -- Life cycle processes -- Requirements engineering}.
+  \item Suter, G. W. (2006). \textit{Ecological Risk Assessment}. CRC Press.
+  \item Legendre, P. \& Legendre, L. (2012). \textit{Numerical Ecology}. Elsevier.
+  \item Zuur, A. F. et al. (2009). \textit{Mixed Effects Models and Extensions in Ecology with R}. Springer.
+\end{itemize}
 
 \end{document}
