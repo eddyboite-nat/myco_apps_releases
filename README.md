@@ -26,6 +26,8 @@ Chaque application est autonome : données d'exemple, script principal et docume
     *   [Interprétation des indicateurs (CHEGD)](#-interpr%C3%A9tation-des-indicateurs-chegd)
     *   [Lecture des graphiques (CHEGD)](#-lecture-des-graphiques-chegd)
     *   [Dépannage (FAQ CHEGD)](#-d%C3%A9pannage-faq-chegd)
+    *   [Glossaire (CHEGD)](#-glossaire-chegd)
+    *   [Références (CHEGD)](#-r%C3%A9f%C3%A9rences-chegd)
 *   [Inventaires fongiques – Complétude & Représentativité](#-inventaires-fongiques--compl%C3%A9tude--repr%C3%A9sentativit%C3%A9)
     *   [Prérequis système](#-pr%C3%A9requis-syst%C3%A8me-complets)
     *   [Quick Start](#-quick-start)
@@ -402,6 +404,29 @@ Le mode “fidélité Excel” n'est activé que si un classeur de référence c
 
 **Je n'ai pas toutes les figures**  
 Certaines figures dépendent de la disponibilité de données suffisantes ou de certaines structures (ex. gradients par visite exploitables).
+
+---
+
+### Glossaire (CHEGD)
+
+| Terme | Définition |
+| --- | --- |
+| **CHEGD** | Gradient composite basé sur les groupes fonctionnels utilisés pour l'évaluation écologique des pelouses. |
+| **IR** | Indice de représentativité calculé par visite : $IR = \max(0, 1 - gradient_{visite}/chegd_{total})$. |
+| **Potentiel fongique** | Score synthétique basé sur la présence de groupes et d'espèces indicatrices, puis classé en 3 niveaux. |
+| **Indice patrimonial** | Indice de valeur patrimoniale du site, classé de *faible* à *international*. |
+| **Fiabilité détermination** | Niveau de confiance taxonomique de l'observation (ex. certaine/probable/non renseignée). |
+| **Mode fidélité Excel** | Mécanisme d'alignement des sorties script sur un classeur de référence quand les feuilles attendues sont détectées. |
+
+---
+
+### Références (CHEGD)
+
+*   Sellier, Y. et coll. — *Bulletin de la Société Mycologique de France*, vol. 131, pp. 1–2.
+*   Protocole métier interne documenté dans :
+  *   `docs/Evaluation_Potentiel_Fongique_Interets_Patrimoniaux_CHEGD_Conception_Fonctionnelle.tex`
+  *   `docs/Evaluation_Potentiel_Fongique_Interets_Patrimoniaux_CHEGD_Conception_technique.tex`
+*   Implémentation opérationnelle : `scripts/Evaluation_Potentiel_Fongique_Interets_Patrimoniaux_CHEGD.R`.
 
 ---
 
