@@ -38,7 +38,7 @@ Ce document présente la conception technique d'un pipeline d'analyse mycologiqu
 destiné à l'évaluation du potentiel fongique, de l'intérêt patrimonial et de la fiabilité de détermination.
 La description adopte un cadre d'ingénierie reproductible : architecture, contrats de données,
 méthodes statistiques, robustesse opérationnelle et critères de qualité.
-L'ambition est de fournir un protocole techniquement auditable, scientifiquement explicitable
+L'objectif est de fournir un protocole techniquement auditable, scientifiquement explicitable
 et réutilisable pour des campagnes futures.
 \end{abstract}
 \tableofcontents
@@ -54,8 +54,22 @@ Deux objectifs sont poursuivis simultanément :
   \item \textbf{validité opérationnelle} (stabilité des sorties, exploitabilité décisionnelle).
 \end{itemize}
 
+\section{Cadre théorique des choix statistiques}
+Le dispositif repose sur une articulation entre statistique descriptive,
+modélisation prédictive et inférence fréquentiste. Cette combinaison répond
+à une double exigence : décrire fidèlement les structures observées et tester
+formellement la plausibilité des relations entre variables contextuelles.
+
+Dans ce cadre, la sélection des métriques privilégie :
+\begin{itemize}[leftmargin=1.2cm]
+  \item la \textbf{comparabilité inter-runs} (mesures stables et interprétables),
+  \item la \textbf{sensibilité aux déséquilibres de classes} (Macro-F1),
+  \item la \textbf{capacité explicative} (lecture des effets site/famille/saison),
+  \item la \textbf{traçabilité des décisions} (fichiers de synthèse et journalisation).
+\end{itemize}
+
 \section{Objectif technique}
-Ce document décrit l'architecture technique du script
+Le document décrit l'architecture technique du script
 \url{scripts/Evaluation_Potentiel_Fongique_Interets_Patrimoniaux_CHEGD.R},
 avec un focus sur :
 \begin{itemize}[leftmargin=1.2cm]
@@ -137,6 +151,60 @@ Colonnes obligatoires : espèce, famille, date, effectif, site, fiabilité.
   \texttt{logs/EPFIP\_CHEGD\_YYYYMMDD\_HHMM.log}
   \item CSV de synthèse : résumés, indicateurs, QA, objectifs fiabilité
   \item Figures PNG/PDF : \texttt{fig1} à \texttt{fig7} + figures objectives.
+\end{itemize}
+
+\subsection{Spécification détaillée des fichiers générés}
+Le pipeline produit des artefacts en couches : \textit{ingestion},
+\textit{indicateurs métier}, \textit{statistiques avancées}, \textit{visualisations},
+\textit{observabilité}. Cette structuration permet d'isoler rapidement une anomalie
+dans la chaîne de traitement.
+
+\subsubsection{Couche 1 --- Ingestion et normalisation}
+\begin{longtable}{p{0.36\textwidth}p{0.22\textwidth}p{0.34\textwidth}}
+\toprule
+\textbf{Artefact} & \textbf{Type} & \textbf{Rôle technique} \\
+\midrule
+\texttt{donnees\_brutes\_nettoyees.csv} & table plate & Point de vérité post-nettoyage, base de toutes les agrégations. \\
+\texttt{resume\_global.csv} & table synthèse & QA global, volumétrie, indicateurs de cohérence et métadonnées de run. \\
+\bottomrule
+\end{longtable}
+
+\subsubsection{Couche 2 --- Indicateurs métier consolidés}
+\begin{longtable}{p{0.36\textwidth}p{0.20\textwidth}p{0.36\textwidth}}
+\toprule
+\textbf{Artefact} & \textbf{Clé primaire logique} & \textbf{Variables critiques attendues} \\
+\midrule
+\texttt{potentiel\_fongique\_par\_site.csv} & \texttt{site} & \texttt{score\_potentiel}, \texttt{classe\_potentiel} \\
+\texttt{indice\_patrimonial\_par\_site.csv} & \texttt{site} & \texttt{indice\_patrimonial}, \texttt{classe\_interet} \\
+\texttt{gradient\_chegd\_par\_site.csv} & \texttt{site} & \texttt{gradient\_visite\_*}, \texttt{chegd\_total}, \texttt{chegd\_moyen} \\
+\texttt{indice\_representativite\_ir\_par\_site.csv} & \texttt{site} & \texttt{ir\_visite\_*}, \texttt{ir\_moyen} \\
+\bottomrule
+\end{longtable}
+
+\subsubsection{Couche 3 --- Sorties statistiques objectives (fiabilité)}
+\begin{longtable}{p{0.23\textwidth}p{0.21\textwidth}p{0.46\textwidth}}
+\toprule
+\textbf{Préfixe} & \textbf{Objectif} & \textbf{Contenu typique} \\
+\midrule
+\texttt{stat\_obj1\_*} & O1 & distribution de classes, fréquences, proportions, diagnostics descriptifs. \\
+\texttt{stat\_obj2\_*} & O2 & scores pondérés par schéma, $\rho$ de Spearman, overlap top-k. \\
+\texttt{stat\_obj3\_*} & O3 & métriques CV par modèle (Accuracy, Macro-F1, Log-loss), décision de sélection. \\
+\texttt{stat\_obj4\_*} & O4 & test choisi ($\chi^2$/Fisher), $p$-value, mesure $M=-\log_{10}(p)$. \\
+\texttt{stat\_model\_selection\_summary.csv} & O3 & synthèse consolidée du meilleur candidat et justification numérique. \\
+\bottomrule
+\end{longtable}
+
+\subsubsection{Couche 4 --- Restitution graphique}
+\begin{itemize}[leftmargin=1.2cm]
+  \item \textbf{Figures de pilotage} : classement sites, gradients, IR, classes patrimoniales.
+  \item \textbf{Figures de diagnostic} : distribution fiabilité, dispersion inter-sites, sensibilité aux pondérations.
+  \item \textbf{Formats} : PNG (consommation rapide), PDF (publication/rapport).
+\end{itemize}
+
+\subsubsection{Couche 5 --- Observabilité}
+\begin{itemize}[leftmargin=1.2cm]
+  \item \texttt{logs/EPFIP\_CHEGD\_*.log} : chronologie d'exécution, anomalies, durée, statut final.
+  \item Option recommandée : \textit{manifest} JSON de run (version R, packages, hash input, liste outputs).
 \end{itemize}
 
 \subsection{Convention de nommage}
@@ -273,11 +341,18 @@ Métriques de comparaison :
 \end{itemize}
 Le meilleur schéma maximise d'abord $\rho$, puis l'overlap.
 
+\paragraph{Sorties techniques attendues (O2)}
+\begin{itemize}[leftmargin=1.2cm]
+  \item table des scores par site et par schéma,
+  \item table comparative des métriques ($\rho$, overlap top-5),
+  \item indicateur de robustesse de classement (fort/modéré/faible).
+\end{itemize}
+
 \subsubsection{Objectif 3 --- Sélection de modèles prédictifs}
 \paragraph{Cible}
 Variable ordinale \texttt{fiabilite} à 3 niveaux.
 
-\paragraph{Features}
+\paragraph{Variables explicatives}
 \begin{itemize}[leftmargin=1.2cm]
   \item \texttt{abundance},
   \item \texttt{season\_model},
@@ -318,10 +393,22 @@ F1_c=\frac{2\,\text{Precision}_c\,\text{Recall}_c}{\text{Precision}_c+\text{Reca
 \]
 Le modèle retenu maximise Macro-F1 puis Accuracy.
 
+\paragraph{Sorties techniques attendues (O3)}
+\begin{itemize}[leftmargin=1.2cm]
+  \item métriques par fold et par modèle,
+  \item moyenne/écart-type par métrique,
+  \item matrice de confusion agrégée,
+  \item fichier de décision finale de sélection de modèle.
+\end{itemize}
+
 \paragraph{Interprétation scientifique}
 Le choix d'une métrique prioritaire orientée classes (Macro-F1) limite
 l'effet de domination des classes majoritaires et soutient une interprétation
 plus équilibrée de la performance prédictive dans des jeux potentiellement déséquilibrés.
+
+Cette orientation est cohérente avec les standards méthodologiques
+en écologie quantitative, où la performance globale doit être examinée
+conjointement à la performance par classe pour éviter les conclusions biaisées.
 
 \subsubsection{\texorpdfstring{Objectif 4 --- Inférence statistique site $\times$ fiabilité}{Objectif 4 --- Inférence statistique site x fiabilité}}
 Table de contingence \texttt{site\_label} \texttimes{} \texttt{fiabilite}.
@@ -338,6 +425,14 @@ Métrique primaire stockée :
 M=-\log_{10}(p)
 \]
 Plus $M$ est grand, plus l'association est marquée.
+
+\paragraph{Sorties techniques attendues (O4)}
+\begin{itemize}[leftmargin=1.2cm]
+  \item table de contingence \texttt{site\_label} $\times$ \texttt{fiabilite},
+  \item type de test effectivement utilisé,
+  \item statistique de test, $p$-value et mesure $M$,
+  \item drapeau de fallback (exact/simulé) pour traçabilité méthodologique.
+\end{itemize}
 
 \subsection{Phase D --- Visualisation}
 Fonctions dédiées :
@@ -458,6 +553,30 @@ Dans \texttt{resume\_global.csv} :
   \item \textbf{Tests de robustesse} : jeux volontairement bruités (dates ambiguës, valeurs manquantes, classes rares).
 \end{itemize}
 
+\subsection{Matrice de validation des artefacts}
+\begin{longtable}{p{0.21\textwidth}p{0.34\textwidth}p{0.37\textwidth}}
+\toprule
+\textbf{Bloc} & \textbf{Règle de validation} & \textbf{Preuve attendue} \\
+\midrule
+Ingestion & Colonnes critiques présentes et typées & \texttt{donnees\_brutes\_nettoyees.csv} + warnings ciblés dans log \\
+Indicateurs métier & 1 ligne par site, pas de duplication clé & tables \texttt{*\_par\_site.csv} cohérentes \\
+CHEGD/IR & somme gradients visite cohérente avec total & QA \texttt{coherence\_chegd\_gradients\_ok=true} \\
+Objectif 2 & classement stable sous pondérations & \texttt{stat\_obj2\_*.csv} avec $\rho$ et overlap \\
+Objectif 3 & modèle gagnant justifié numériquement & \texttt{stat\_model\_selection\_summary.csv} \\
+Objectif 4 & type de test tracé et interprétable & \texttt{stat\_obj4\_*.csv} + log test \\
+Observabilité & run horodaté complet & fichier \texttt{logs/EPFIP\_CHEGD\_*.log} \\
+\bottomrule
+\end{longtable}
+
+\subsection{Critères de stabilité statistique recommandés}
+Pour une exploitation en contexte institutionnel, il est recommandé de viser :
+\begin{itemize}[leftmargin=1.2cm]
+  \item une variabilité inter-fold modérée des métriques O3 (écart-type limité),
+  \item une corrélation de rang O2 élevée (idéalement $\rho \geq 0.85$),
+  \item une cohérence des conclusions O4 entre test principal et fallback simulé,
+  \item une documentation explicite de toute déviation méthodologique dans le log.
+\end{itemize}
+
 \subsection{Menaces à la validité}
 \begin{itemize}[leftmargin=1.2cm]
   \item \textbf{Validité interne} : dépend de la qualité des transformations de variables et de la stabilité des mappings.
@@ -496,7 +615,7 @@ Dans \texttt{resume\_global.csv} :
   \item archiver le triplet \textit{input + outputs + log} pour auditabilité.
 \end{itemize}
 
-\subsection{Runbook d'exploitation (opérationnel)}
+\subsection{Procédure opératoire standard (POS)}
 \begin{enumerate}[leftmargin=1.2cm]
   \item Vérifier présence du fichier d'entrée et structure minimale des colonnes.
   \item Exécuter le script dans l'environnement R cible.
@@ -514,9 +633,20 @@ Afin de favoriser la réplication des résultats, chaque exécution devrait docu
   \item les sorties consolidées (CSV, figures, log) associées au même identifiant de run.
 \end{itemize}
 
-Une extension recommandée consiste à publier un \textit{manifest} technique
-automatique (fichier texte ou JSON) pour chaque run, facilitant audit, réplication
-et comparaison inter-campagnes.
+\subsection{Spécification d'un manifeste de run (recommandée)}
+Format proposé : \texttt{run\_manifest.json} stocké à la racine des résultats.
+Champs minimaux suggérés :
+\begin{itemize}[leftmargin=1.2cm]
+  \item \texttt{run\_id}, \texttt{timestamp\_start}, \texttt{timestamp\_end},
+  \item \texttt{r\_version}, \texttt{packages} (versions),
+  \item \texttt{input\_file}, \texttt{input\_hash},
+  \item \texttt{config\_effective},
+  \item \texttt{outputs\_generated} (liste exhaustive),
+  \item \texttt{qa\_summary} (cohérence CHEGD, nombre d'alertes, statut final).
+\end{itemize}
+
+Ce manifeste facilite les audits comparatifs inter-campagnes et la reproductibilité
+scientifique au-delà du seul environnement local d'exécution.
 
 \section{Évolutions techniques recommandées}
 \begin{itemize}[leftmargin=1.2cm]
@@ -526,8 +656,25 @@ et comparaison inter-campagnes.
   \item versionner les modèles/statistiques de fiabilité avec métadonnées de run.
 \end{itemize}
 
-\section{Références bibliographiques indicatives}
+\section{Protocole de base}
+Ce pipeline implémente le protocole d'évaluation décrit par Sellier et collaborateurs :
+
+\begin{quote}
+  \textit{Sellier, Y. et coll.} (s.d.). Évaluation du potentiel fongique et de l'intérêt patrimonial des pelouses.
+  \textit{Bulletin de la Société Mycologique de France}, vol. 131, pp. 1--2.
+\end{quote}
+
+Le protocole original spécifie : 
 \begin{itemize}[leftmargin=1.2cm]
+  \item Les cinq groupes CHEGD : Clavaria, Hygrocybe, Entoloma, Geoglossaceae, Dermoloma.
+  \item Les pondérations de potentiel fongique par espèce/groupe indicateur.
+  \item L'indice patrimonial comme maximum des effectifs CHEGD.
+  \item L'indice de représentativité relatif au gradient CHEGD par visite.
+\end{itemize}
+
+\section{Références bibliographiques (sélection)}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Sellier, Y. et coll. Évaluation du potentiel fongique et de l'intérêt patrimonial des pelouses. \textit{Bulletin de la Société Mycologique de France}, vol. 131, pp. 1--2.
   \item Hastie, T., Tibshirani, R., \& Friedman, J. (2009). \textit{The Elements of Statistical Learning}. Springer.
   \item James, G., Witten, D., Hastie, T., \& Tibshirani, R. (2021). \textit{An Introduction to Statistical Learning}. Springer.
   \item Wickham, H. \& Grolemund, G. (2017). \textit{R for Data Science}. O'Reilly.
