@@ -17,15 +17,15 @@ Chaque application est autonome : données d'exemple, script principal et docume
 *   [Applications disponibles](#-applications-disponibles)
 *   [Structure du dépôt](#-structure-du-d%C3%A9p%C3%B4t)
 *   [Évaluation du potentiel fongique, de l'intérêt patrimonial et du gradient CHEGD](#-evaluation-du-potentiel-fongique-de-lint%C3%A9r%C3%AAt-patrimonial-et-du-gradient-chegd)
-  *   [Quick Start (CHEGD)](#-quick-start-chegd)
-  *   [Structure attendue des données (CHEGD)](#-structure-attendue-des-donn%C3%A9es-chegd)
-  *   [Lancer le script CHEGD – guide détaillé](#-lancer-le-script-chegd--guide-d%C3%A9taill%C3%A9)
-  *   [Sorties générées (CHEGD)](#-sorties-g%C3%A9n%C3%A9r%C3%A9es-chegd)
-  *   [Installation des dépendances (CHEGD)](#-installation-des-d%C3%A9pendances-chegd)
-  *   [Configuration (CHEGD)](#-configuration-chegd)
-  *   [Interprétation des indicateurs (CHEGD)](#-interpr%C3%A9tation-des-indicateurs-chegd)
-  *   [Lecture des graphiques (CHEGD)](#-lecture-des-graphiques-chegd)
-  *   [Dépannage (FAQ CHEGD)](#-d%C3%A9pannage-faq-chegd)
+    *   [Quick Start (CHEGD)](#-quick-start-chegd)
+    *   [Structure attendue des données (CHEGD)](#-structure-attendue-des-donn%C3%A9es-chegd)
+    *   [Lancer le script CHEGD – guide détaillé](#-lancer-le-script-chegd--guide-d%C3%A9taill%C3%A9)
+    *   [Sorties générées (CHEGD)](#-sorties-g%C3%A9n%C3%A9r%C3%A9es-chegd)
+    *   [Installation des dépendances (CHEGD)](#-installation-des-d%C3%A9pendances-chegd)
+    *   [Configuration (CHEGD)](#-configuration-chegd)
+    *   [Interprétation des indicateurs (CHEGD)](#-interpr%C3%A9tation-des-indicateurs-chegd)
+    *   [Lecture des graphiques (CHEGD)](#-lecture-des-graphiques-chegd)
+    *   [Dépannage (FAQ CHEGD)](#-d%C3%A9pannage-faq-chegd)
 *   [Inventaires fongiques – Complétude & Représentativité](#-inventaires-fongiques--compl%C3%A9tude--repr%C3%A9sentativit%C3%A9)
     *   [Prérequis système](#-pr%C3%A9requis-syst%C3%A8me-complets)
     *   [Quick Start](#-quick-start)
@@ -157,6 +157,8 @@ Le journal d'exécution est écrit dans :
 
 **Pour lancer rapidement l'application CHEGD avec les données du dépôt :**
 
+Cette section suit le même format pas-à-pas que l'application Inventaires, afin de faciliter la prise en main des deux pipelines.
+
 #### Étape 1️⃣ — Vérifier le fichier d'entrée
 
 Par défaut, le script lit :
@@ -210,6 +212,8 @@ Le script gère notamment :
 ---
 
 ### Lancer le script CHEGD – guide détaillé
+
+Méthodes d'exécution identiques à la section Inventaires : une option en ligne de commande pour la reproductibilité et une option interactive pour l'exploration.
 
 #### Option A — Ligne de commande (recommandée)
 
