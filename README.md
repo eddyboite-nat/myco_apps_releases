@@ -17,17 +17,17 @@ Chaque application est autonome : données d'exemple, script principal et docume
 *   [Applications disponibles](#-applications-disponibles)
 *   [Structure du dépôt](#-structure-du-d%C3%A9p%C3%B4t)
 *   [Évaluation du potentiel fongique, de l'intérêt patrimonial et du gradient CHEGD](#-evaluation-du-potentiel-fongique-de-lint%C3%A9r%C3%AAt-patrimonial-et-du-gradient-chegd)
-    *   [Quick Start (CHEGD)](#-quick-start-chegd)
-    *   [Structure attendue des données (CHEGD)](#-structure-attendue-des-donn%C3%A9es-chegd)
+    *   [Quick Start CHEGD](#-quick-start-chegd)
+    *   [Structure attendue des données CHEGD](#-structure-attendue-des-donn%C3%A9es-chegd)
     *   [Lancer le script CHEGD – guide détaillé](#-lancer-le-script-chegd--guide-d%C3%A9taill%C3%A9)
-    *   [Sorties générées (CHEGD)](#-sorties-g%C3%A9n%C3%A9r%C3%A9es-chegd)
-    *   [Installation des dépendances (CHEGD)](#-installation-des-d%C3%A9pendances-chegd)
-    *   [Configuration (CHEGD)](#-configuration-chegd)
-    *   [Interprétation des indicateurs (CHEGD)](#-interpr%C3%A9tation-des-indicateurs-chegd)
-    *   [Lecture des graphiques (CHEGD)](#-lecture-des-graphiques-chegd)
+    *   [Sorties générées CHEGD](#-sorties-g%C3%A9n%C3%A9r%C3%A9es-chegd)
+    *   [Installation des dépendances CHEGD](#-installation-des-d%C3%A9pendances-chegd)
+    *   [Configuration CHEGD](#-configuration-chegd)
+    *   [Interprétation des indicateurs CHEGD](#-interpr%C3%A9tation-des-indicateurs-chegd)
+    *   [Lecture des graphiques CHEGD](#-lecture-des-graphiques-chegd)
     *   [Dépannage (FAQ CHEGD)](#-d%C3%A9pannage-faq-chegd)
-    *   [Glossaire (CHEGD)](#-glossaire-chegd)
-    *   [Références (CHEGD)](#-r%C3%A9f%C3%A9rences-chegd)
+    *   [Glossaire CHEGD](#-glossaire-chegd)
+    *   [Références CHEGD](#-r%C3%A9f%C3%A9rences-chegd)
 *   [Inventaires fongiques – Complétude & Représentativité](#-inventaires-fongiques--compl%C3%A9tude--repr%C3%A9sentativit%C3%A9)
     *   [Prérequis système](#-pr%C3%A9requis-syst%C3%A8me-complets)
     *   [Quick Start](#-quick-start)
@@ -155,7 +155,7 @@ Le journal d'exécution est écrit dans :
 
 ---
 
-### Quick Start (CHEGD)
+### Quick Start CHEGD
 
 **Pour lancer rapidement l'application CHEGD avec les données du dépôt :**
 
@@ -185,7 +185,7 @@ avec les tableaux CSV, les figures PNG/PDF et le journal d'exécution dans `logs
 
 ---
 
-### Structure attendue des données (CHEGD)
+### Structure attendue des données CHEGD
 
 Le script accepte **CSV** ou **XLSX** (séparateur CSV auto-détecté).
 
@@ -245,7 +245,7 @@ Si un classeur de référence est détecté (feuilles dédiées), le pipeline ac
 
 ---
 
-### Sorties générées (CHEGD)
+### Sorties générées CHEGD
 
 Les sorties sont écrites dans :
 
@@ -286,7 +286,7 @@ Chaque figure est exportée en **PNG** et **PDF**.
 
 ---
 
-### Installation des dépendances (CHEGD)
+### Installation des dépendances CHEGD
 
 #### Packages requis
 
@@ -314,7 +314,7 @@ install.packages(c("readxl", "dplyr", "stringr", "ggplot2", "gridExtra", "MASS",
 
 ---
 
-### Configuration (CHEGD)
+### Configuration CHEGD
 
 La configuration est intégrée dans la fonction `get_embedded_config()` du script.
 
@@ -343,7 +343,7 @@ input_sheet = "Feuil1"
 
 ---
 
-### Interprétation des indicateurs (CHEGD)
+### Interprétation des indicateurs CHEGD
 
 #### Potentiel fongique
 
@@ -374,7 +374,7 @@ $$IR_{visite} = \max\left(0, 1 - \frac{gradient_{visite}}{chegd_{total}}\right)$
 
 ---
 
-### Lecture des graphiques (CHEGD)
+### Lecture des graphiques CHEGD
 
 | Figure | Lecture principale |
 | --- | --- |
@@ -407,7 +407,7 @@ Certaines figures dépendent de la disponibilité de données suffisantes ou de 
 
 ---
 
-### Glossaire (CHEGD)
+### Glossaire CHEGD
 
 | Terme | Définition |
 | --- | --- |
@@ -420,7 +420,7 @@ Certaines figures dépendent de la disponibilité de données suffisantes ou de 
 
 ---
 
-### Références (CHEGD)
+### Références CHEGD
 
 *   Sellier, Y. et coll. — *Bulletin de la Société Mycologique de France*, vol. 131, pp. 1–2.
 *   Protocole métier interne documenté dans :
