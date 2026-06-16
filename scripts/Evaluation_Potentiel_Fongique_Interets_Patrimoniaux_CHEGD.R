@@ -2,7 +2,14 @@
 
 # ================================================================================
 # Évaluation du potentiel fongique, de l'intérêt patrimonial et du gradient CHEGD
-# --------------------------------------------------------------------------------
+# ================================================================================
+#
+# Protocole de base :
+#   Sellier, Y. et coll.
+#   Bulletin de la Société Mycologique de France, vol. 131, pp. 1-2.
+#   Voir : docs/Bull.-SMF-131-1-2-Y-Sellier-et-coll..pdf
+#
+# ================================================================================
 # But :
 #   - Lire un fichier Excel de données brutes d'observations mycologiques.
 #   - Produire des résumés globaux (site/famille/espèce/date/fiabilité).
