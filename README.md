@@ -17,6 +17,15 @@ Chaque application est autonome : données d'exemple, script principal et docume
 *   [Applications disponibles](#-applications-disponibles)
 *   [Structure du dépôt](#-structure-du-d%C3%A9p%C3%B4t)
 *   [Évaluation du potentiel fongique, de l'intérêt patrimonial et du gradient CHEGD](#-evaluation-du-potentiel-fongique-de-lint%C3%A9r%C3%AAt-patrimonial-et-du-gradient-chegd)
+  *   [Quick Start (CHEGD)](#-quick-start-chegd)
+  *   [Structure attendue des données (CHEGD)](#-structure-attendue-des-donn%C3%A9es-chegd)
+  *   [Lancer le script CHEGD – guide détaillé](#-lancer-le-script-chegd--guide-d%C3%A9taill%C3%A9)
+  *   [Sorties générées (CHEGD)](#-sorties-g%C3%A9n%C3%A9r%C3%A9es-chegd)
+  *   [Installation des dépendances (CHEGD)](#-installation-des-d%C3%A9pendances-chegd)
+  *   [Configuration (CHEGD)](#-configuration-chegd)
+  *   [Interprétation des indicateurs (CHEGD)](#-interpr%C3%A9tation-des-indicateurs-chegd)
+  *   [Lecture des graphiques (CHEGD)](#-lecture-des-graphiques-chegd)
+  *   [Dépannage (FAQ CHEGD)](#-d%C3%A9pannage-faq-chegd)
 *   [Inventaires fongiques – Complétude & Représentativité](#-inventaires-fongiques--compl%C3%A9tude--repr%C3%A9sentativit%C3%A9)
     *   [Prérequis système](#-pr%C3%A9requis-syst%C3%A8me-complets)
     *   [Quick Start](#-quick-start)
@@ -141,6 +150,254 @@ Figures générées :
 Le journal d'exécution est écrit dans :
 
 *   `logs/EPFIP_CHEGD_YYYYMMDD_HHMM.log`
+
+---
+
+### Quick Start (CHEGD)
+
+**Pour lancer rapidement l'application CHEGD avec les données du dépôt :**
+
+#### Étape 1️⃣ — Vérifier le fichier d'entrée
+
+Par défaut, le script lit :
+
+*   `data/données_récoltes_chegd_pelouses.csv`
+
+Vous pouvez conserver ce nom, ou modifier la configuration embarquée dans le script.
+
+#### Étape 2️⃣ — Lancer le script
+
+Depuis la racine du dépôt :
+
+`Rscript scripts/Evaluation_Potentiel_Fongique_Interets_Patrimoniaux_CHEGD.R`
+
+#### Étape 3️⃣ — Consulter les sorties
+
+Les résultats sont produits dans :
+
+*   `results/EPFIP_CHEGD/`
+
+avec les tableaux CSV, les figures PNG/PDF et le journal d'exécution dans `logs/`.
+
+---
+
+### Structure attendue des données (CHEGD)
+
+Le script accepte **CSV** ou **XLSX** (séparateur CSV auto-détecté).
+
+#### Colonnes métier attendues
+
+| Colonne | Type attendu | Description |
+| --- | --- | --- |
+| `Espèces` | Texte | Nom de l'espèce observée |
+| `Famille` | Texte | Famille taxonomique |
+| `Date` | Date ou texte convertible | Date d'observation |
+| `Nombre d'espèce` | Numérique | Abondance / effectif observé |
+| `Site` | Texte | Libellé du site (ex. `Pelouse 16`) |
+| `Fiabilité détermination` | Texte | Niveau de confiance de détermination |
+
+> Ces colonnes sont configurables dans `get_embedded_config()`.
+
+#### Formats de date reconnus
+
+Le script gère notamment :
+
+*   `YYYY-MM-DD`
+*   `DD/MM/YYYY`
+*   `DD-MM-YYYY`
+*   dates Excel (numériques)
+
+---
+
+### Lancer le script CHEGD – guide détaillé
+
+#### Option A — Ligne de commande (recommandée)
+
+```
+cd /chemin/vers/myco_apps_releases
+Rscript scripts/Evaluation_Potentiel_Fongique_Interets_Patrimoniaux_CHEGD.R
+```
+
+#### Option B — RStudio / session interactive
+
+```
+setwd("/chemin/vers/myco_apps_releases")
+source("scripts/Evaluation_Potentiel_Fongique_Interets_Patrimoniaux_CHEGD.R")
+```
+
+#### Ce qui se passe pendant l'exécution
+
+Le script :
+
+1.  lit et valide les données d'entrée,
+2.  calcule les indicateurs par site (potentiel, patrimonialité, CHEGD),
+3.  calcule les indicateurs de fiabilité (objectifs 1 à 4),
+4.  exporte CSV + figures,
+5.  écrit un log horodaté dans `logs/`.
+
+Si un classeur de référence est détecté (feuilles dédiées), le pipeline active un **mode d'alignement “fidélité Excel”** pour reproduire les valeurs métier du classeur.
+
+---
+
+### Sorties générées (CHEGD)
+
+Les sorties sont écrites dans :
+
+*   `results/EPFIP_CHEGD/`
+
+#### Fichiers de synthèse principaux
+
+| Fichier | Description |
+| --- | --- |
+| `resume_global.csv` | Vue d'ensemble du jeu analysé |
+| `resume_par_site.csv` | Statistiques agrégées par site |
+| `potentiel_fongique_par_site.csv` | Score/classe de potentiel fongique |
+| `indice_patrimonial_par_site.csv` | Indice/classe patrimoniale |
+| `gradient_chegd_par_site.csv` | Gradient CHEGD par site et visites |
+| `indice_representativite_ir_par_site.csv` | Indice IR par visite/site |
+| `synthese_evaluation_par_site.csv` | Consolidation multi-indicateurs |
+
+#### Module fiabilité (Objectifs 1 à 4)
+
+Le script exporte aussi des fichiers statistiques dédiés à la fiabilité de détermination, notamment :
+
+*   distributions de niveaux de fiabilité,
+*   comparaison de schémas de pondération,
+*   sélection de modèles (validation croisée),
+*   synthèse finale de recommandation.
+
+#### Figures générées
+
+*   `fig1_tableau_de_bord_pelouses`
+*   `fig2_positionnement_ecologique`
+*   `fig3_composition_potentiel`
+*   `fig4_chegd_par_visite`
+*   `fig5_heatmap_classes`
+*   `fig6_niveaux_fiabilite`
+*   `fig7_indice_representativite_ir`
+
+Chaque figure est exportée en **PNG** et **PDF**.
+
+---
+
+### Installation des dépendances (CHEGD)
+
+#### Packages requis
+
+| Package | Rôle principal |
+| --- | --- |
+| `readxl` | Lecture des fichiers Excel |
+| `dplyr` | Manipulation de données |
+| `stringr` | Traitement de chaînes |
+| `ggplot2` | Visualisation |
+| `gridExtra` | Composition multi-graphiques |
+| `MASS` | Modèles statistiques ordonnés |
+| `nnet` | Modèles multinomiaux |
+
+Commande groupée :
+
+```
+install.packages(c("readxl", "dplyr", "stringr", "ggplot2", "gridExtra", "MASS", "nnet"))
+```
+
+#### Package optionnel
+
+*   `ggrepel` (améliore le placement des labels sur certaines figures)
+
+> Le script tente d'installer automatiquement les packages requis s'ils sont absents.
+
+---
+
+### Configuration (CHEGD)
+
+La configuration est intégrée dans la fonction `get_embedded_config()` du script.
+
+Paramètres principaux :
+
+| Paramètre | Valeur par défaut | Description |
+| --- | --- | --- |
+| `input_file` | `data/données_récoltes_chegd_pelouses.csv` | Fichier d'entrée |
+| `input_sheet` | `NULL` | Feuille Excel à lire (si XLSX) |
+| `output_dir` | `results` | Dossier parent de sortie |
+| `output_prefix` | `EPFIP_CHEGD` | Sous-dossier de sortie |
+| `columns$species` | `Espèces` | Colonne espèce |
+| `columns$family` | `Famille` | Colonne famille |
+| `columns$date` | `Date` | Colonne date |
+| `columns$count` | `Nombre d'espèce` | Colonne abondance |
+| `columns$site` | `Site` | Colonne site |
+| `columns$reliability` | `Fiabilité détermination` | Colonne fiabilité |
+
+Exemple d'adaptation :
+
+```
+# Dans get_embedded_config()
+input_file = "data/mon_fichier_chegd.xlsx"
+input_sheet = "Feuil1"
+```
+
+---
+
+### Interprétation des indicateurs (CHEGD)
+
+#### Potentiel fongique
+
+Le score est classé selon trois niveaux :
+
+*   **≤ 10** : `Potentiel fongique faible`
+*   **]10 ; 30[** : `Potentiel fongique intéressant`
+*   **≥ 30** : `Potentiel fongique élevé`
+
+#### Intérêt patrimonial
+
+Classement selon l'indice patrimonial :
+
+*   **≤ 2** : `Intérêt faible`
+*   **3 à 5** : `Intérêt local`
+*   **6 à 10** : `Intérêt régional`
+*   **11 à 14** : `Intérêt national`
+*   **≥ 15** : `Intérêt international`
+
+#### Gradient CHEGD et IR
+
+Le script calcule un gradient par visite et un indice de représentativité :
+
+$$IR_{visite} = \max\left(0, 1 - \frac{gradient_{visite}}{chegd_{total}}\right)$$
+
+*   **IR proche de 1** : meilleure représentativité,
+*   **IR faible** : marge de progression plus importante sur la couverture.
+
+---
+
+### Lecture des graphiques (CHEGD)
+
+| Figure | Lecture principale |
+| --- | --- |
+| `fig1_tableau_de_bord_pelouses` | Comparaison globale des 3 axes par pelouse |
+| `fig2_positionnement_ecologique` | Positionnement potentiel × patrimonialité, couleur/taille = CHEGD |
+| `fig3_composition_potentiel` | Décomposition du score potentiel par groupes fonctionnels |
+| `fig4_chegd_par_visite` | Variation du gradient CHEGD selon les visites |
+| `fig5_heatmap_classes` | Vue décisionnelle synthétique des classes finales |
+| `fig6_niveaux_fiabilite` | Répartition des niveaux de fiabilité de détermination |
+| `fig7_indice_representativite_ir` | Heatmap de l'IR par visite et par pelouse |
+
+---
+
+### Dépannage (FAQ CHEGD)
+
+**Le script ne trouve pas mon fichier d'entrée**  
+Vérifier `input_file` dans `get_embedded_config()` et la présence réelle du fichier dans `data/`.
+
+**Erreur de colonnes manquantes**  
+Contrôler les intitulés exacts des colonnes métier (ou adapter `columns$...` dans la configuration).
+
+**Dates mal interprétées**  
+Vérifier le format de la colonne `Date` et éviter les valeurs hétérogènes dans une même colonne.
+
+**Pourquoi mes valeurs diffèrent du classeur de référence ?**  
+Le mode “fidélité Excel” n'est activé que si un classeur de référence compatible est détecté (feuilles attendues).
+
+**Je n'ai pas toutes les figures**  
+Certaines figures dépendent de la disponibilité de données suffisantes ou de certaines structures (ex. gradients par visite exploitables).
 
 ---
 
