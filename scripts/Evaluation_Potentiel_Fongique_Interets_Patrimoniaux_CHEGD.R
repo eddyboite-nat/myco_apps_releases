@@ -2,14 +2,7 @@
 
 # ================================================================================
 # Évaluation du potentiel fongique, de l'intérêt patrimonial et du gradient CHEGD
-# ================================================================================
-#
-# Protocole de base :
-#   Sellier, Y. et coll.
-#   Bulletin de la Société Mycologique de France, vol. 131, pp. 1-2.
-#   Voir : docs/Bull.-SMF-131-1-2-Y-Sellier-et-coll..pdf
-#
-# ================================================================================
+# --------------------------------------------------------------------------------
 # But :
 #   - Lire un fichier Excel de données brutes d'observations mycologiques.
 #   - Produire des résumés globaux (site/famille/espèce/date/fiabilité).
@@ -903,9 +896,11 @@ build_scatter_positionnement <- function(site_metrics, out_dir) {
       label            = paste0("P", site_id)
     )
 
+  df_labels <- prepare_scatter_labels(df)
+
   p <- ggplot(df, aes(x = potentiel_score, y = indice_patrimonial, colour = chegd_moyen, label = label)) +
     geom_point(aes(size = chegd_moyen), alpha = 0.85) +
-    ggrepel_or_text(df) +
+    ggrepel_or_text(df_labels) +
     scale_colour_gradient(low = "#FEE0D2", high = "#CB181D", name = "CHEGD\nmoyen") +
     scale_size_continuous(range = c(3, 10), guide = "none") +
     geom_vline(xintercept = 10, linetype = "dashed", colour = "grey55", linewidth = 0.4) +
@@ -929,12 +924,52 @@ build_scatter_positionnement <- function(site_metrics, out_dir) {
   invisible(NULL)
 }
 
-# Helper : utilise geom_text si ggrepel absent, sinon ggrepel::geom_text_repel.
-ggrepel_or_text <- function(df) {
+# Prépare des positions de labels distinctes quand plusieurs points partagent
+# exactement les mêmes coordonnées (cas fréquent sur les faibles scores).
+prepare_scatter_labels <- function(df, x_step = 0.06, y_step = 0.08) {
+  if (is.null(df) || nrow(df) == 0) {
+    return(df)
+  }
+
+  df %>%
+    group_by(potentiel_score, indice_patrimonial) %>%
+    arrange(site_id, .by_group = TRUE) %>%
+    mutate(
+      n_same = n(),
+      idx_same = row_number(),
+      offset_center = idx_same - (n_same + 1) / 2,
+      label_x = potentiel_score + ifelse(n_same > 1, offset_center * x_step, 0),
+      label_y = indice_patrimonial + ifelse(n_same > 1, offset_center * y_step, 0)
+    ) %>%
+    ungroup()
+}
+
+# Helper labels : privilégie ggrepel, sinon fallback propre avec positions décalées.
+ggrepel_or_text <- function(df_labels) {
   if (requireNamespace("ggrepel", quietly = TRUE)) {
-    ggrepel::geom_text_repel(size = 2.8, colour = "grey20", max.overlaps = 20)
+    ggrepel::geom_text_repel(
+      data = df_labels,
+      aes(x = potentiel_score, y = indice_patrimonial, label = label),
+      size = 2.9,
+      colour = "grey20",
+      seed = 42,
+      max.overlaps = Inf,
+      box.padding = 0.45,
+      point.padding = 0.35,
+      min.segment.length = 0,
+      segment.alpha = 0.6,
+      segment.size = 0.25,
+      force = 1.5,
+      force_pull = 0.4
+    )
   } else {
-    geom_text(nudge_y = 0.07, size = 2.8, colour = "grey20")
+    geom_text(
+      data = df_labels,
+      aes(x = label_x, y = label_y, label = label),
+      size = 2.8,
+      colour = "grey20",
+      check_overlap = TRUE
+    )
   }
 }
 
