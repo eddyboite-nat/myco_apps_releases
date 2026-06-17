@@ -64,10 +64,31 @@ Le document répond aux questions directrices suivantes :
 
 \section{Objet du document}
 Le document décrit la conception fonctionnelle du script
-\texttt{Evaluation\_Potentiel\_Fongique\_Interets
-\_Patrimoniaux\_CHEGD.R}.
+\url{Evaluation_Potentiel_Fongique_Interets_Patrimoniaux_CHEGD.R}.
 Il précise les objectifs métier, les entrées/sorties, les règles de calcul,
 les traitements réalisés, ainsi que les mécanismes de contrôle et de traçabilité.
+
+\subsection{Mise à jour documentaire issue des nouveaux commentaires du code}
+La version actuelle du script intègre une \textbf{documentation interne enrichie}
+commentant explicitement les objectifs, les entrées/sorties et le rôle de
+chaque fonction majeure. La présente conception fonctionnelle est alignée sur
+ces commentaires et reprend les axes structurants suivants :
+\begin{itemize}[leftmargin=1.2cm]
+  \item \textbf{Finalité métier explicitée} : évaluer le potentiel fongique,
+  l'intérêt patrimonial et le gradient CHEGD, avec mode optionnel de
+  \textit{fidélité Excel}.
+  \item \textbf{Traçabilité renforcée} : description détaillée des mécanismes
+  de journalisation (initialisation, messages d'information, avertissement, erreur,
+  sections, en-tête/résumé/pied de page).
+  \item \textbf{Chaîne de traitement clarifiée} : lecture robuste des entrées,
+  normalisation, agrégations par site, calculs des indicateurs, restitution
+  tabulaire/graphique.
+  \item \textbf{Règles de calcul explicitées} : classification du potentiel,
+  classification de l'intérêt patrimonial, calcul des gradients par visite et calcul IR.
+  \item \textbf{Gestion des cas imparfaits} : conversions défensives,
+  résolution robuste de fichier d'entrée, contrôles de colonnes requises et
+  messages de diagnostic orientés action.
+\end{itemize}
 
 \section{Contexte et finalité}
 Le script vise l'évaluation de pelouses à partir d'observations mycologiques,
@@ -116,7 +137,7 @@ Les critères de scientificité mobilisés sont les suivants :
 \begin{itemize}[leftmargin=1.2cm]
   \item \textbf{Standardisation} des évaluations entre campagnes et entre observateurs.
   \item \textbf{Objectivation} de la priorisation des sites via des scores/indices explicites.
-  \item \textbf{Transparence} grâce aux logs, exports intermédiaires et indicateurs QA.
+  \item \textbf{Transparence} grâce aux logs, exports intermédiaires et indicateurs d'assurance qualité (QA).
   \item \textbf{Capitalisation} des analyses de fiabilité pour améliorer les futures collectes.
 \end{itemize}
 
@@ -137,7 +158,7 @@ Les critères de scientificité mobilisés sont les suivants :
   \item Saisie interactive utilisateur.
   \item Persistance en base de données.
   \item API web ou service temps réel.
-  \item Gestion des droits utilisateurs (IAM) et workflow de validation documentaire.
+  \item Gestion des droits utilisateurs (IAM) et flux de validation documentaire.
   \item Géoréférencement cartographique avancé (SIG, tuilage, webmap).
 \end{itemize}
 
@@ -175,6 +196,10 @@ ENF-04 & Tolérance aux données imparfaites : conversion robuste des dates/num�
 \section{Configuration}
 La configuration est \textbf{embarquée dans le script} via
 \texttt{get\_embedded\_config()}.
+
+Les commentaires de code précisent que cette configuration est conçue pour être
+modulable (surcharge possible à terme) tout en conservant un point d'entrée
+unique pour la reproductibilité des analyses.
 
 \subsection{Paramètres par défaut}
 \begin{longtable}{p{0.33\textwidth}p{0.6\textwidth}}
@@ -229,6 +254,11 @@ La configuration est \textbf{embarquée dans le script} via
   \item Chargement des données.
   \item Nettoyage de structure et conversions de type.
 \end{enumerate}
+
+Les commentaires de code détaillent explicitement la stratégie de robustesse
+de cette étape : détection du séparateur CSV, suppression de colonnes techniques
+parasites, conversion sécurisée des dates (formats multiples/numériques Excel)
+et conversion sécurisée des numériques (locale à virgule).
 
 \subsection{Étape 2 --- Résumés descriptifs}
 Production de synthèses globales :
@@ -291,7 +321,7 @@ de site s'appuient sur un faisceau d'indices statistiques complémentaires.
   \item \textbf{Interprétation analytique} : sélectionner un modèle explicatif de la fiabilité à performance équilibrée entre classes.
 \end{itemize}
 
-\subsubsection{Objectif 4 --- Association site $\times$ fiabilité}
+\subsubsection{\texorpdfstring{Objectif 4 --- Association site $\times$ fiabilité}{Objectif 4 --- Association site x fiabilité}}
 \begin{itemize}[leftmargin=1.2cm]
   \item \textbf{Mesure primaire} : $M=-\log_{10}(p)$.
   \item \textbf{Seuils de lecture suggérés} :
@@ -458,21 +488,16 @@ EF-10 & Journalisation complète de l'exécution & \texttt{logs/EPFIP\_CHEGD\_*.
 \end{longtable}
 
 \subsection{Table de lecture décisionnelle}
-\begin{longtable}{p{0.33\textwidth}p{0.60\textwidth}}
+\begin{longtable}{p{0.40\textwidth}p{0.53\textwidth}}
 \toprule
 \textbf{Sortie} & \textbf{Usage décisionnel principal} \\
 \midrule
 \texttt{resume\_par\_site.csv} & Comparer les sites et identifier les priorités d'inventaire/suivi. \\
-\texttt{potentiel\_fongique
-\_par\_site.csv} & Cibler les sites à fort potentiel biologique. \\
-\texttt{indice\_patrimonial
-\_par\_site.csv} & Argumenter les enjeux de conservation patrimoniale. \\
-\texttt{gradient\_chegd\_par
-\_site.csv} & Suivre la structure CHEGD et sa dynamique entre visites. \\
-\texttt{indice\_representativite\_ir
-\_par\_site.csv} & Évaluer la représentativité relative des observations par site. \\
-\texttt{stat\_model\_selection
-\_summary.csv} & Justifier le choix du modèle le plus pertinent pour la fiabilité. \\
+\texttt{potentiel\_fongique\_par\_site.csv} & Cibler les sites à fort potentiel biologique. \\
+\texttt{indice\_patrimonial\_par\_site.csv} & Argumenter les enjeux de conservation patrimoniale. \\
+\texttt{gradient\_chegd\_par\_site.csv} & Suivre la structure CHEGD et sa dynamique entre visites. \\
+\texttt{indice\_representativite\_ir\_par\_site.csv} & Évaluer la représentativité relative des observations par site. \\
+\texttt{stat\_model\_selection\_summary.csv} & Justifier le choix du modèle le plus pertinent pour la fiabilité. \\
 \bottomrule
 \end{longtable}
 
@@ -492,6 +517,11 @@ Le script journalise :
 Le log contient un en-tête d'exécution, les étapes essentielles, warnings/erreurs,
 et un pied de page avec durée totale et chemin du log.
 
+Les nouveaux commentaires du code documentent également le rôle opérationnel de
+chaque fonction de logging : \texttt{setup\_logging}, \texttt{log\_info},
+\texttt{log\_warning\_msg}, \texttt{log\_error}, \texttt{log\_section},
+\texttt{log\_header}, \texttt{log\_data\_summary}, \texttt{log\_footer}.
+
 \section{Gestion des erreurs}
 \begin{itemize}[leftmargin=1.2cm]
   \item Validation stricte des colonnes d'entrée.
@@ -501,7 +531,7 @@ et un pied de page avec durée totale et chemin du log.
 \end{itemize}
 
 \section{Contrôles qualité}
-Le script produit des indicateurs QA, dont :
+Le script produit des indicateurs d'assurance qualité (QA), dont :
 \begin{itemize}[leftmargin=1.2cm]
   \item \texttt{coherence\_chegd\_gradients\_ok}
   \item \texttt{nb\_sites\_incoherents\_chegd}
@@ -580,7 +610,7 @@ Le script est considéré conforme si :
 \subsection{Critères complémentaires de recette}
 \begin{itemize}[leftmargin=1.2cm]
   \item Les classes de potentiel et d'intérêt patrimonial sont explicables pour au moins 3 sites échantillons.
-  \item Les résultats fiabilité (objectifs 1 à 4) sont présents même en cas de fallback statistique.
+  \item Les résultats fiabilité (Objectifs 1 à 4) sont présents même en cas de mécanisme de repli statistique.
   \item L'écart entre gradients détaillés et total reste nul ou explicité pour tout site signalé.
 \end{itemize}
 

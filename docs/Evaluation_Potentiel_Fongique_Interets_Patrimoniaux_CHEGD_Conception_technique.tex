@@ -30,6 +30,8 @@
 \author{Boite Eddy}
 \date{\today}
 
+\hbadness=10000
+\hfuzz=80pt
 \begin{document}
 \maketitle
 
@@ -50,7 +52,7 @@ Dans une perspective de publication scientifique, la lecture du document peut
 \begin{itemize}[leftmargin=1.2cm]
   \item \textbf{Introduction} : positionnement méthodologique, objectifs techniques, périmètre.
   \item \textbf{Méthodes} : architecture, modèles de données, procédures statistiques, protocoles de validation.
-  \item \textbf{Résultats} : fichiers générés, métriques, tableaux de validation et critères QA.
+  \item \textbf{Résultats} : fichiers générés, métriques, tableaux de validation et critères d'assurance qualité (QA).
   \item \textbf{Discussion} : menaces à la validité, limites de transférabilité, recommandations d'évolution.
 \end{itemize}
 
@@ -89,14 +91,14 @@ avec un focus sur :
   \item la chaîne de traitement de données,
   \item la logique de calcul des indicateurs métier,
   \item les modèles statistiques utilisés,
-  \item la robustesse (contrôles, fallback, logging, QA).
+  \item la robustesse (contrôles, mécanismes de repli, journalisation, QA).
 \end{itemize}
 
 \section{Architecture logicielle}
 \subsection{Style d'architecture}
 Le script suit une architecture \textbf{pipeline batch séquentielle}, organisée en modules fonctionnels :
 \begin{enumerate}[leftmargin=1.2cm]
-  \item Initialisation (packages, config embarquée, logging),
+  \item Initialisation (packages, configuration embarquée, journalisation),
   \item Ingestion/normalisation des données,
   \item Calculs métier par site,
   \item Module de fiabilité (objectifs statistiques 1 à 4),
@@ -108,7 +110,7 @@ Le script suit une architecture \textbf{pipeline batch séquentielle}, organisé
 \begin{itemize}[leftmargin=1.2cm]
   \item \textbf{Déterminisme} : mêmes entrées + même configuration $\Rightarrow$ mêmes sorties (hors horodatage).
   \item \textbf{Tolérance aux variations de données} : conversions défensives et diagnostics explicites.
-  \item \textbf{Traçabilité by design} : chaque phase significative est loguée.
+  \item \textbf{Traçabilité dès la conception} : chaque phase significative est journalisée.
   \item \textbf{Séparation logique} : ingestion, calcul métier, fiabilité, restitution.
 \end{itemize}
 
@@ -121,12 +123,32 @@ Le script suit une architecture \textbf{pipeline batch séquentielle}, organisé
 \subsection{Configuration}
 La configuration est intégrée via \texttt{get\_embedded\_config()} :
 \begin{lstlisting}
-input_file    = data/donnees_recoltes_chegd_pelouses.csv
+input_file    = data/données_récoltes_chegd_pelouses.csv
 input_sheet   = NULL
 output_dir    = results
 output_prefix = EPFIP_CHEGD
 columns       = {species, family, date, count, site, reliability}
 \end{lstlisting}
+
+Cette section est désormais alignée sur les commentaires internes du script,
+qui documentent le rôle de chaque paramètre de configuration et la logique de
+résolution des chemins relatifs/absolus depuis la racine projet.
+
+\subsection{Mise à jour technique issue des nouveaux commentaires du code}
+Les commentaires détaillés ajoutés dans le script renforcent la lisibilité
+technique et l'auditabilité. Les points suivants sont explicitement couverts :
+\begin{itemize}[leftmargin=1.2cm]
+  \item \textbf{Contrats de fonctions} : paramètres, stratégie de traitement,
+  valeurs de retour et cas limites.
+  \item \textbf{Résolution d'entrée robuste} : correspondance exacte,
+  normalisée, puis rapprochement par distance de Levenshtein.
+  \item \textbf{Parsing défensif} : conversions sécurisées des dates et
+  numériques, normalisation textuelle et gestion des valeurs manquantes.
+  \item \textbf{Mode fidélité Excel} : alignement optionnel sur un classeur de
+  référence avec recalage des métriques site/visite.
+  \item \textbf{Observabilité} : journalisation structurée de bout en bout avec
+  fonctions dédiées et traces horodatées.
+\end{itemize}
 
 \subsection{Surcharge de configuration}
 Bien que la configuration soit embarquée, le design prévoit une extension simple
@@ -173,29 +195,29 @@ Le pipeline produit des artefacts en couches : \textit{ingestion},
 dans la chaîne de traitement.
 
 \subsubsection{Couche 1 --- Ingestion et normalisation}
-\begin{longtable}{p{0.36\textwidth}p{0.22\textwidth}p{0.34\textwidth}}
+\begin{center}\begin{tabular}{p{0.36\textwidth}p{0.22\textwidth}p{0.34\textwidth}}
 \toprule
 \textbf{Artefact} & \textbf{Type} & \textbf{Rôle technique} \\
 \midrule
 \texttt{donnees\_brutes\_nettoyees.csv} & table plate & Point de vérité post-nettoyage, base de toutes les agrégations. \\
 \texttt{resume\_global.csv} & table synthèse & QA global, volumétrie, indicateurs de cohérence et métadonnées de run. \\
 \bottomrule
-\end{longtable}
+\end{tabular}\end{center}
 
 \subsubsection{Couche 2 --- Indicateurs métier consolidés}
-\begin{longtable}{p{0.36\textwidth}p{0.20\textwidth}p{0.36\textwidth}}
+\begin{center}\begin{tabular}{p{0.40\textwidth}p{0.18\textwidth}p{0.34\textwidth}}
 \toprule
 \textbf{Artefact} & \textbf{Clé primaire logique} & \textbf{Variables critiques attendues} \\
 \midrule
-\texttt{potentiel\_fongique\_par\_site.csv} & \texttt{site} & \texttt{score\_potentiel}, \texttt{classe\_potentiel} \\
-\texttt{indice\_patrimonial\_par\_site.csv} & \texttt{site} & \texttt{indice\_patrimonial}, \texttt{classe\_interet} \\
-\texttt{gradient\_chegd\_par\_site.csv} & \texttt{site} & \texttt{gradient\_visite\_*}, \texttt{chegd\_total}, \texttt{chegd\_moyen} \\
-\texttt{indice\_representativite\_ir\_par\_site.csv} & \texttt{site} & \texttt{ir\_visite\_*}, \texttt{ir\_moyen} \\
+potentiel fongique & \texttt{site} & \texttt{potentiel\_score}, \texttt{potentiel\_classe} \\
+indice patrimonial & \texttt{site} & \texttt{indice\_patrimonial}, \texttt{classe\_patrimoniale} \\
+gradient CHEGD & \texttt{site} & \texttt{gradient\_visite\_*}, \texttt{chegd\_total}, \texttt{chegd\_moyen} \\
+indice de représentativité & \texttt{site} & \texttt{ir\_visite\_*}, \texttt{ir\_moyen} \\
 \bottomrule
-\end{longtable}
+\end{tabular}\end{center}
 
 \subsubsection{Couche 3 --- Sorties statistiques objectives (fiabilité)}
-\begin{longtable}{p{0.23\textwidth}p{0.21\textwidth}p{0.46\textwidth}}
+\begin{center}\begin{tabular}{p{0.23\textwidth}p{0.21\textwidth}p{0.46\textwidth}}
 \toprule
 \textbf{Préfixe} & \textbf{Objectif} & \textbf{Contenu typique} \\
 \midrule
@@ -203,9 +225,9 @@ dans la chaîne de traitement.
 \texttt{stat\_obj2\_*} & O2 & scores pondérés par schéma, $\rho$ de Spearman, overlap top-k. \\
 \texttt{stat\_obj3\_*} & O3 & métriques CV par modèle (Accuracy, Macro-F1, Log-loss), décision de sélection. \\
 \texttt{stat\_obj4\_*} & O4 & test choisi ($\chi^2$/Fisher), $p$-value, mesure $M=-\log_{10}(p)$. \\
-\texttt{stat\_model\_selection\_summary.csv} & O3 & synthèse consolidée du meilleur candidat et justification numérique. \\
+synthèse de sélection modèle & O3 & synthèse consolidée du meilleur candidat et justification numérique. \\
 \bottomrule
-\end{longtable}
+\end{tabular}\end{center}
 
 \subsubsection{Couche 4 --- Restitution graphique}
 \begin{itemize}[leftmargin=1.2cm]
@@ -229,7 +251,7 @@ dans la chaîne de traitement.
 
 \section{Modèle de données technique}
 \subsection{Schéma logique minimal des observations}
-\begin{longtable}{p{0.22\textwidth}p{0.18\textwidth}p{0.52\textwidth}}
+\begin{center}\begin{tabular}{p{0.22\textwidth}p{0.18\textwidth}p{0.52\textwidth}}
 \toprule
 \textbf{Champ logique} & \textbf{Type attendu} & \textbf{Rôle dans le pipeline} \\
 \midrule
@@ -240,7 +262,7 @@ dans la chaîne de traitement.
 \texttt{site} & caractère & Clé d'agrégation principale des indicateurs. \\
 \texttt{reliability} & facteur ordinal & Cible ou poids selon objectifs 1 à 4. \\
 \bottomrule
-\end{longtable}
+\end{tabular}\end{center}
 
 \subsection{Artefacts intermédiaires}
 Le pipeline manipule des tables intermédiaires standardisées :
@@ -266,6 +288,10 @@ Le pipeline manipule des tables intermédiaires standardisées :
     \item \texttt{to\_numeric\_safe} (virgule décimale).
   \end{itemize}
 \end{itemize}
+
+Les commentaires du code décrivent également la détection du séparateur CSV
+sur les premières lignes non vides et le nettoyage des colonnes entièrement
+vides, afin de fiabiliser les imports issus d'exports hétérogènes.
 
 \subsubsection{Critères de qualité de données}
 À l'issue de la phase A, les contrôles suivants sont attendus :
@@ -530,18 +556,18 @@ Objectif : reproductibilité métier avec le classeur de référence.
 \end{itemize}
 
 \subsection{Politique de sévérité des anomalies}
-\begin{longtable}{>{\raggedright\arraybackslash}p{0.2\textwidth}>{\raggedright\arraybackslash}p{0.32\textwidth}>{\raggedright\arraybackslash}p{0.4\textwidth}}
+\begin{center}\begin{tabular}{>{\raggedright\arraybackslash}p{0.2\textwidth}>{\raggedright\arraybackslash}p{0.32\textwidth}>{\raggedright\arraybackslash}p{0.4\textwidth}}
 \toprule
 \textbf{Niveau} & \textbf{Exemple} & \textbf{Action système} \\
 \midrule
 INFO & Volumétrie et progression & Trace sans interruption \\
-WARNING & Valeurs partiellement manquantes/non standard & Poursuite avec normalisation ou exclusion ciblée \\
-ERROR & Colonnes obligatoires absentes, lecture impossible & Arrêt propre avec message explicite \\
+AVERTISSEMENT & Valeurs partiellement manquantes/non standard & Poursuite avec normalisation ou exclusion ciblée \\
+ERREUR & Colonnes obligatoires absentes, lecture impossible & Arrêt propre avec message explicite \\
 \bottomrule
-\end{longtable}
+\end{tabular}\end{center}
 
 \section{Contrôles qualité et non-régression}
-\subsection{Indicateurs QA exportés}
+\subsection{Indicateurs d'assurance qualité (QA) exportés}
 Dans \texttt{resume\_global.csv} :
 \begin{itemize}[leftmargin=1.2cm]
   \item \texttt{coherence\_chegd\_gradients\_ok},
@@ -567,19 +593,19 @@ Dans \texttt{resume\_global.csv} :
 \end{itemize}
 
 \subsection{Matrice de validation des artefacts}
-\begin{longtable}{p{0.21\textwidth}p{0.34\textwidth}p{0.37\textwidth}}
+\begin{center}\begin{tabular}{p{0.21\textwidth}p{0.34\textwidth}p{0.37\textwidth}}
 \toprule
 \textbf{Bloc} & \textbf{Règle de validation} & \textbf{Preuve attendue} \\
 \midrule
 Ingestion & Colonnes critiques présentes et typées & \texttt{donnees\_brutes\_nettoyees.csv} + warnings ciblés dans log \\
 Indicateurs métier & 1 ligne par site, pas de duplication clé & tables \texttt{*\_par\_site.csv} cohérentes \\
-CHEGD/IR & somme gradients visite cohérente avec total & QA \texttt{coherence\_chegd\_gradients\_ok=true} \\
+CHEGD/IR & somme gradients visite cohérente avec total & QA indicateur de cohérence CHEGD \\
 Objectif 2 & classement stable sous pondérations & \texttt{stat\_obj2\_*.csv} avec $\rho$ et overlap \\
-Objectif 3 & modèle gagnant justifié numériquement & \texttt{stat\_model\_selection\_summary.csv} \\
+Objectif 3 & modèle gagnant justifié numériquement & synthèse de sélection modèle \\
 Objectif 4 & type de test tracé et interprétable & \texttt{stat\_obj4\_*.csv} + log test \\
 Observabilité & run horodaté complet & fichier \texttt{logs/EPFIP\_CHEGD\_*.log} \\
 \bottomrule
-\end{longtable}
+\end{tabular}\end{center}
 
 \subsection{Critères de stabilité statistique recommandés}
 Pour une exploitation en contexte institutionnel, il est recommandé de viser :

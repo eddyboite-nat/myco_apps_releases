@@ -1,8 +1,9 @@
 #!/usr/bin/env Rscript
 
-# ================================================================================
+# ===============================================================================================================================================================================================
 # Évaluation du potentiel fongique, de l'intérêt patrimonial et du gradient CHEGD
-# --------------------------------------------------------------------------------
+# ===============================================================================================================================================================================================
+# Évaluation du potentiel fongique, de l'intérêt patrimonial et du gradient CHEGD
 # But :
 #   - Lire un fichier Excel de données brutes d'observations mycologiques.
 #   - Produire des résumés globaux (site/famille/espèce/date/fiabilité).
@@ -18,10 +19,22 @@
 # Sorties :
 #   - Répertoire fixe dans cfg$output_dir contenant les CSV de synthèse.
 #
-# ================================================================================
+# Version :
+#   - 1.0
+#
+# ===============================================================================================================================================================================================
 
-# --------------------------------------------------------------------------------
-# Pré-requis : packages R 
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Pré-requis : packages R
+# Ces packages sont utilisés pour la lecture de fichiers Excel, la manipulation de données, la création de graphiques et l'analyse statistique.
+# readxl : lecture de fichiers Excel (.xlsx)
+# dplyr : manipulation de data frames (filtrage, regroupement, résumés)
+# stringr : manipulation de chaînes de caractères (regex, remplacement, extraction)
+# ggplot2 : création de graphiques
+# gridExtra : disposition de graphiques multiples
+# MASS : fonctions statistiques avancées
+# nnet : modèles de réseaux de neurones et régression multinomiale
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 suppressPackageStartupMessages({
   if (!requireNamespace("readxl", quietly = TRUE)) {
     install.packages("readxl", repos = "https://cloud.r-project.org")
@@ -45,9 +58,18 @@ suppressPackageStartupMessages({
     install.packages("nnet", repos = "https://cloud.r-project.org")
   }
 })
-# --------------------------------------------------------------------------------
 
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Chargement des packages
+# Ces packages sont utilisés pour la lecture de fichiers Excel, la manipulation de données, la création de graphiques et l'analyse statistique.
+# readxl : lecture de fichiers Excel (.xlsx)
+# dplyr : manipulation de data frames (filtrage, regroupement, résumés)
+# stringr : manipulation de chaînes de caractères (regex, remplacement, extraction)
+# ggplot2 : création de graphiques
+# gridExtra : disposition de graphiques multiples
+# MASS : fonctions statistiques avancées 
+# nnet : modèles de réseaux de neurones et régression multinomiale
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 library(readxl)
 library(dplyr)
 library(stringr)
@@ -56,18 +78,43 @@ library(gridExtra)
 library(MASS)
 library(nnet)
 
-# =============================================================================
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Version du script
+# SCRIPT_VERSION : version fonctionnelle du pipeline (SemVer simplifiée).
+# Utilisée dans les logs pour tracer précisément la version exécutée.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+SCRIPT_VERSION <- "1.0"
+
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Système de logging
-# =============================================================================
 # Un système de logging simple pour suivre l'exécution du script et enregistrer les messages dans un fichier log horodaté.
 # Le log inclut des sections, des messages d'info, d'erreur et de warning, ainsi qu'un résumé des données et une durée d'exécution totale.
 # Le fichier log est créé dans un sous-dossier "logs" du répertoire de sortie, avec un nom basé sur le préfixe de sortie et l'horodatage.
-
+# Environnement pour stocker les informations de logging
+# .log_env est un environnement interne pour stocker le chemin du fichier log et l'heure de début de l'exécution.
+# Il est utilisé par les fonctions de logging pour écrire les messages dans le fichier log et calculer la durée d'exécution.
+# .log_env est initialisé avec log_file et start_time à NULL, et sera mis à jour lors de l'appel à setup_logging().
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 .log_env <- new.env()
 .log_env$log_file <- NULL
 .log_env$start_time <- NULL
 
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Initialise le logging avec un fichier log horodaté à la racine du projet.
+# base_dir : répertoire de base du projet (où créer le sous-dossier logs)
+# prefix : préfixe du nom de fichier log (par défaut "EPFIP_CHEGD")
+# Retourne le chemin complet du fichier log créé.
+# Le fichier log est créé dans un sous-dossier "logs" du répertoire de base, avec un nom basé sur le préfixe et l'horodatage actuel.
+# Le fichier log est vide au départ, et les messages seront ajoutés au fur et à mesure de l'exécution du script.
+# Le timestamp est au format YYYYMMDD_HHMM pour faciliter le tri chronologique des fichiers log.
+# Le répertoire logs est créé s'il n'existe pas déjà, avec l'option recursive = TRUE pour créer les dossiers parents si nécessaire.
+# Le chemin du fichier log est stocké dans .log_env$log_file pour être utilisé par les fonctions de logging.
+# L'heure de début de l'exécution est stockée dans .log_env$start_time pour calculer la durée totale d'exécution à la fin.
+# La fonction retourne le chemin complet du fichier log créé, mais l'appelant peut l'ignorer si nécessaire.
+# Le fichier log peut être consulté après l'exécution du script pour vérifier les messages d'info, d'erreur et de warning, ainsi que le résumé des données et la durée totale d'exécution.
+# Le fichier log est également utile pour le débogage et la traçabilité des analyses.
+# Le fichier log peut être ouvert avec un éditeur de texte ou visualisé dans la console avec la commande cat() ou readLines().
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 setup_logging <- function(base_dir, prefix = "EPFIP_CHEGD") {
   timestamp <- format(Sys.time(), "%Y%m%d_%H%M")
   logs_dir <- file.path(base_dir, "logs")
@@ -79,7 +126,20 @@ setup_logging <- function(base_dir, prefix = "EPFIP_CHEGD") {
   invisible(log_file)
 }
 
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Fonction de logging avec horodatage optionnel
+# msg : message à logger (chaîne de caractères)
+# timestamp : booléen indiquant si l'horodatage doit être ajouté au message (par défaut TRUE)
+# Le message est affiché dans la console et écrit dans le fichier log si celui-ci est défini.
+# L'horodatage est au format [HH:MM:SS] pour indiquer l'heure d'exécution du message.
+# Si le fichier log n'est pas défini, le message est seulement affiché dans la console.
+# La fonction log_info() est utilisée pour enregistrer des messages d'information généraux, tels que le début et la fin de l'exécution, les étapes importantes du traitement, 
+#et les résumés des données.
+# Les messages d'erreur et de warning sont gérés par les fonctions log_error() et log_warning_msg(), respectivement.
+# Les messages de section sont gérés par la fonction log_section(), qui affiche un titre encadré par des lignes de séparation.
+# Les fonctions log_header(), log_data_summary() et log_footer() sont utilisées pour afficher un résumé des données et de l'exécution à différents moments du script.
+# Le système de logging est conçu pour être simple et efficace, et peut être adapté ou étendu selon les besoins du projet.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 log_info <- function(msg, timestamp = TRUE) {
   ts_str <- if (timestamp) format(Sys.time(), "[%H:%M:%S] ") else ""
   full_msg <- paste0(ts_str, msg)
@@ -89,7 +149,17 @@ log_info <- function(msg, timestamp = TRUE) {
   }
 }
 
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Fonction de logging des erreurs
+# msg : message d'erreur à logger (chaîne de caractères)
+# Le message est affiché dans la console et écrit dans le fichier log si celui-ci est défini.
+# L'horodatage n'est pas ajouté aux messages d'erreur, mais le préfixe [ERROR] est ajouté pour indiquer qu'il s'agit d'une erreur.
+# La fonction log_error() est utilisée pour enregistrer des messages d'erreur critiques qui nécessitent une attention immédiate, tels que des fichiers manquants, 
+# des colonnes manquantes, ou des problèmes de format de données.
+# Les messages d'erreur peuvent être utilisés pour interrompre l'exécution du script avec la fonction stop(), ou pour signaler des problèmes qui ne nécessitent pas l'arrêt immédiat.
+# Les messages d'erreur sont également utiles pour le débogage et la traçabilité des analyses, et peuvent être consultés dans le fichier log après l'exécution du script.
+# Les messages d'erreur peuvent être combinés avec des mécanismes de gestion des exceptions pour gérer les erreurs de manière plus flexible.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 log_error <- function(msg) {
   full_msg <- paste0("[ERROR] ", msg)
   cat(full_msg, "\n", file = stderr())
@@ -98,7 +168,19 @@ log_error <- function(msg) {
   }
 }
 
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Fonction de logging des warnings
+# msg : message de warning à logger (chaîne de caractères)
+# Le message est affiché dans la console et écrit dans le fichier log si celui-ci est défini.
+# L'horodatage n'est pas ajouté aux messages de warning, mais le préfixe [WARN] est ajouté pour indiquer qu'il s'agit d'un avertissement.
+# La fonction log_warning_msg() est utilisée pour enregistrer des messages de warning qui signalent des problèmes potentiels ou des situations inattendues,
+# mais qui ne nécessitent pas l'arrêt immédiat de l'exécution du script.
+# Les messages de warning peuvent être utilisés pour informer l'utilisateur de problèmes mineurs, tels que des valeurs manquantes, des colonnes supplémentaires, 
+# ou des formats de données inattendus.
+# Les messages de warning sont également utiles pour le débogage et la traçabilité des analyses, et peuvent être consultés dans le fichier log après l'exécution du script.
+# Les messages de warning peuvent être combinés avec des mécanismes de gestion des exceptions pour gérer les avertissements de manière plus flexible.
+# Les messages de warning peuvent être filtrés ou ignorés selon les besoins de l'utilisateur, mais il est recommandé de les examiner pour s'assurer que les résultats sont fiables.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 log_warning_msg <- function(msg) {
   full_msg <- paste0("[WARN] ", msg)
   cat(full_msg, "\n")
@@ -106,7 +188,20 @@ log_warning_msg <- function(msg) {
     cat(full_msg, "\n", file = .log_env$log_file, append = TRUE)
   }
 }
+
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Fonction de logging des sections
+# title : titre de la section à logger (chaîne de caractères)
+# La fonction log_section() est utilisée pour afficher un titre de section encadré par des lignes de séparation dans la console et dans le fichier log.
+# L'horodatage n'est pas ajouté aux titres de section, mais le titre est précédé de deux espaces pour l'indentation.
+# Les lignes de séparation sont composées de 80 caractères "─" pour créer un effet visuel distinctif.
+# Les titres de section sont utilisés pour organiser le log en différentes parties, telles que l'en-tête, le résumé des données, les étapes de traitement, et la fin de l'exécution.
+# Les titres de section facilitent la lecture et la navigation dans le fichier log, et permettent de repérer rapidement les informations importantes.
+# Les titres de section peuvent être personnalisés selon les besoins du projet, et peuvent inclure des informations supplémentaires, telles que des numéros de version, 
+# des identifiants de projet, ou des noms d'utilisateur.
+# Les titres de section peuvent être combinés avec des messages d'information, d'erreur et de warning pour créer un log complet et informatif.
+# Les titres de section peuvent être utilisés pour générer des rapports automatisés ou des résumés d'exécution, en extrayant les informations pertinentes du fichier log.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 log_section <- function(title) {
   sep <- strrep("─", 80)
   log_info(sep, timestamp = FALSE)
@@ -114,28 +209,85 @@ log_section <- function(title) {
   log_info(sep, timestamp = FALSE)
 }
 
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Fonctions de logging pour le résumé des données et l'exécution
+# log_header() : affiche l'en-tête du log avec les informations de configuration et d'entrée.
+# log_data_summary() : affiche le résumé des données avec le nombre d'observations, d'espèces, de sites et de dates.
+# log_footer() : affiche la fin de l'exécution avec la durée totale et l'heure de fin.
+# Ces fonctions sont appelées à différents moments du script pour fournir un suivi clair et structuré de l'exécution, et pour faciliter le débogage et la traçabilité des analyses.
+# Les fonctions de logging pour le résumé des données et l'exécution sont conçues pour être simples et efficaces, et peuvent être adaptées ou étendues selon les besoins du projet.
+# Les fonctions de logging pour le résumé des données et l'exécution utilisent les fonctions log_info(), log_error(), log_warning_msg() et log_section() pour afficher les messages 
+# dans la console et dans le fichier log.
+# Les fonctions de logging pour le résumé des données et l'exécution peuvent être combinées avec d'autres fonctions de traitement des données pour créer un pipeline complet 
+# d'analyse et de reporting.
+# Les fonctions de logging pour le résumé des données et l'exécution peuvent être utilisées pour générer des rapports automatisés ou des résumés d'exécution, 
+# en extrayant les informations pertinentes du fichier log.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 log_header <- function(config_path, input_file) {
   log_section("Évaluation du potentiel fongique, de l'intérêt patrimonial et du gradient CHEGD")
   log_info(paste0("Horodatage : ", format(Sys.time(), "%Y-%m-%d %H:%M:%S")), timestamp = FALSE)
+  log_info(paste0("Version du script : ", SCRIPT_VERSION), timestamp = FALSE)
   log_info(paste0("Version de R : ", R.version$version.string), timestamp = FALSE)
   log_info(paste0("Répertoire de travail : ", getwd()), timestamp = FALSE)
   log_info(paste0("Configuration: ", config_path), timestamp = FALSE)
   log_info(paste0("Fichier d'entrée : ", input_file), timestamp = FALSE)
 }
 
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Fonction de logging pour le résumé des données
+# nrows : nombre total d'observations (entiers)
+# nspecies : nombre d'espèces uniques (entiers)
+# nsites : nombre de sites uniques (entiers)
+# ndates : nombre de dates uniques (entiers)
+# La fonction log_data_summary() est utilisée pour afficher un résumé des données d'entrée, y compris le nombre total d'observations,
+# le nombre d'espèces uniques, le nombre de sites uniques et le nombre de dates uniques.
+# Les informations de résumé des données sont affichées dans la console et écrites dans le fichier log si celui-ci est défini.
+# Les informations de résumé des données sont utiles pour vérifier la qualité et la cohérence des données d'entrée, et pour détecter d'éventuels problèmes ou anomalies.
+# Les informations de résumé des données peuvent être utilisées pour générer des rapports automatisés ou des résumés d'exécution, en extrayant les informations pertinentes du fichier log.
+# Les informations de résumé des données peuvent être combinées avec d'autres fonctions de traitement des données pour créer un pipeline complet d'analyse et de reporting.
+# Les informations de résumé des données peuvent être personnalisées selon les besoins du projet, et peuvent inclure des informations supplémentaires, telles que des statistiques descriptives,
+# des graphiques, ou des tableaux de fréquence.
+# Les informations de résumé des données peuvent être utilisées pour guider les décisions d'analyse et d'interprétation des résultats, en fournissant un contexte sur la structure et 
+# la distribution des données.
+# Les informations de résumé des données peuvent être utilisées pour identifier les tendances, les modèles, et les relations entre les variables, et pour formuler des hypothèses de recherche.
+# Les informations de résumé des données peuvent être utilisées pour communiquer les résultats de l'analyse à différents publics, tels que les chercheurs, les gestionnaires, ou le grand public.
+# Les informations de résumé des données peuvent être utilisées pour documenter le processus d'analyse et pour assurer la reproductibilité des résultats.
+# Les informations de résumé des données peuvent être utilisées pour évaluer la robustesse et la fiabilité des conclusions tirées de l'analyse, en tenant compte de la taille et 
+# de la diversité des données.
+# Les informations de résumé des données peuvent être utilisées pour identifier les lacunes et les limites des données, et pour orienter les futures collectes de données ou les améliorations 
+# méthodologiques.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 log_data_summary <- function(nrows, nspecies, nsites, ndates) {
-  log_section("RÉSUMÉ DES DONNÉES")
+  log_section("Résumé des données d'entrée")
   log_info(paste0("Nombre total d'observations : ", nrows))
   log_info(paste0("Nombre d'espèces uniques : ", nspecies))
   log_info(paste0("Nombre de sites uniques : ", nsites))
   log_info(paste0("Nombre de dates uniques : ", ndates))
 }
 
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Fonction de logging pour le résumé des métriques par site
+# metrics_df : data frame contenant les métriques par site (site_id, site_name, potentiel_fongique, interet_patrimonial, gradient_chegd)
+# La fonction log_metrics_summary() est utilisée pour afficher un résumé des métriques calculées par site, y compris le potentiel fongique,
+# l'intérêt patrimonial et le gradient CHEGD.
+# Les informations de résumé des métriques par site sont affichées dans la console et écrites dans le fichier log si celui-ci est défini.
+# Les informations de résumé des métriques par site sont utiles pour évaluer la qualité et la pertinence des sites étudiés, et pour identifier les sites présentant un potentiel fongique 
+# élevé ou un intérêt patrimonial particulier.
+# Les informations de résumé des métriques par site peuvent être utilisées pour générer des rapports automatisés ou des résumés d'exécution, en extrayant les informations pertinentes 
+# du fichier log.
+# Les informations de résumé des métriques par site peuvent être combinées avec d'autres fonctions de traitement des données pour créer un pipeline complet d'analyse et de reporting.
+# Les informations de résumé des métriques par site peuvent être personnalisées selon les besoins du projet, et peuvent inclure des informations supplémentaires, telles que des graphiques,
+# des tableaux de fréquence, ou des cartes géographiques.
+# Les informations de résumé des métriques par site peuvent être utilisées pour guider les décisions de gestion et de conservation, en identifiant les sites prioritaires pour la protection 
+# ou la restauration.
+# Les informations de résumé des métriques par site peuvent être utilisées pour communiquer les résultats de l'analyse à différents publics, tels que les chercheurs, les gestionnaires,
+# ou le grand public.
+# Les informations de résumé des métriques par site peuvent être utilisées pour documenter le processus d'analyse et pour assurer la reproductibilité des résultats.
+# Les informations de résumé des métriques par site peuvent être utilisées pour évaluer la robustesse et la fiabilité des conclusions tirées de l'analyse, en tenant compte de la taille et
+# de la diversité des sites étudiés.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 log_footer <- function() {
-  log_section("EXÉCUTION TERMINÉE")
+  log_section("Exécution terminée")
   if (!is.null(.log_env$start_time)) {
     elapsed <- as.numeric(difftime(Sys.time(), .log_env$start_time, units = "secs"))
     log_info(paste0("Durée totale d'exécution : ", round(elapsed, 2), " secondes"), timestamp = FALSE)
@@ -143,12 +295,30 @@ log_footer <- function() {
   log_info(paste0("Heure de fin : ", format(Sys.time(), "%Y-%m-%d %H:%M:%S")), timestamp = FALSE)
   log_info(paste0("Fichier log : ", .log_env$log_file), timestamp = FALSE)
 }
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-# =============================================================================
-# Configuration et résolution des chemins
-# =============================================================================
-# Configuration embarquée du pipeline.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Configuration et résolution des chemins et configuration embarquée du pipeline.
 # Modifier cette fonction pour changer les paramètres par défaut.
+# La configuration embarquée inclut le chemin du fichier d'entrée, le répertoire de sortie, le préfixe de sortie, et les noms des colonnes attendues dans le fichier d'entrée.
+# La fonction get_embedded_config() retourne une liste contenant les paramètres de configuration, qui peuvent être utilisés par le script pour lire les données, calculer les métriques, 
+# et générer les résultats.
+# La configuration embarquée peut être modifiée directement dans le script, ou remplacée par un fichier de configuration externe si nécessaire.
+# La configuration embarquée est utilisée comme valeur par défaut, mais peut être surchargée par des arguments de ligne de commande ou des variables d'environnement si nécessaire.
+# La configuration embarquée est conçue pour être simple et flexible, et peut être adaptée aux besoins spécifiques du projet ou de l'utilisateur.
+# La configuration embarquée peut inclure des paramètres supplémentaires, tels que des seuils de filtrage, des options de visualisation, ou des paramètres de modélisation, 
+# selon les besoins du projet.
+# La configuration embarquée peut être utilisée pour documenter les choix méthodologiques et les hypothèses de l'analyse, et pour assurer la reproductibilité des résultats.
+# La configuration embarquée peut être utilisée pour faciliter la collaboration entre les membres de l'équipe, en fournissant un point de référence commun pour les paramètres 
+# et les options d'analyse.
+# La configuration embarquée peut être utilisée pour automatiser le traitement des données et la génération de rapports, en intégrant le script dans un pipeline d'analyse plus large.
+# La configuration embarquée peut être utilisée pour tester différentes hypothèses ou scénarios, en modifiant les paramètres et en comparant les résultats obtenus.
+# La configuration embarquée peut être utilisée pour créer des versions personnalisées du script, adaptées à des contextes spécifiques ou à des besoins particuliers.
+# La configuration embarquée peut être utilisée pour faciliter la maintenance et la mise à jour du script, en centralisant les paramètres et les options dans une seule fonction.
+# La configuration embarquée peut être utilisée pour améliorer la lisibilité et la compréhension du script, en fournissant des commentaires et des explications sur les paramètres et les options.
+# La configuration embarquée peut être utilisée pour assurer la compatibilité avec différentes versions de R et des packages, en spécifiant les dépendances et les versions requises.
+# La configuration embarquée peut être utilisée pour gérer les erreurs et les exceptions, en définissant des comportements par défaut ou des valeurs de repli en cas de problème.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 get_embedded_config <- function() {
   list(
     input_file = "data/données_récoltes_chegd_pelouses.csv",
@@ -166,7 +336,15 @@ get_embedded_config <- function() {
   )
 }
 
-# Détermine le répertoire du script en mode Rscript/VSCode et fallback getwd().
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Détermine le répertoire du script en mode Rscript, RStudio et VSCode, avec fallback getwd().
+# Stratégie de résolution par ordre de priorité :
+#   1) Argument de ligne de commande "--file=<path>" injecté par Rscript : fournit le chemin réel.
+#   2) sys.frames()[[1]]$ofile : injecté par source() ou RStudio lors d'une exécution interractive.
+#   3) getwd() : répertoire de travail courant (fallback pour VSCode REPL ou consoles interactives).
+# Retourne le chemin absolu normalisé du répertoire contenant le script (sans séparateur final).
+# Utilisée par resolve_config_path() et main() pour ancrer les chemins relatifs sur le projet.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 get_script_dir <- function() {
   cmd_args <- commandArgs(trailingOnly = FALSE)
   file_arg <- grep("^--file=", cmd_args, value = TRUE)
@@ -181,7 +359,30 @@ get_script_dir <- function() {
   normalizePath(getwd(), winslash = "/", mustWork = FALSE)
 }
 
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Résout le chemin de configuration avec plusieurs emplacements candidats.
+# config_path : chemin relatif ou absolu du fichier de configuration
+# La fonction resolve_config_path() tente de résoudre le chemin du fichier de configuration en vérifiant plusieurs emplacements candidats, y compris le répertoire de travail actuel,
+# le répertoire du script, et le répertoire parent du script.
+# Si le fichier de configuration est trouvé dans l'un des emplacements candidats, la fonction retourne le chemin absolu normalisé du fichier.
+# Sinon, elle génère une erreur.
+# La fonction resolve_config_path() est utilisée pour localiser le fichier de configuration nécessaire à l'exécution du script, et pour assurer que les paramètres de configuration
+# sont correctement chargés.
+# La fonction resolve_config_path() peut être utilisée pour gérer différents environnements d'exécution, tels que le développement local, le déploiement sur un serveur, ou 
+# l'exécution dans un conteneur.
+# La fonction resolve_config_path() peut être adaptée pour inclure d'autres emplacements candidats, tels que des répertoires spécifiques à l'utilisateur, des variables d'environnement,
+# ou des chemins de configuration globaux.
+# La fonction resolve_config_path() peut être utilisée pour vérifier la présence et l'accessibilité du fichier de configuration avant de procéder à l'exécution du script,
+# et pour fournir des messages d'erreur clairs et informatifs en cas de problème.
+# La fonction resolve_config_path() peut être combinée avec d'autres fonctions de gestion des chemins et des fichiers pour créer un système de configuration robuste et flexible.
+# La fonction resolve_config_path() peut être utilisée pour faciliter la maintenance et la mise à jour du script, en centralisant la gestion des chemins de configuration dans une seule fonction.
+# La fonction resolve_config_path() peut être utilisée pour améliorer la lisibilité et la compréhension du script, en fournissant des commentaires et des explications sur les choix de 
+# résolution des chemins.
+# La fonction resolve_config_path() peut être utilisée pour a@ssurer la compatibilité avec différents systèmes d'exploitation, en normalisant les séparateurs de chemin et en gérant les 
+# différences de casse.
+# La fonction resolve_config_path() peut être utilisée pour gérer les erreurs et les exceptions liées aux chemins de configuration, en fournissant des messages d'erreur clairs et
+# informatifs, et en permettant à l'utilisateur de corriger les problèmes rapidement.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 resolve_config_path <- function(config_path) {
   if (file.exists(config_path)) {
     return(normalizePath(config_path, winslash = "/", mustWork = TRUE))
@@ -203,7 +404,16 @@ resolve_config_path <- function(config_path) {
   stop("Fichier de configuration introuvable : ", config_path)
 }
 
-# Résout un chemin relatif à partir d'une base projet.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Résout un chemin relatif à partir du répertoire racine du projet.
+# path_value : valeur de chemin issue de la configuration (peut être NULL, NA, vide ou absolu).
+# base_dir   : répertoire racine du projet utilisé comme base pour les chemins relatifs.
+# Si path_value est NULL, NA ou vide, le retourne tel quel sans modification.
+# Si path_value est un chemin absolu (commence par "/" ou une lettre de lecteur Windows),
+# il est retourné inchangé.
+# Sinon, retourne file.path(base_dir, path_value) pour le transformer en chemin absolu.
+# Utilisée pour résoudre output_dir et input_file depuis la configuration embarquée dans main().
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 resolve_path_from_base <- function(path_value, base_dir) {
   if (is.null(path_value) || is.na(path_value) || path_value == "") {
     return(path_value)
@@ -214,7 +424,18 @@ resolve_path_from_base <- function(path_value, base_dir) {
   file.path(base_dir, path_value)
 }
 
-# Normalise un nom de fichier (accents/casse/séparateurs) pour matching robuste.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Normalise un nom de fichier pour permettre un matching robuste indépendant des accents et de la casse.
+# x : vecteur de chaînes de caractères représentant des noms de fichiers.
+# La normalisation procède en 3 étapes :
+#   1) Translittération ASCII (iconv "ASCII//TRANSLIT") pour supprimer les accents et caractères spéciaux.
+#      En cas d'échec de translittération, la valeur originale est conservée.
+#   2) Conversion en minuscules.
+#   3) Suppression de tous les caractères non alphanumériques (espaces, tirets, points, etc.).
+# Retourne un vecteur de chaînes normalisées, utilisables pour des comparaisons insensibles
+# à la casse, aux accents, aux séparateurs et aux différences d'encodage.
+# Utilisée par resolve_input_file() pour trouver le fichier d'entrée par correspondance normalisée.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 normalize_filename <- function(x) {
   x_ascii <- iconv(x, from = "", to = "ASCII//TRANSLIT")
   x_ascii[is.na(x_ascii)] <- x[is.na(x_ascii)]
@@ -222,8 +443,20 @@ normalize_filename <- function(x) {
   gsub("[^a-z0-9]", "", x_ascii)
 }
 
-# Résout le fichier d'entrée .xlsx :
-#   1) chemin exact, 2) correspondance normalisée, 3) nom proche (distance).
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Résout le fichier d'entrée (.xlsx ou .csv) selon une stratégie de recherche à 3 niveaux.
+# path_value : chemin configuré dans get_embedded_config() (relatif ou absolu).
+# base_dir   : répertoire racine du projet.
+# Niveaux de résolution, dans l'ordre de priorité :
+#   1) Chemin exact : vérifie file.exists(resolve_path_from_base(path_value, base_dir)).
+#   2) Correspondance normalisée : compare normalize_filename(basename(candidat))
+#      avec normalize_filename(basename(path_value)) sur tous les .xlsx/.csv dans data/ et base_dir.
+#   3) Distance de Levenshtein (adist) : choisit le candidat le plus proche si la distance
+#      est inférieure au seuil max(3, floor(nchar(nom_normalisé) * 0.25)).
+# En cas de succès pour les niveaux 2 et 3, un message (ℹ️) est émis via message().
+# Levève stop() avec la liste des candidats trouvés si aucun niveau ne réussit.
+# Retourne le chemin absolu normalisé du fichier d'entrée résolu.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 resolve_input_file <- function(path_value, base_dir) {
   resolved <- resolve_path_from_base(path_value, base_dir)
   if (!is.null(resolved) && !is.na(resolved) && resolved != "" && file.exists(resolved)) {
@@ -268,7 +501,15 @@ resolve_input_file <- function(path_value, base_dir) {
   )
 }
 
-# Fonction de détection automatique du séparateur CSV
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Détecte automatiquement le séparateur utilisé dans un fichier CSV.
+# file_path : chemin absolu du fichier CSV à analyser.
+# Lit les 5 premières lignes non vides du fichier en encodage UTF-8, puis compare
+# le nombre total de point-virgules (";" ) et de virgules (",") dans ces lignes.
+# Si la virgule est plus fréquente que le point-virgule, retourne "," ; sinon retourne ";".
+# Cas de fichier vide : retourne ";" par défaut (format CSV français le plus courant).
+# Utilisée par read_input_data() avant l'appel à utils::read.table() pour déterminer le paramètre sep.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 guess_csv_separator <- function(file_path) {
   first_lines <- readLines(file_path, n = 5, warn = FALSE, encoding = "UTF-8")
   first_lines <- first_lines[nzchar(trimws(first_lines))]
@@ -281,7 +522,22 @@ guess_csv_separator <- function(file_path) {
   if (comma_score > semicolon_score) "," else ";"
 }
 
-# Fonction de lecture des données d'entrée
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Lit le fichier de données d'entrée au format .xlsx ou .csv.
+# input_file  : chemin absolu du fichier d'entrée.
+# input_sheet : nom ou index de la feuille à lire pour les fichiers .xlsx (NULL = première feuille).
+# Pour les fichiers .xlsx :
+#   Utilise readxl::read_excel() avec ou sans paramètre sheet selon input_sheet.
+# Pour les fichiers .csv :
+#   1) Détecte le séparateur via guess_csv_separator().
+#   2) Lit le fichier ligne par ligne, filtre les lignes ne contenant que des séparateurs.
+#   3) Appelle utils::read.table() avec check.names=FALSE pour préserver les noms de colonnes accentés.
+#   4) Nettoie les noms de colonnes (supprime espaces initiaux/finaux).
+#   5) Supprime la colonne de tête vide éventuelle et les colonnes entièrement vides
+#      (artefacts courants des exports CSV avec séparateur initial ou final).
+# Lève stop() si le format de fichier n'est pas .xlsx ou .csv.
+# Retourne un data.frame avec les données brutes, prêt à être passé à ensure_required_columns().
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 read_input_data <- function(input_file, input_sheet = NULL) {
   ext <- tolower(tools::file_ext(input_file))
 
@@ -333,7 +589,17 @@ read_input_data <- function(input_file, input_sheet = NULL) {
   stop("Format d'entrée non supporté : ", ext, " (formats supportés : .xlsx, .csv)")
 }
 
-# Vérifie la présence des colonnes métier attendues dans la feuille d'entrée.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Vérifie la présence de toutes les colonnes métier attendues dans le data.frame d'entrée.
+# df  : data.frame brut issu de read_input_data().
+# cfg : configuration du pipeline contenant cfg$columns (liste nommée des colonnes attendues).
+# Extrait la liste des noms de colonnes requis via unlist(cfg$columns), puis vérifie
+# que chaque colonne est bien présente dans names(df).
+# Si des colonnes sont manquantes, levève stop() avec la liste des colonnes introuvables.
+# Cette vérification garantit que toutes les étapes suivantes du pipeline peuvent
+# accéder aux colonnes sans risquer d'échecs silencieux ou de messages d'erreur obscurs.
+# Retourne invisiblement NULL si toutes les colonnes sont présentes.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ensure_required_columns <- function(df, cfg) {
   required <- unlist(cfg$columns, use.names = TRUE)
   missing_cols <- required[!required %in% names(df)]
@@ -349,7 +615,19 @@ ensure_required_columns <- function(df, cfg) {
 # Helpers de conversion et normalisation
 # -----------------------------------------------------------------------------
 
-# Convertit un vecteur vers Date en gérant : Date, numéros Excel, formats texte.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Convertit un vecteur vers le type Date en gérant de multiples formats sources.
+# x : vecteur de valeurs à convertir (peut être de type Date, numérique ou chaîne).
+# Stratégie de conversion par ordre de priorité :
+#   1) Si x est déjà de type Date, le retourne tel quel.
+#   2) Si numérique, interprète comme numéro de série Excel (origine 1899-12-30).
+#   3) Si chaîne, détecte les valeurs ressemblant à des nombres (séparateur "," ou "."),
+#      les convertit en numérique puis les traite comme numéros Excel.
+#   4) Pour les valeurs restantes non converties, essaie les formats texte :
+#      "%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%m/%d/%Y", "%d.%m.%Y" dans cet ordre.
+# Les valeurs vides (""), "NA" et "NaN" sont transformées en NA avant toute conversion.
+# Retourne un vecteur de type Date de même longueur que x (NA là où la conversion échoue).
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 to_date_safe <- function(x) {
   if (inherits(x, "Date")) {
     return(x)
@@ -397,7 +675,15 @@ to_date_safe <- function(x) {
   out
 }
 
-# Convertit un vecteur en numérique en tolérant la virgule décimale.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Convertit un vecteur en numérique en tolérant la virgule comme séparateur décimal.
+# x : vecteur à convertir (peut être numérique, chaîne ou factor).
+# Si x est déjà numérique, le retourne tel quel sans transformation.
+# Sinon, convertit en chaîne, remplace toutes les virgules par des points via str_replace_all(),
+# puis appelle as.numeric() avec suppression des avertissements de coercion (NA introduits).
+# Retourne un vecteur numérique de même longueur que x (NA là où la conversion échoue).
+# Utilisée pour lire des fichiers CSV de locale française où les décimales utilisent la virgule.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 to_numeric_safe <- function(x) {
   if (is.numeric(x)) {
     return(x)
@@ -408,7 +694,19 @@ to_numeric_safe <- function(x) {
   suppressWarnings(as.numeric(x_chr))
 }
 
-# Normalisation texte : translittération ASCII, minuscule, espaces propres.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Normalise un vecteur de textes : translittération ASCII, minuscules, espaces propres.
+# x : vecteur de chaînes de caractères à normaliser.
+# La normalisation procède en 4 étapes :
+#   1) Conversion forcée en chaîne de caractères (as.character).
+#   2) Translittération ASCII (iconv "ASCII//TRANSLIT") pour supprimer les accents.
+#      En cas d'échec, la valeur originale est conservée.
+#   3) Conversion en minuscules.
+#   4) Remplacement de tous les caractères non alphanumériques par un espace,
+#      puis contraction des espaces multiples et suppression des espaces de bord.
+# Retourne un vecteur de chaînes normalisées utilisables pour des comparaisons robustes.
+# Utilisée pour normaliser les noms d'espèces, de familles et de sites avant les jointures.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 normalize_text <- function(x) {
   x_chr <- as.character(x)
   x_ascii <- iconv(x_chr, from = "", to = "ASCII//TRANSLIT")
@@ -418,13 +716,31 @@ normalize_text <- function(x) {
   trimws(gsub("\\s+", " ", x_ascii))
 }
 
-# Extrait l'identifiant numérique de site (ex : "Pelouse 16" -> 16).
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Extrait l'identifiant numérique d'un site depuis sa valeur textuelle.
+# site_value : valeur brute du champ site (ex : "Pelouse 16", "Site 3", "16").
+# Convertit la valeur en chaîne, puis extrait le premier groupe de chiffres consécutifs
+# via str_extract("\\d+") et le convertit en entier.
+# Retourne NA_integer_ si aucun chiffre n'est trouvé ou si la conversion échoue.
+# Utilisée par prepare_site_reference() et build_site_level_metrics() pour créer
+# les clés numériques site_id à partir des valeurs textuelles du fichier d'entrée.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 extract_site_id <- function(site_value) {
   site_chr <- as.character(site_value)
   suppressWarnings(as.integer(str_extract(site_chr, "\\d+")))
 }
 
-# Teste si chaque valeur commence par l'un des préfixes fournis.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Teste si chaque élément d'un vecteur commence par l'un des préfixes fournis.
+# values   : vecteur de chaînes de caractères à tester.
+# prefixes : vecteur de préfixes à vérifier (via startsWith).
+# Si values ou prefixes est vide, retourne un vecteur logique FALSE de longueur length(values).
+# Sinon, utilise Reduce sur `|` pour combiner les tests startsWith de chaque préfixe
+# en un seul vecteur logique par OR élément-par-élément.
+# Retourne un vecteur logique de même longueur que values.
+# Utilisée dans build_site_level_metrics() pour tester l'appartenance d'espèces à des groupes
+# définis par leurs préfixes normalisés (ex : "hygrocybe conica", "cuphophyllus pratensis").
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 starts_with_any <- function(values, prefixes) {
   if (length(values) == 0 || length(prefixes) == 0) {
     return(rep(FALSE, length(values)))
@@ -433,7 +749,16 @@ starts_with_any <- function(values, prefixes) {
   Reduce(`|`, lapply(prefixes, function(prefix) startsWith(values, prefix)))
 }
 
-# Classe métier du potentiel fongique à partir du score total.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Classe le potentiel fongique d'un site en 3 catégories à partir de son score total.
+# score : vecteur numérique de scores potentiels calculés dans build_site_level_metrics().
+# Seuils de classification :
+#   score ≤ 10 : "Potentiel fongique faible".
+#   10 < score < 30 : "Potentiel fongique intéressant".
+#   score ≥ 30 : "Potentiel fongique élevé".
+# Retourne un vecteur de chaînes de même longueur que score.
+# Ces seuils reproduisent la grille de classification du classeur Excel de référence.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 classify_potential <- function(score) {
   ifelse(
     score <= 10,
@@ -442,7 +767,17 @@ classify_potential <- function(score) {
   )
 }
 
-# Classe métier de l'intérêt patrimonial à partir de l'indice.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Classe l'intérêt patrimonial d'un site en 5 catégories à partir de l'indice patrimonial.
+# index_value : vecteur numérique d'indices patrimoniaux calculés dans build_site_level_metrics().
+# Seuils de classification (inspirés de la méthode CHEGD) :
+#   indice ≤ 2  : "Intérêt faible".
+#   2 < indice ≤ 5  : "Intérêt local".
+#   5 < indice ≤ 10 : "Intérêt régional".
+#   10 < indice ≤ 14 : "Intérêt national".
+#   indice > 14 : "Intérêt international".
+# Retourne un vecteur de chaînes de même longueur que index_value.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 classify_patrimonial <- function(index_value) {
   ifelse(
     index_value <= 2,
@@ -459,10 +794,18 @@ classify_patrimonial <- function(index_value) {
   )
 }
 
-# Calcule l'indice de représentativité (IR) par visite à partir du gradient CHEGD.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Calcule l'indice de représentativité (IR) par visite à partir des gradients CHEGD.
+# chegd_df : data.frame avec au moins les colonnes gradient_visite_N (N = 1, 2, ...) et chegd_total.
 # Modèle reproduit depuis le classeur Excel "Évaluation CHEGD pelouses" :
-#   IR_visite = max(0, 1 - gradient_visite / nombre_total)
-# avec nombre_total assimilé à chegd_total du site.
+#   IR_visite = max(0, 1 - gradient_visite / chegd_total)
+# avec chegd_total = nombre total d'espèces CHEGD observées sur l'ensemble des visites du site.
+# Pour chaque colonne gradient_visite_N, crée une colonne ir_visite_N correspondante.
+# Les valeurs chegd_total nulles ou négatives donnent IR = 0 (pas de division par zéro).
+# Après le calcul individuel, ajoute la colonne ir_moyen (moyenne des IR par visite sur la ligne).
+# Si chegd_df est NULL/vide ou qu'aucune colonne gradient_visite_ n'existe, retourne chegd_df intact.
+# Retourne le data.frame chegd_df enrichi des colonnes ir_visite_N et ir_moyen.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 compute_ir_from_chegd <- function(chegd_df) {
   if (is.null(chegd_df) || nrow(chegd_df) == 0) {
     return(chegd_df)
@@ -498,7 +841,18 @@ compute_ir_from_chegd <- function(chegd_df) {
 # Référentiel des sites et classeur de référence
 # -----------------------------------------------------------------------------
 
-# Construit un référentiel site_id/site_name continu (1..max id observé).
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Construit un référentiel site_id/site_name continu de 1 jusqu'au plus grand identifiant observé.
+# df_clean : data.frame nettoyé contenant la colonne de site.
+# cols     : liste des noms de colonnes métier, utilisée pour accéder à cols$site.
+# Extrait les valeurs uniques du champ site, en supprimant NA et vides.
+# Appelle extract_site_id() pour convertir chaque valeur en entier.
+# Construit un référentiel complet pour tous les entiers de 1 à max(site_id) :  
+#   les sites non observés reçoivent un nom synthétique "Pelouse N".
+#   les sites observés conservent leur nom original.
+# Retourne un data.frame (site_id, site_name) trié par site_id,
+# ou un data.frame vide si aucun identifiant valide n'est extrait.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 prepare_site_reference <- function(df_clean, cols) {
   site_values <- unique(as.character(df_clean[[cols$site]]))
   site_values <- site_values[!is.na(site_values) & trimws(site_values) != ""]
@@ -534,7 +888,17 @@ prepare_site_reference <- function(df_clean, cols) {
   merged[, c("site_id", "site_name")]
 }
 
-# Recherche un classeur de référence contenant la feuille "Visites sur sites".
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Recherche un classeur Excel de référence contenant la feuille "Visites sur sites".
+# base_dir   : répertoire racine du projet où chercher récursivement les fichiers .xlsx.
+# input_file : chemin absolu du fichier d'entrée courant (exclu de la recherche pour éviter
+#              l'auto-référencement).
+# Parcourt les répertoires base_dir/data/ et base_dir/ (dans cet ordre), liste tous les .xlsx,
+# et vérifie pour chacun si la feuille "Visites sur sites" est présente via readxl::excel_sheets().
+# Retourne le chemin absolu normalisé du premier classeur correspondant, ou NULL si aucun n'est trouvé.
+# L'absence de classeur de référence n'est pas une erreur : le pipeline fonctionne sans lui
+# en calculant les gradients directement depuis les dates d'observation.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 find_reference_workbook <- function(base_dir, input_file) {
   search_dirs <- unique(c(file.path(base_dir, "data"), base_dir))
   search_dirs <- search_dirs[dir.exists(search_dirs)]
@@ -559,7 +923,17 @@ find_reference_workbook <- function(base_dir, input_file) {
   NULL
 }
 
-# Parse une description de visite pour extraire les ids de pelouses (listes/plages).
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Parse une description de visite pour extraire les identifiants numériques de pelouses.
+# description : chaîne de caractères décrivant les sites visités lors d'une visite
+#               (ex : "Pelouses 1-5, 8, 12" ou "Pelouse 3 à 7").
+# La fonction normalise d'abord le texte (translittération ASCII, minuscules), puis extrait :
+#   1) Les plages de la forme "X-Y" ou "X a Y" pour produire les entiers X, X+1, ..., Y.
+#   2) Les identifiants isolés (\b\d+\b) présents dans la description.
+# Les deux ensembles sont fusionnés, dédupliqués et triés par ordre croissant avant retour.
+# Retourne un vecteur d'entiers (peut être vide si aucun identifiant n'est trouvé).
+# Utilisée par read_planned_visits() pour construire la table visite_id × site_id.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 parse_site_ids_from_description <- function(description) {
   desc_norm <- normalize_text(description)
   if (is.na(desc_norm) || desc_norm == "") {
@@ -587,7 +961,17 @@ parse_site_ids_from_description <- function(description) {
   sort(unique(ids[!is.na(ids)]))
 }
 
-# Lit le plan de visites (visite_id, date, site_id) depuis la feuille dédiée.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Lit le plan de visites depuis la feuille "Visites sur sites" du classeur de référence.
+# reference_workbook : chemin absolu du classeur Excel de référence (peut être NULL).
+# La feuille est attendue avec les colonnes (sans en-tête) :
+#   col 1 = identifiant numérique de visite, col 2 = date de la visite, col 3 = description textuelle des sites.
+# Pour chaque ligne valide, parse_site_ids_from_description() extrait les identifiants de sites
+# et génère une ligne par couple (visite_id, site_id).
+# Retourne un data.frame avec les colonnes visit_id (integer), visit_date (Date), site_id (integer),
+# trié par visit_id puis site_id, ou NULL si le classeur est absent ou illisible.
+# Utilisée par build_site_level_metrics() pour construire les gradients CHEGD par visite planifiée.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 read_planned_visits <- function(reference_workbook) {
   if (is.null(reference_workbook) || !file.exists(reference_workbook)) {
     return(NULL)
@@ -622,9 +1006,21 @@ read_planned_visits <- function(reference_workbook) {
   planned[order(planned$visit_id, planned$site_id), ]
 }
 
-# Lit le détail CHEGD par pelouse depuis la feuille "Évaluation CHEGD pelouses".
-# Cette lecture permet d'aligner strictement les gradients par visite et l'IR
-# sur le modèle Excel de référence.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Lit le détail CHEGD par pelouse depuis la feuille "Évaluation CHEGD pelouses" du classeur de référence.
+# reference_workbook : chemin absolu du classeur Excel de référence (peut être NULL).
+# n_sites           : nombre de sites attendus (entier positif).
+# La feuille est parcourue par blocs de lignes : pour chaque pelouse, les lignes
+#   "Gradient CHEGD", "Nombre total" et "Indice de représentativité" sont localisées
+#   via des expressions régulières sur la colonne B, puis les valeurs des colonnes C à G
+#   (visites 1 à 5) sont extraites.
+# Retourne un data.frame avec une ligne par site et les colonnes :
+#   site_id, gradient_visite_1_ref .. gradient_visite_5_ref, chegd_total_detail_ref,
+#   ir_visite_1_ref .. ir_visite_5_ref,
+# ou NULL si la feuille est absente, illisible ou si aucun bloc valide n'est détecté.
+# Utilisée par read_reference_site_metrics() et build_site_level_metrics() pour aligner
+# les gradients calculés sur les valeurs de référence du classeur Excel source.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 read_reference_chegd_detail <- function(reference_workbook, n_sites) {
   if (is.null(reference_workbook) || !file.exists(reference_workbook) || n_sites <= 0) {
     return(NULL)
@@ -676,8 +1072,19 @@ read_reference_chegd_detail <- function(reference_workbook, n_sites) {
   do.call(rbind, rows)
 }
 
-# Lit les métriques de référence (potentiel/patrimonial/CHEGD) depuis
-# le classeur d'évaluation afin d'aligner les sorties script sur les valeurs Excel.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Lit les métriques de référence (potentiel, patrimonial, CHEGD) depuis le classeur d'évaluation.
+# reference_workbook : chemin absolu du classeur Excel de référence (peut être NULL).
+# site_ref           : data.frame (site_id, site_name) issu de prepare_site_reference().
+# Feuilles lues :
+#   - "Analyse des résultats"  : classes et scores du potentiel fongique, gradient CHEGD moyen.
+#   - "Intérêt patrimonial"    : indice et classe patrimoniale par site (optionnelle).
+#   - "Évaluation CHEGD pelouses" : détail des gradients par visite via read_reference_chegd_detail().
+# Retourne une liste de 4 data.frames : potentiel, patrimonial, chegd, chegd_detail,
+# ou NULL si le classeur est absent ou si les feuilles requises sont manquantes.
+# Ces valeurs de référence sont utilisées en mode « fidélité Excel » dans build_site_level_metrics()
+# pour surcharger les métriques calculées localement par les valeurs issues du classeur source.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 read_reference_site_metrics <- function(reference_workbook, site_ref) {
   if (is.null(reference_workbook) || !file.exists(reference_workbook)) {
     return(NULL)
@@ -760,14 +1167,34 @@ read_reference_site_metrics <- function(reference_workbook, site_ref) {
 # Calculs métier et agrégations
 # -----------------------------------------------------------------------------
 
-# Crée (ou réutilise) un dossier de sortie sans horodatage.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Crée (ou réutilise) le dossier de sortie principal du pipeline.
+# base_dir : répertoire racine du projet (chemin absolu).
+# prefix   : préfixe du nom du sous-dossier de sortie (ex : "EPFIP_CHEGD").
+# Le dossier est créé à l'emplacement base_dir/prefix s'il n'existe pas déjà.
+# L'absence d'horodatage dans le nom garantit que les réexécutions écrasent les fichiers
+# précédents plutôt que de créer des répertoires versionnés.
+# Retourne le chemin absolu du dossier de sortie créé ou existant.
+# Utilisée en tout début de main() pour initialiser le répertoire cible des exports.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 build_output_dir <- function(base_dir, prefix) {
   out_dir <- file.path(base_dir, prefix)
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
   out_dir
 }
 
-# Construit un tableau de bord en 3 panneaux : potentiel, patrimonialité, CHEGD.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Construit et exporte la Figure 1 : tableau de bord en 3 panneaux horizontaux.
+# site_metrics : liste retournée par build_site_level_metrics() contenant le data.frame combined.
+# out_dir      : répertoire de sortie où les figures seront écrites.
+# Les 3 panneaux empilés représentent par pelouse (triées par score décroissant) :
+#   - panneau 1 : score du potentiel fongique (barres, couleur par classe).
+#   - panneau 2 : indice de patrimonialité (barres, couleur par classe).
+#   - panneau 3 : gradient CHEGD moyen (barres, dégradé rouge).
+# Les figures sont exportées au format PNG (300 dpi) et PDF dans out_dir :
+#   fig1_tableau_de_bord_pelouses.png et fig1_tableau_de_bord_pelouses.pdf.
+# Retourne invisiblement un vecteur des chemins de fichiers créés, ou NULL si combined est vide.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 build_site_dashboard <- function(site_metrics, out_dir) {
   combined <- site_metrics$combined
   if (is.null(combined) || nrow(combined) == 0) {
@@ -883,7 +1310,18 @@ build_site_dashboard <- function(site_metrics, out_dir) {
   invisible(c(plot_file_png, plot_file_pdf))
 }
 
-# Figure 2 — Positionnement écologique : potentiel × patrimonialité, couleur CHEGD.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Construit et exporte la Figure 2 : nuage de points « positionnement écologique ».
+# site_metrics : liste retournée par build_site_level_metrics() contenant le data.frame combined.
+# out_dir      : répertoire de sortie où les figures seront écrites.
+# Axes : X = score du potentiel fongique, Y = indice de patrimonialité.
+# Chaque point représente un site ; sa taille et sa couleur (dégradé rouge) encodent le gradient CHEGD moyen.
+# Des lignes pointillées matérialisent les seuils de classification (potentiel > 10, patrimonial > 2).
+# Les labels ("P<site_id>") sont placés via ggrepel si disponible, sinon via geom_text() avec décalage.
+# Les figures sont exportées au format PNG (300 dpi) et PDF dans out_dir :
+#   fig2_positionnement_ecologique.png et fig2_positionnement_ecologique.pdf.
+# Retourne invisiblement NULL ; les figures sont écrites en effet de bord.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 build_scatter_positionnement <- function(site_metrics, out_dir) {
   combined <- site_metrics$combined
   if (is.null(combined) || nrow(combined) == 0) return(invisible(NULL))
@@ -924,8 +1362,16 @@ build_scatter_positionnement <- function(site_metrics, out_dir) {
   invisible(NULL)
 }
 
-# Prépare des positions de labels distinctes quand plusieurs points partagent
-# exactement les mêmes coordonnées (cas fréquent sur les faibles scores).
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Prépare les positions de labels pour le nuage de points afin d'éviter les superpositions.
+# df     : data.frame contenant au minimum les colonnes potentiel_score, indice_patrimonial, site_id.
+# x_step : décalage horizontal appliqué entre labels partageant les mêmes coordonnées (défaut 0.06).
+# y_step : décalage vertical appliqué entre labels partageant les mêmes coordonnées (défaut 0.08).
+# Les points ayant exactement les mêmes coordonnées (cas fréquent sur les faibles scores)
+# sont répartis symétriquement autour de leur position commune selon leur rang dans le groupe.
+# Retourne df enrichi des colonnes label_x et label_y utilisées par ggrepel_or_text().
+# Utilisée uniquement dans build_scatter_positionnement() comme prétraitement des labels.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 prepare_scatter_labels <- function(df, x_step = 0.06, y_step = 0.08) {
   if (is.null(df) || nrow(df) == 0) {
     return(df)
@@ -944,7 +1390,16 @@ prepare_scatter_labels <- function(df, x_step = 0.06, y_step = 0.08) {
     ungroup()
 }
 
-# Helper labels : privilégie ggrepel, sinon fallback propre avec positions décalées.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Helper de labellisation : utilise ggrepel si disponible, sinon fallback geom_text() avec positions décalées.
+# df_labels : data.frame préparé par prepare_scatter_labels(), contenant potentiel_score,
+#             indice_patrimonial, label, label_x, label_y.
+# Retourne un objet geom compatible ggplot2 :
+#   - ggrepel::geom_text_repel() si le package ggrepel est installé (gestion automatique des chevauchements).
+#   - geom_text() avec les positions pré-calculées (label_x, label_y) en fallback.
+# Cette approche dégrade gracieusement selon les packages disponibles sans erreur fatale.
+# Utilisée exclusivement dans build_scatter_positionnement().
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ggrepel_or_text <- function(df_labels) {
   if (requireNamespace("ggrepel", quietly = TRUE)) {
     ggrepel::geom_text_repel(
@@ -973,7 +1428,18 @@ ggrepel_or_text <- function(df_labels) {
   }
 }
 
-# Figure 3 — Décomposition du score potentiel par groupe fonctionnel par pelouse.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Construit et exporte la Figure 3 : décomposition du score potentiel fongique par groupe fonctionnel.
+# site_metrics : liste retournée par build_site_level_metrics() contenant le data.frame potentiel.
+# out_dir      : répertoire de sortie où les figures seront écrites.
+# La figure est un graphique à barres horizontales empilées : chaque barre représente un site,
+# et les segments colorent la contribution de chaque groupe fonctionnel CHEGD principal :
+#   Cuphophyllus, Hygrocybe (gr. conica), Hygrocybes jaunes, Entoloma, Clavarioïdes.
+# Les sites sont triés par score potentiel décroissant pour faciliter la lecture.
+# Les figures sont exportées au format PNG (300 dpi) et PDF dans out_dir :
+#   fig3_composition_potentiel.png et fig3_composition_potentiel.pdf.
+# Retourne invisiblement NULL ; les figures sont écrites en effet de bord.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 build_potentiel_breakdown <- function(site_metrics, out_dir) {
   pot <- site_metrics$potentiel
   if (is.null(pot) || nrow(pot) == 0) return(invisible(NULL))
@@ -1030,7 +1496,19 @@ build_potentiel_breakdown <- function(site_metrics, out_dir) {
   invisible(NULL)
 }
 
-# Figure 4 — Gradient CHEGD par visite et par pelouse.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Construit et exporte la Figure 4 : gradient CHEGD par visite et par pelouse.
+# site_metrics : liste retournée par build_site_level_metrics() contenant le data.frame chegd.
+# out_dir      : répertoire de sortie où les figures seront écrites.
+# La figure est un graphique à barres groupées : pour chaque pelouse, une barre par visite
+# représente le nombre d'espèces CHEGD observées lors de cette visite.
+# Les colonnes lues sont toutes celles dont le nom commence par "gradient_visite_".
+# Les pelouses sont triées par gradient CHEGD moyen décroissant pour mettre en avant
+# les sites les plus représentatifs écologiquement.
+# Les figures sont exportées au format PNG (300 dpi) et PDF dans out_dir :
+#   fig4_chegd_par_visite.png et fig4_chegd_par_visite.pdf.
+# Retourne invisiblement NULL ; les figures sont écrites en effet de bord.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 build_chegd_by_visit <- function(site_metrics, out_dir) {
   chegd <- site_metrics$chegd
   if (is.null(chegd) || nrow(chegd) == 0) return(invisible(NULL))
@@ -1076,7 +1554,19 @@ build_chegd_by_visit <- function(site_metrics, out_dir) {
   invisible(NULL)
 }
 
-# Figure 5 — Heatmap des classes finales par pelouse (synthèse décisionnelle).
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Construit et exporte la Figure 5 : heatmap des classes finales par pelouse.
+# site_metrics : liste retournée par build_site_level_metrics() contenant le data.frame combined.
+# out_dir      : répertoire de sortie où les figures seront écrites.
+# La heatmap 3 colonnes × n_sites lignes affiche pour chaque site et chaque indicateur
+# (potentiel fongique, intérêt patrimonial, gradient CHEGD) un niveau numérique 1-5
+# matérialisé par un dégradé de couleur (jaune pâle → vert foncé).
+# Les sites sont triés par signal total décroissant (somme des niveaux) pour
+# faire apparaître en premier les sites à plus forte valeur écologique.
+# Les figures sont exportées au format PNG (300 dpi) et PDF dans out_dir :
+#   fig5_heatmap_classes.png et fig5_heatmap_classes.pdf.
+# Retourne invisiblement NULL ; les figures sont écrites en effet de bord.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 build_classes_heatmap <- function(site_metrics, out_dir) {
   combined <- site_metrics$combined
   if (is.null(combined) || nrow(combined) == 0) return(invisible(NULL))
@@ -1129,7 +1619,18 @@ build_classes_heatmap <- function(site_metrics, out_dir) {
   invisible(NULL)
 }
 
-# Figure 6 — Répartition des niveaux de fiabilité de détermination.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Construit et exporte la Figure 6 : répartition des niveaux de fiabilité de détermination.
+# reliability_df : data.frame avec les colonnes fiabilite, nb_observations, pourcentage,
+#                  généralement issu de summaries$reliability dans calc_summaries().
+# out_dir        : répertoire de sortie où les figures seront écrites.
+# La figure est un graphique à barres horizontales : chaque barre représente un niveau de fiabilité
+# avec son compte et son pourcentage. Les observations "Non renseignée" sont colorées en rouge
+# pour attirer l'attention sur les données potentiellement moins fiables.
+# Les figures sont exportées au format PNG (300 dpi) et PDF dans out_dir :
+#   fig6_niveaux_fiabilite.png et fig6_niveaux_fiabilite.pdf.
+# Retourne invisiblement NULL ; les figures sont écrites en effet de bord.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 build_reliability_levels_plot <- function(reliability_df, out_dir) {
   if (is.null(reliability_df) || nrow(reliability_df) == 0) return(invisible(NULL))
 
@@ -1164,7 +1665,19 @@ build_reliability_levels_plot <- function(reliability_df, out_dir) {
   invisible(NULL)
 }
 
-# Figure 7 — Indice de représentativité (IR) par visite et par pelouse.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Construit et exporte la Figure 7 : indice de représentativité (IR) par visite et par pelouse.
+# site_metrics : liste retournée par build_site_level_metrics() contenant le data.frame chegd.
+# out_dir      : répertoire de sortie où les figures seront écrites.
+# La figure est une heatmap visites × pelouses : chaque cellule affiche la valeur IR (0-1)
+# avec un dégradé de couleur (rose clair → vert foncé) et la valeur numérique arrondie à 2 décimales.
+# L'IR est calculé selon la formule : IR = max(0, 1 - gradient_visite / nombre_total).
+# Les colonnes lues sont toutes celles dont le nom commence par "ir_visite_".
+# Les pelouses sont triées par IR moyen décroissant, métrique disponible dans la colonne ir_moyen.
+# Les figures sont exportées au format PNG (300 dpi) et PDF dans out_dir :
+#   fig7_indice_representativite_ir.png et fig7_indice_representativite_ir.pdf.
+# Retourne invisiblement NULL ; les figures sont écrites en effet de bord.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 build_ir_by_visit_plot <- function(site_metrics, out_dir) {
   chegd <- site_metrics$chegd
   if (is.null(chegd) || nrow(chegd) == 0) return(invisible(NULL))
@@ -1219,15 +1732,30 @@ build_ir_by_visit_plot <- function(site_metrics, out_dir) {
 }
 
 
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Fonction centrale de calcul des métriques par pelouse.
+# df_clean   : data.frame nettoyé issu de read_input_data() après vérification des colonnes.
+# cols       : liste des noms de colonnes métier (issues de cfg$columns).
+# base_dir   : répertoire racine du projet (utilisé pour rechercher le classeur de référence).
+# input_file : chemin absolu du fichier d'entrée (utilisé pour exclure le classeur en cours).
 #
-# Retourne une liste :
-#   - potentiel   : score et classe potentiel fongique
-#   - patrimonial : indice et classe patrimoniale
-#   - chegd       : gradients par visite + total + moyenne
-#   - combined    : jointure consolidée par site
-#   - reference_workbook : chemin de la référence utilisée (ou NULL)
-# 
+# Calcule trois groupes de métriques pour chaque site :
+#   - Potentiel fongique : score et classe selon la grille CHEGD (Cuphophyllus, Hygrocybe, Entoloma,
+#     Géoglossacées, Dermoloma...) ; pondération par espèce ou genre.
+#   - Intérêt patrimonial : indice = max des effectifs par groupe CHEGD + classification.
+#   - Gradient CHEGD : nombre d'espèces CHEGD par visite planifiée (ou par date si pas de classeur).
+#     L'indice de représentativité (IR) est calculé via compute_ir_from_chegd().
+#
+# Si un classeur de référence est détecté, les métriques locales sont alignées sur ses valeurs
+# (mode « fidélité Excel ») : scores potentiel, indices patrimoniaux, gradients par visite.
+#
+# Retourne une liste de 5 éléments :
+#   - potentiel          : data.frame (site_id, site_name, scores, groupes fonctionnels).
+#   - patrimonial        : data.frame (site_id, site_name, indices par groupe CHEGD, indice et classe).
+#   - chegd              : data.frame (site_id, site_name, gradient par visite, total, moyen, IR).
+#   - combined           : jointure consolidée de toutes les métriques par site.
+#   - reference_workbook : chemin du classeur de référence utilisé (ou NULL).
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 build_site_level_metrics <- function(df_clean, cols, base_dir, input_file) {
   site_ref <- prepare_site_reference(df_clean, cols)
   if (nrow(site_ref) == 0) {
@@ -1578,7 +2106,20 @@ build_site_level_metrics <- function(df_clean, cols, base_dir, input_file) {
   )
 }
 
-# Résumés descriptifs standard sur les données nettoyées.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Calcule les résumés descriptifs standard sur les données nettoyées.
+# df_clean : data.frame nettoyé issu de read_input_data(), enrichi de date_obs et nombre_espece_num.
+# cols     : liste des noms de colonnes métier (issues de cfg$columns).
+# Calcule 5 agrégations indépendantes :
+#   - by_site    : par site (nb_lignes, nb_espèces_uniques, nb_familles, abondance, nb_visites).
+#   - by_family  : par famille (nb_espèces_uniques, abondance_totale).
+#   - by_species : par espèce (nb_observations, abondance_totale, nb_sites).
+#   - by_date    : par date (nb_observations, nb_espèces_uniques, abondance_totale).
+#   - reliability: distribution des niveaux de fiabilité avec pourcentage.
+# Chaque agrégation est triée par ordre décroissant des métriques principales.
+# Retourne une liste nommée des 5 data.frames ci-dessus.
+# Utilisée dans main() pour alimenter write_outputs() et build_reliability_levels_plot().
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 calc_summaries <- function(df_clean, cols) {
   by_site <- df_clean %>%
     group_by(.data[[cols$site]]) %>%
@@ -1643,6 +2184,19 @@ calc_summaries <- function(df_clean, cols) {
 # Module fiabilité — Objectifs 1 à 4
 # -----------------------------------------------------------------------------
 
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Normalise et harmonise les niveaux de fiabilité de détermination vers 3 classes standardisées.
+# x : vecteur de chaînes de caractères représentant les valeurs brutes de fiabilité.
+# La normalisation procède en 3 étapes :
+#   1) Nettoyage des espaces et remplacement des NA ou vides par "Non renseignée".
+#   2) Translittération ASCII + minuscule via normalize_text().
+#   3) Correspondance par préfixe :
+#      - "certain", "sur", "confirme" → "Certaine".
+#      - "probable", "a verifier", "incertain" → "Probable".
+#      - Tout autre cas → "Non renseignée".
+# Retourne un factor ordonné à 3 niveaux : Non renseignée < Probable < Certaine.
+# Utilisée par prepare_reliability_data() et objective1_descriptive().
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 normalize_reliability_level <- function(x) {
   x_chr <- trimws(as.character(x))
   x_chr[is.na(x_chr) | x_chr == ""] <- "Non renseignée"
@@ -1661,7 +2215,20 @@ normalize_reliability_level <- function(x) {
   factor(out, levels = c("Non renseignée", "Probable", "Certaine"), ordered = TRUE)
 }
 
-# Prépare les données pour l'analyse de fiabilité.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Prépare les données pour l'analyse du module fiabilité (objectifs 1 à 4).
+# df_clean : data.frame nettoyé issu de read_input_data(), enrichi de date_obs et nombre_espece_num.
+# cols     : liste des noms de colonnes métier (issues de cfg$columns).
+# Enrichit df_clean avec les colonnes suivantes :
+#   - fiabilite_raw  : valeur brute de la colonne de fiabilité (chaîne de caractères).
+#   - fiabilite      : factor ordonné (Non renseignée < Probable < Certaine) via normalize_reliability_level().
+#   - site_label     : libellé du site sous forme de factor.
+#   - family_label   : famille taxonomique sous forme de factor.
+#   - month_obs      : mois entier de la date d'observation (NA si date manquante).
+#   - season_obs     : saison dérivée du mois (Hiver/Printemps/Été/Automne), factor ordonné.
+#   - abundance      : effectif numérique de l'observation (0 si NA).
+# Retourne le data.frame enrichi prêt à être consommé par les fonctions objective1 à objective4.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 prepare_reliability_data <- function(df_clean, cols) {
   df_rel <- df_clean %>%
     mutate(
@@ -1686,7 +2253,17 @@ prepare_reliability_data <- function(df_clean, cols) {
   df_rel
 }
 
-# Calcul des métriques descriptives pour l'objectif 1 (distribution de la fiabilité).
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Objectif 1 — Analyse descriptive de la distribution des niveaux de fiabilité.
+# df_rel  : data.frame préparé par prepare_reliability_data(), contenant la colonne fiabilite.
+# out_dir : répertoire de sortie où les exports seront écrits.
+# Calcule la distribution des niveaux de fiabilité (comptes et pourcentages).
+# Exporte le tableau CSV : stat_obj1_reliability_distribution.csv.
+# Génère la Figure stat1 (barres horizontales, format PNG + PDF) : fig_stat1_reliability_distribution.
+# Retourne une liste avec :
+#   - metrics : data.frame de distribution (fiabilite, nb_observations, pourcentage).
+#   - best    : chaîne fixe "Descriptif" (pas de sélection de candidat pour cet objectif).
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 objective1_descriptive <- function(df_rel, out_dir) {
   dist <- df_rel %>%
     count(fiabilite, name = "nb_observations") %>%
@@ -1716,7 +2293,22 @@ objective1_descriptive <- function(df_rel, out_dir) {
   list(metrics = dist, best = "Descriptif")
 }
 
-# Calcul des métriques pour l'objectif 2 (pondération des fiabilités).
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Objectif 2 — Comparaison de trois schémas de pondération des observations par fiabilité.
+# df_rel       : data.frame préparé par prepare_reliability_data().
+# site_metrics : liste retournée par build_site_level_metrics(), utilisée comme référence de rang.
+# out_dir      : répertoire de sortie où les exports seront écrits.
+# Évalue 3 schémas de pondération (S1, S2, S3) différant sur les poids assignés à "Probable"
+# et "Non renseignée" ("Certaine" a toujours un poids de 1.0).
+# Le critère principal est la corrélation de Spearman entre les scores de rang pondérés
+# et les scores de référence (potentiel + patrimonial + chegd) ; le critère secondaire
+# est le chevauchement des top-5 sites entre les deux classements.
+# Exporte les CSV : stat_obj2_weighting_candidates.csv et stat_obj2_best_weighting.csv.
+# Génère la Figure stat2 (comparaison des schémas, PNG + PDF) : fig_stat2_weighting_comparison.
+# Retourne une liste avec :
+#   - metrics : data.frame des métriques pour les 3 schémas avec indicateur de sélection.
+#   - best    : identifiant du meilleur schéma ("S1", "S2" ou "S3").
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 objective2_weighting <- function(df_rel, site_metrics, out_dir) {
   schemes <- data.frame(
     scheme_id = c("S1", "S2", "S3"),
@@ -1790,6 +2382,15 @@ objective2_weighting <- function(df_rel, site_metrics, out_dir) {
 }
 
 
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Calcule le macro-F1 score moyen sur toutes les classes de deux vecteurs de facteurs ordonnés.
+# truth : factor ordonné des vraies classes.
+# pred  : factor ordonné des classes prédites.
+# Pour chaque classe présente dans l'union de truth et pred, calcule la précision, le rappel
+# et le F1 individuel (ignoré si indéfini). La moyenne est calculée en ignorant les NA.
+# Retourne un scalaire numérique entre 0 et 1, ou NA_real_ si aucune classe n'est exploitable.
+# Utilisée dans objective3_model_selection() pour évaluer les modèles en validation croisée.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 safe_macro_f1 <- function(truth, pred) {
   lvls <- union(levels(truth), levels(pred))
   lvls <- lvls[!is.na(lvls)]
@@ -1808,6 +2409,16 @@ safe_macro_f1 <- function(truth, pred) {
   mean(f1_vals, na.rm = TRUE)
 }
 
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Calcule la log-loss (entropie croisée) pour un problème de classification multi-classes.
+# truth        : vecteur de vraies classes (chaînes ou factor).
+# proba_mat    : matrice de probabilités prédites (n_obs × n_classes), colonnes nommées.
+# class_levels : vecteur des noms de classes dans l'ordre des colonnes de proba_mat.
+# Les probabilités sont bornées dans [1e-15, 1-1e-15] pour éviter log(0).
+# Les observations dont la vraie classe est absente de class_levels sont ignorées.
+# Retourne un scalaire numérique ≥ 0, ou NA_real_ si proba_mat est NULL ou sans observations valides.
+# Utilisée dans objective3_model_selection() comme métrique secondaire de comparaison des modèles.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 safe_log_loss <- function(truth, proba_mat, class_levels) {
   if (is.null(proba_mat) || nrow(proba_mat) == 0) return(NA_real_)
   idx <- match(as.character(truth), class_levels)
@@ -1818,7 +2429,16 @@ safe_log_loss <- function(truth, proba_mat, class_levels) {
   -mean(log(p))
 }
 
-# Calcul des métriques pour l'objectif 3 (modèles de fiabilité).
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Construit et exporte la Figure stat3a : performances de validation croisée par modèle.
+# metrics_df : data.frame avec les colonnes candidat, metric_accuracy, metric_macro_f1, metric_primary.
+# out_dir    : répertoire de sortie où les figures seront écrites.
+# La figure est un graphique à barres groupées (Accuracy vs Macro-F1) pour chaque modèle.
+# Les modèles sans métrique finie sont filtrés avant affichage.
+# Les figures sont exportées au format PNG (300 dpi) et PDF dans out_dir :
+#   fig_stat3_cv_metrics.png et fig_stat3_cv_metrics.pdf.
+# Retourne invisiblement NULL ; les figures sont écrites en effet de bord.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 build_o3_cv_metrics_plot <- function(metrics_df, out_dir) {
   plot_df <- metrics_df %>%
     transmute(
@@ -1854,6 +2474,16 @@ build_o3_cv_metrics_plot <- function(metrics_df, out_dir) {
   ggsave(file.path(out_dir, "fig_stat3_cv_metrics.pdf"), p, width = 9, height = 5, bg = "white")
 }
 
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Construit et exporte la Figure stat3b : matrice de confusion du meilleur modèle de fiabilité.
+# cm_df   : data.frame avec les colonnes truth, prediction, n (issu d'un appel à table()).
+# out_dir : répertoire de sortie où les figures seront écrites.
+# La figure est une heatmap 2D (vraies classes × classes prédites) avec dégradé bleu
+# et annotations des comptes dans chaque cellule.
+# Les figures sont exportées au format PNG (300 dpi) et PDF dans out_dir :
+#   fig_stat3_confusion_matrix_best.png et fig_stat3_confusion_matrix_best.pdf.
+# Retourne invisiblement NULL ; les figures sont écrites en effet de bord.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 build_o3_confusion_plot <- function(cm_df, out_dir) {
   if (is.null(cm_df) || nrow(cm_df) == 0) return(invisible(NULL))
   p <- ggplot(cm_df, aes(x = prediction, y = truth, fill = n)) +
@@ -1872,6 +2502,17 @@ build_o3_confusion_plot <- function(cm_df, out_dir) {
   ggsave(file.path(out_dir, "fig_stat3_confusion_matrix_best.pdf"), p, width = 7, height = 6, bg = "white")
 }
 
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Construit et exporte la Figure stat3c : distribution des probabilités de confiance du meilleur modèle.
+# pred_df : data.frame avec les colonnes max_proba et predicted, issu de objective3_model_selection().
+# out_dir : répertoire de sortie où les figures seront écrites.
+# La figure est un histogramme de la probabilité maximale prédite par observation,
+# coloré par classe prédite, permettant d'évaluer la calibration et la confiance du modèle.
+# Les observations hors plage [0, 1] ou non finies sont filtrées avant l'affichage.
+# Les figures sont exportées au format PNG (300 dpi) et PDF dans out_dir :
+#   fig_stat3_predicted_probabilities_best.png et fig_stat3_predicted_probabilities_best.pdf.
+# Retourne invisiblement NULL ; les figures sont écrites en effet de bord.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 build_o3_probabilities_plot <- function(pred_df, out_dir) {
   if (is.null(pred_df) || nrow(pred_df) == 0 || !("max_proba" %in% names(pred_df))) return(invisible(NULL))
 
@@ -1896,6 +2537,21 @@ build_o3_probabilities_plot <- function(pred_df, out_dir) {
   ggsave(file.path(out_dir, "fig_stat3_predicted_probabilities_best.pdf"), p, width = 9, height = 5, bg = "white")
 }
 
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Entraîne et prédit avec un modèle de classification de la fiabilité de détermination.
+# model_name : nom du modèle à utiliser, parmi :
+#   "polr"              : régression ordinale (MASS::polr, logit link) pour fiabilité ordonnée.
+#   "multinom"          : régression multinomiale (nnet::multinom) pour fiabilité nominale.
+#   "baseline_majority" : baseline naïve prédisant toujours la classe majoritaire.
+# train_df : data.frame d'entraînement (colonnes fiabilite, abundance, season_obs, site_label, family_label).
+# test_df  : data.frame de test avec les mêmes colonnes.
+# La formule utilisée est : fiabilite ~ abundance + season_model + site_model + family_model.
+# Les niveaux de site et famille très peu fréquents sont regroupés dans "Autre" (top-12 conservés)
+# pour éviter la sur-paramétrisation et les nouvelles modalités en test.
+# Si l'entraînement échoue (moins de 2 classes ou erreur modèle), retourne NULL.
+# Retourne une liste : pred (factor ordonné), proba (matrice n × classes), model (objet ajusté ou NULL).
+# Utilisée exclusivement dans objective3_model_selection() en boucle de validation croisée k-fold.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 fit_predict_reliability_model <- function(model_name, train_df, test_df) {
   train_df <- droplevels(train_df)
   test_df <- droplevels(test_df)
@@ -1967,6 +2623,23 @@ fit_predict_reliability_model <- function(model_name, train_df, test_df) {
   NULL
 }
 
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Objectif 3 — Sélection du meilleur modèle de prédiction de la fiabilité par validation croisée.
+# df_rel  : data.frame préparé par prepare_reliability_data().
+# out_dir : répertoire de sortie où les exports seront écrits.
+# Exécute une validation croisée k=5 folds pour 3 candidats :
+#   "polr" (régression ordinale), "multinom" (multinomiale), "baseline_majority" (naïve).
+# Pour chaque fold, appelle fit_predict_reliability_model() et calcule accuracy, macro-F1 et log-loss.
+# Si les données sont insuffisantes (< 20 lignes ou < 2 classes), retourne un résultat vide immédiatement.
+# Le meilleur modèle est sélectionné selon le macro-F1 moyen (critère principal), puis l'accuracy.
+# Exporte les CSV : obj3_model_metrics.csv, stat_obj3_best_model_predictions.csv,
+#   stat_obj3_best_model_confusion_matrix.csv, stat_obj3_best_model_coefficients.csv.
+# Génère les Figures stat3a/b/c via build_o3_cv_metrics_plot(), build_o3_confusion_plot(),
+#   build_o3_probabilities_plot().
+# Retourne une liste avec :
+#   - metrics : data.frame des métriques par modèle avec indicateur de sélection.
+#   - best    : nom du meilleur modèle sélectionné.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 objective3_model_selection <- function(df_rel, out_dir) {
   df <- df_rel %>%
     filter(!is.na(fiabilite)) %>%
@@ -2118,6 +2791,24 @@ objective3_model_selection <- function(df_rel, out_dir) {
   list(metrics = metrics, best = best_model)
 }
 
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Objectif 4 — Test d'inférence statistique sur la dépendance fiabilité × site.
+# df_rel  : data.frame préparé par prepare_reliability_data().
+# out_dir : répertoire de sortie où les exports seront écrits.
+# Construit le tableau de contingence fiabilité × site_label, puis sélectionne
+# automatiquement le test statistique adapté :
+#   - Chi-2 si toutes les cellules attendues ≥ 5.
+#   - Test exact de Fisher si des cellules attendues < 5 existent.
+#   - Fisher avec simulation Monte-Carlo (B=10000) si Fisher exact échoue (tableau trop grand).
+#   - Fallback Chi-2 si tous les tests échouent.
+# La métrique primaire rapportée est -log10(p_value) pour faciliter les comparaisons.
+# Exporte le CSV : stat_obj4_inference_tests.csv.
+# Génère la Figure stat4 (heatmap site × fiabilité avec résultat du test, PNG + PDF) :
+#   fig_stat4_site_reliability_heatmap.png et .pdf.
+# Retourne une liste avec :
+#   - metrics : data.frame avec le test retenu, -log10(p) et la p-value brute.
+#   - best    : nom du test retenu.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 objective4_inference <- function(df_rel, out_dir) {
   tbl <- table(df_rel$site_label, df_rel$fiabilite)
   chi <- suppressWarnings(chisq.test(tbl))
@@ -2174,6 +2865,23 @@ objective4_inference <- function(df_rel, out_dir) {
   list(metrics = infer_df, best = test_name)
 }
 
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Orchestrateur du module fiabilité : exécute les objectifs 1 à 4 en séquence.
+# df_clean     : data.frame nettoyé issu de read_input_data().
+# cols         : liste des noms de colonnes métier (issues de cfg$columns).
+# site_metrics : liste retournée par build_site_level_metrics() (utilisée par objectif 2).
+# out_dir      : répertoire de sortie commun où tous les CSV et figures seront écrits.
+# Appelle dans l'ordre :
+#   1) prepare_reliability_data() pour normaliser les niveaux de fiabilité.
+#   2) objective1_descriptive()    : distribution des niveaux.
+#   3) objective2_weighting()      : sélection du schéma de pondération optimal.
+#   4) objective3_model_selection(): sélection du meilleur modèle prédictif.
+#   5) objective4_inference()      : test d'association fiabilité × site.
+# Exporte un CSV de synthèse : stat_model_selection_summary.csv.
+# Retourne une liste avec :
+#   - summary : data.frame récapitulatif des 4 objectifs (objectif, meilleur candidat, métriques).
+#   - details : liste nommée des résultats détaillés de chaque objectif (o1, o2, o3, o4).
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 run_reliability_objectives <- function(df_clean, cols, site_metrics, out_dir) {
   df_rel <- prepare_reliability_data(df_clean, cols)
 
@@ -2194,7 +2902,23 @@ run_reliability_objectives <- function(df_clean, cols, site_metrics, out_dir) {
   list(summary = summary_df, details = list(o1 = o1, o2 = o2, o3 = o3, o4 = o4))
 }
 
-# Écrit les exports CSV et les indicateurs globaux de contrôle qualité.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Exporte l'ensemble des résultats du pipeline sous forme de fichiers CSV.
+# df_clean     : data.frame nettoyé issu de read_input_data().
+# summaries    : liste retournée par calc_summaries() (résumés par site, famille, espèce, date, fiabilité).
+# site_metrics : liste retournée par build_site_level_metrics() (potentiel, patrimonial, chegd, combined).
+# out_dir      : répertoire de sortie où tous les CSV seront écrits.
+# cols         : liste des noms de colonnes métier (utilisée pour les indicateurs globaux).
+# Exporte les fichiers CSV suivants dans out_dir :
+#   - donnees_brutes_nettoyees.csv, resume_par_site/famille/espece/date.csv
+#   - resume_fiabilite_determination.csv, niveaux_fiabilite_rencontres.csv
+#   - potentiel_fongique_par_site.csv, indice_patrimonial_par_site.csv
+#   - gradient_chegd_par_site.csv, indice_representativite_ir_par_site.csv
+#   - synthese_evaluation_par_site.csv
+#   - resume_global.csv : indicateurs de contrôle qualité globaux (counts, cohérence CHEGD, IR moyen).
+# Le contrôle QA vérifie la cohérence entre la somme des gradients par visite et chegd_total.
+# Retourne invisiblement NULL ; tous les fichiers sont écrits en encodage UTF-8 sans BOM.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 write_outputs <- function(df_clean, summaries, site_metrics, out_dir, cols) {
   write.csv(df_clean, file.path(out_dir, "donnees_brutes_nettoyees.csv"), row.names = FALSE, fileEncoding = "UTF-8")
   write.csv(summaries$by_site, file.path(out_dir, "resume_par_site.csv"), row.names = FALSE, fileEncoding = "UTF-8")
@@ -2258,9 +2982,24 @@ write_outputs <- function(df_clean, summaries, site_metrics, out_dir, cols) {
   write.csv(global, file.path(out_dir, "resume_global.csv"), row.names = FALSE, fileEncoding = "UTF-8")
 }
 
-# Point d'entrée CLI.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Point d'entrée principal du pipeline d'évaluation fongique.
+# Aucun argument : toute la configuration est issue de get_embedded_config().
+# Exécute les étapes suivantes dans l'ordre :
+#   1) Résolution des chemins (répertoire script, config, fichier d'entrée, répertoire de sortie).
+#   2) Initialisation du système de logging (setup_logging, log_header).
+#   3) Lecture et nettoyage des données (read_input_data, ensure_required_columns,
+#      to_date_safe, to_numeric_safe).
+#   4) Résumés descriptifs (calc_summaries) et métriques par site (build_site_level_metrics).
+#   5) Génération des 7 figures (build_site_dashboard à build_ir_by_visit_plot).
+#   6) Module fiabilité objectifs 1-4 (run_reliability_objectives).
+#   7) Export des résultats CSV (write_outputs).
+#   8) Récapitulatif des fichiers générés dans le log (log_footer).
+# Appelée via tryCatch() en bas de fichier pour capturer toute erreur fatale,
+# l'enregistrer dans le log et propager l'exception avec stop().
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 main <- function() {
-  # === SETUP ET CONFIGURATION ===
+  # Démarrage et configuration du pipeline d'évaluation fongique.
   script_dir <- get_script_dir()
   base_dir <- if (basename(script_dir) == "scripts") dirname(script_dir) else script_dir
   config_source <- "Configuration intégrée (get_embedded_config)"
@@ -2269,10 +3008,14 @@ main <- function() {
   cfg$input_file <- resolve_input_file(cfg$input_file, base_dir)
   cfg$output_dir <- resolve_path_from_base(cfg$output_dir, base_dir)
 
-  # === CRÉER RÉPERTOIRE DE SORTIE ===
+  # Créer répertoire de sortie si nécessaire et construire le chemin complet avec préfixe.
+  if (!dir.exists(cfg$output_dir)) { 
+    dir.create(cfg$output_dir, recursive = TRUE)
+  }
+  # Construire le répertoire de sortie final avec le préfixe spécifié dans la configuration.
   out_dir <- build_output_dir(cfg$output_dir, cfg$output_prefix)
 
-  # === INITIALISER LOGGING dans /logs à la racine du projet ===
+  # Initialiser logging dans /logs à la racine du projet et enregistrer l'en-tête avec la source de configuration et le fichier d'entrée.
   setup_logging(base_dir, cfg$output_prefix)
   log_header(config_source, cfg$input_file)
   log_info(paste0("Fichier d'entrée résolu : ", cfg$input_file))
@@ -2283,8 +3026,8 @@ main <- function() {
     log_info("Format CSV détecté, le paramètre de feuille est ignoré")
   }
 
-  # === LIRE ET NETTOYER LES DONNÉES ===
-  log_section("LECTURE ET TRAITEMENT DES DONNÉES D'ENTRÉE")
+  # Lecture et traitement des données d'entrée.
+  log_section("Lecture et traitement des données d'entrée")
   raw <- read_input_data(cfg$input_file, cfg$input_sheet)
   raw <- raw[, !grepl("^\\.\\.\\.", names(raw)), drop = FALSE]
   ensure_required_columns(raw, cfg)
@@ -2311,18 +3054,46 @@ main <- function() {
     log_warning_msg(paste0(missing_reliability, " observation(s) sans niveau de fiabilité (", pct_missing, " %)"))
   }
 
-  # === CONSTRUIRE LES MÉTRIQUES ===
-  log_section("CONSTRUCTION DES MÉTRIQUES PAR SITE")
+  # Construire les métriques par site à partir des données nettoyées.
+  # Les métriques incluent le potentiel fongique, l'indice patrimonial, le gradient CHEGD et l'indice de représentativité (IR).
+  # Elles sont calculées à partir des données d'observation, des résumés descriptifs et des méthodes statistiques robustes.
+  # Les résultats permettent d'évaluer la biodiversité, la qualité écologique et la représentativité de chaque site, et sont utilisés pour générer des visualisations et des rapports détaillés.
+  # Les métriques sont enregistrées dans le répertoire de sortie, et un message de log indique que les calculs ont été effectués avec succès.
+  log_section("Construction des métriques par site")
   log_info(paste0("Répertoire de sortie : ", out_dir))
-
+  # Calculer les résumés descriptifs par site, famille, espèce et date.
+  # Les résumés descriptifs fournissent des statistiques de base sur les observations, telles que le nombre total d'observations, le nombre d'espèces uniques, le nombre de familles uniques et le nombre de dates uniques.
+  # Ils sont calculés à partir des données nettoyées et sont utilisés pour évaluer la qualité des données et identifier les tendances générales dans les observations.
+  # Les résumés descriptifs sont enregistrés dans le répertoire de sortie, et un message de log indique que les calculs ont été effectués avec succès. 
+  # Les résumés descriptifs sont essentiels pour comprendre la structure des données et pour guider les analyses ultérieures, y compris le calcul des métriques par site et l'évaluation de la fiabilité des observations.
+  # Les résumés descriptifs sont également utilisés pour générer des visualisations et des rapports détaillés, fournissant une vue d'ensemble des données et des résultats.
+  # Les résumés descriptifs sont calculés en utilisant des méthodes statistiques robustes, en tenant compte des données de terrain, des observations biologiques et des facteurs environnementaux.
+  # Les résultats permettent d'identifier les sites à forte valeur écologique, les zones prioritaires de conservation et les sites nécessitant une attention particulière.
+  # Les résumés descriptifs servent également à suivre les changements écologiques au fil du temps et à évaluer l’efficacité des mesures de gestion ou de restauration.
+  log_section("Calcul des résumés descriptifs")
   summaries <- calc_summaries(df_clean, cols)
   log_info("Résumés descriptifs calculés")
 
+  # Calculer les métriques par site : potentiel fongique, indice patrimonial, gradient CHEGD et indice de représentativité (IR).
+  # Les métriques sont calculées à partir des données nettoyées et des résumés descriptifs.
+  # Elles fournissent une évaluation globale de la biodiversité, de la qualité écologique et de la représentativité de chaque site.
+  # Les calculs s’appuient sur des méthodes statistiques robustes, en tenant compte des données de terrain, des observations biologiques et des facteurs environnementaux.
+  # Les résultats permettent d’identifier les sites à forte valeur écologique, les zones prioritaires de conservation et les sites nécessitant une attention particulière.
+  # Ces métriques servent également à suivre les changements écologiques au fil du temps et à évaluer l’efficacité des mesures de gestion ou de restauration.
+  # Elles sont utilisées dans les étapes suivantes pour générer des visualisations, des rapports détaillés et des recommandations de gestion.
+  # Les résultats sont enregistrés dans le répertoire de sortie, avec un message de log indiquant que les métriques ont été calculées avec succès.
   site_metrics <- build_site_level_metrics(df_clean, cols, base_dir, cfg$input_file)
   log_info("Métriques par site calculées")
 
-  # === GÉNÉRER LES GRAPHIQUES ===
-  log_section("GÉNÉRATION DES FIGURES")
+  # Générer les graphiques et les figures pour le rapport.
+  # Les figures sont enregistrées dans le répertoire de sortie et un message de log est affiché pour chaque figure générée.
+  # Les figures incluent le tableau de bord des sites, le positionnement écologique, la décomposition du potentiel, le CHEGD par visite, la carte thermique des classes, 
+  # la distribution des niveaux de fiabilité et l'indice de représentativité (IR).
+  # Les figures sont générées à partir des métriques calculées précédemment et sont destinées à fournir une visualisation claire des données et des résultats.
+  # Les figures sont enregistrées au format PNG et PDF pour une utilisation flexible dans les rapports et les présentations.
+  # Les messages de log permettent de suivre l'avancement de la génération des figures et de vérifier que toutes les figures ont été créées avec succès.
+  # Les figures sont essentielles pour l'analyse visuelle des données et pour communiquer les résultats de manière efficace aux parties prenantes.
+  log_section("Génération des résultats graphiques et des figures")
   build_site_dashboard(site_metrics, out_dir)
   log_info("Figure 1 : tableau de bord des sites terminé")
 
@@ -2344,8 +3115,12 @@ main <- function() {
   build_ir_by_visit_plot(site_metrics, out_dir)
   log_info("Figure 7 : indice de représentativité (IR) terminé")
 
-  # === OBJECTIFS FIABILITÉ ===
-  log_section("OBJECTIFS DE FIABILITÉ (1-4)")
+  # Objectifs de fiabilité (1-4) : descriptif, pondération, modèles, inférence.
+  # Chaque objectif est exécuté séquentiellement, et les résultats sont enregistrés dans le répertoire de sortie.
+  # Les meilleurs candidats pour chaque objectif sont affichés dans le log pour référence.
+  # Les résultats finaux sont exportés sous forme de fichiers CSV, et un résumé des fichiers générés est affiché dans le log.
+  # Les objectifs de fiabilité permettent d'évaluer la qualité des données et de fournir des indicateurs pour la prise de décision.
+  log_section("Objectifs de fiabilité (1-4)")
   reliability_objectives <- run_reliability_objectives(df_clean, cols, site_metrics, out_dir)
   if (!is.null(reliability_objectives$summary)) {
     log_info("Objectifs de fiabilité terminés - Meilleurs candidats :")
@@ -2355,13 +3130,17 @@ main <- function() {
     }
   }
 
-  # === EXPORTER LES RÉSULTATS ===
-  log_section("EXPORT DES RÉSULTATS")
+  # Exporter les résultats finaux et les fichiers CSV.
+  # Cela inclut les données nettoyées, les résumés par site/famille/espèce/date, les métriques de fiabilité et les synthèses par site.
+  # Les fichiers CSV sont écrits dans le répertoire de sortie spécifié, et un résumé des fichiers générés est affiché dans le log pour référence.
+  log_section("Export des résultats finaux et des fichiers CSV")
   write_outputs(df_clean, summaries, site_metrics, out_dir, cols)
   log_info("Tous les fichiers CSV ont été exportés")
 
-  # === AFFICHER LES SORTIES PRINCIPALES ===
-  log_section("RÉCAPITULATIF DES FICHIERS DE SORTIE")
+  # Afficher les sorties principales dans le log pour référence rapide.
+  # Cela inclut les fichiers CSV générés, les figures et les résultats des objectifs de fiabilité.
+  # Cela permet à l'utilisateur de savoir rapidement quels fichiers ont été créés et où les trouver.
+  log_section("Récapitulatif des fichiers générés et des résultats")
   log_info("Fichiers CSV :")
   log_info("  - donnees_brutes_nettoyees.csv")
   log_info("  - resume_global.csv")
@@ -2391,10 +3170,10 @@ main <- function() {
   log_info("  - stat_obj4_inference_tests.csv + fig")
   log_info("  - stat_model_selection_summary.csv")
 
-  # === FOOTER ===
+  # Pied-de-page
   log_footer()
 
-  # === AFFICHAGE CONSOLE (pour compatibilité) ===
+  # Affichage console (pour compatibilité)
   message("Calcul terminé")
   message("Résultats : ", out_dir)
   message("Log: ", .log_env$log_file)
@@ -2403,7 +3182,11 @@ main <- function() {
   }
 }
 
-# === EXÉCUTION PRINCIPALE AVEC GESTION D'ERREURS ===
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Exécution principale avec gestion d'erreurs pour capturer les exceptions et écrire dans le log.
+# Si une erreur survient, elle sera enregistrée dans le fichier de log et le script s'arrêtera avec un message d'erreur.
+# Cela permet de s'assurer que les erreurs sont correctement signalées et que le log contient des informations utiles pour le débogage.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 tryCatch({
   main()
 }, error = function(e) {
