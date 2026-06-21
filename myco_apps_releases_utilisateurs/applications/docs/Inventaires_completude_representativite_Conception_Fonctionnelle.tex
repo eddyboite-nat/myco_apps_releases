@@ -1,0 +1,1353 @@
+\section{Inventaires Fongiques -- Complétude \&
+Représentativité}\label{inventaires-fongiques-compluxe9tude-repruxe9sentativituxe9}
+
+\href{https://www.r-project.org/}{\pandocbounded{\includesvg[keepaspectratio]{https://img.shields.io/badge/R-\%3E\%3D4.0-blue.svg}}}\\
+\href{../scripts/Inventaires_completude_representativite.R}{\pandocbounded{\includesvg[keepaspectratio]{https://img.shields.io/badge/Script-Inventaires__completude__representativite.R-6f42c1.svg}}}\\
+\href{../README.md}{\pandocbounded{\includesvg[keepaspectratio]{https://img.shields.io/badge/Domain-Mycologie\%20\%7C\%20\%C3\%89cologie-green.svg}}}\\
+\hyperref[-quick-start]{\pandocbounded{\includesvg[keepaspectratio]{https://img.shields.io/badge/Status-Op\%C3\%A9rationnel-brightgreen.svg}}}
+
+Pipeline R pour automatiser l'analyse de la \textbf{complétude
+d'inventaires fongiques} et de leur \textbf{représentativité} (Taux
+d'Espèces Exceptionnelles, \textbf{TEE} / Indice de représentativité,
+\textbf{Ir}), avec sorties tabulaires et graphiques prêtes à exploiter.
+
+\textbf{Projet} : Projet hôte / Inventaires fongiques\\
+\textbf{Auteur} : Eddy Boite\\
+\textbf{Version script} : 1.4 (selon en-tête du script)\\
+\textbf{Date doc} : 22 Mars 2026\\
+\textbf{Type de document} : Spécification fonctionnelle
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{📖 À Propos}\label{uxe0-propos}
+
+Ce document décrit l'utilisation du script :
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{scripts/Inventaires\_completude\_representativite.R}
+\end{itemize}
+
+Le script produit automatiquement, par site :
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Courbe temps-espèces
+\item
+  Ajustement linéaire et hyperbolique (si possible)
+\item
+  Estimation d'asymptote (richesse théorique)
+\item
+  Taux d'espèces exceptionnelles (TEE)
+\item
+  Indice de représentativité \(Ir = 1 - TEE\)
+\item
+  Fréquence des espèces par visite
+\item
+  Occupation spatiale (si \texttt{placette} disponible)
+\item
+  Analyse Factorielle des Correspondances (\textbf{AFC}, aussi appelée
+  Correspondence Analysis, \textbf{CA}) simple (si package
+  \texttt{vegan} disponible)
+\item
+  \textbf{Métriques de pertinence scientifique} : stabilité, robustesse,
+  cohérence spatiotemporelle et score agrégé, avec visualisations
+  dédiées
+\end{enumerate}
+
+En fin d'exécution, un \textbf{manifeste automatique} journalise l'état
+de chaque fichier attendu (OK / MANQUANT / OPTIONNEL\_NON\_GENERE).
+
+\subsection{Table des Matières}\label{table-des-matiuxe8res}
+
+\begin{itemize}
+\tightlist
+\item
+  \hyperref[-quick-start]{Quick Start}
+\item
+  \hyperref[-structure-du-projet]{Structure du projet}
+\item
+  \hyperref[-configurer-le-nom-du-projet-portabilitux5cux25C3ux5cux25A9]{Configurer
+  le nom du projet (portabilité)}
+\item
+  \hyperref[-structure-attendue-des-donnux5cux25C3ux5cux25A9es]{Structure
+  attendue des données}
+\item
+  \hyperref[-validation-csv-stricte-robustesse]{Validation CSV stricte
+  (robustesse)}
+\item
+  \hyperref[-sorties-gux5cux25C3ux5cux25A9nux5cux25C3ux5cux25A9rux5cux25C3ux5cux25A9es]{Sorties
+  générées}
+\item
+  \hyperref[-installation-et-dux5cux25C3ux5cux25A9pendances]{Installation
+  et dépendances}
+\item
+  \hyperref[-configuration]{Configuration}
+\item
+  \hyperref[-interprux5cux25C3ux5cux25A9tation-des-indicateurs]{Interprétation
+  des indicateurs}
+\item
+  \hyperref[-glossaire]{Glossaire}
+\item
+  \hyperref[rux5cux25C3ux5cux25A9fux5cux25C3ux5cux25A9rences]{Références}
+\item
+  \hyperref[-dux5cux25C3ux5cux25A9pannage-faq]{Dépannage (Foire Aux
+  Questions, FAQ)}
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{Structure du projet}\label{structure-du-projet}
+
+Le script s'inscrit dans un projet R standard dont voici une structure
+type :
+
+\begin{verbatim}
+<nom_du_projet>/
+├── data/
+│   ├── observations.csv                 # Données d'entrée ICR (à personnaliser)
+├── docs/
+│   ├── Readme_Analyse_Inventaires_Fongiques.md
+│   ├── rapport_inventaires_fongiques.qmd          # Rapport Quarto
+├── results/
+│   ├── ICR_donnees_preparees.csv
+│   ├── ICR_00_csv_conformite_report.csv
+│   ├── ICR_00_csv_conformite_problems.csv
+│   ├── ICR_resume_tous_sites.csv
+│   ├── ICR_metrics_pertinence_tous_sites.csv
+│   ├── ICR_comparaison_completude_sites.png
+│   ├── ICR_comparaison_ir_sites.png
+│   ├── ICR_metrics_pertinence_heatmap_sites.png   # Heatmap métriques multi-sites
+│   ├── ICR_metrics_pertinence_score_sites.png     # Classement global pertinence
+│   └── <site>/                          # Un sous-dossier par site
+│       ├── ICR_01_courbe_temps_especes.csv
+│       ├── ICR_02_tee_ir.csv
+│       ├── ICR_03_frequence_especes.csv
+│       ├── ICR_04_resume_site.csv
+│       ├── ICR_05_modeles.csv           # Si modèles ajustés
+│       ├── ICR_06_occupation_spatiale.csv  # Si placette disponible
+│       ├── ICR_07_metrics_pertinence.csv
+│       ├── ICR_01_richesse_par_visite_et_cumul.png
+│       ├── ICR_02_courbe_temps_especes_hyperbole.png
+│       ├── ICR_03_tee_ir.png
+│       ├── ICR_04_histogramme_frequences.png
+│       ├── ICR_05_temporel_vs_spatial.png
+│       ├── ICR_06_CA_placettes_especes.png
+│       └── ICR_07_metrics_pertinence_dashboard.png  # Dashboard métriques site
+├── scripts/
+│   └── Inventaires_completude_representativite.R  # ← Script principal (v1.4 Phase 4)
+├── tests/
+└── <nom_du_projet>.Rproj
+\end{verbatim}
+
+\begin{quote}
+\textbf{Convention de nommage :} tous les fichiers générés par ce script
+sont préfixés \texttt{ICR\_} pour les distinguer des sorties des autres
+scripts du projet.
+\end{quote}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{Configurer le nom du projet
+(portabilité)}\label{configurer-le-nom-du-projet-portabilituxe9}
+
+Ce document est conçu pour être \textbf{copié tel quel} dans un autre
+dépôt.
+
+\subsubsection{Ce qui dépend du nom du
+projet}\label{ce-qui-duxe9pend-du-nom-du-projet}
+
+Le script n'utilise \textbf{pas} le nom du dépôt dans son code métier.
+Le « nom de projet » intervient surtout pour :
+
+\begin{itemize}
+\tightlist
+\item
+  l'affichage documentaire
+  (\texttt{\textless{}nom\_du\_projet\textgreater{}}),
+\item
+  le nom du fichier RStudio
+  (\texttt{\textless{}nom\_du\_projet\textgreater{}.Rproj}),
+\item
+  l'organisation de vos dossiers dans votre repo.
+\end{itemize}
+
+\subsubsection{Procédure recommandée (2
+minutes)}\label{procuxe9dure-recommanduxe9e-2-minutes}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Remplacez les placeholders
+  \texttt{\textless{}nom\_du\_projet\textgreater{}} par votre vrai nom
+  de dépôt (ex. \texttt{inventaires\_fongiques\_public}).
+\item
+  Si vous utilisez RStudio, renommez le fichier projet en conséquence :
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \texttt{\textless{}nom\_du\_projet\textgreater{}.Rproj}
+  \end{itemize}
+\item
+  Conservez la structure relative standard : \texttt{data/},
+  \texttt{scripts/}, \texttt{results/}, \texttt{docs/}.
+\end{enumerate}
+
+\subsubsection{Configuration sans modifier le
+script}\label{configuration-sans-modifier-le-script}
+
+Le script supporte des variables d'environnement pour s'adapter à votre
+projet :
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{INVENTAIRES\_INPUT\_FILE} : chemin d'entrée (défaut :
+  \texttt{data/observations.csv})
+\item
+  \texttt{INVENTAIRES\_OUTPUT\_DIR} : dossier de sortie (défaut :
+  \texttt{results/ICR})
+\item
+  \texttt{INVENTAIRES\_DATE\_FORMAT} : format de date (défaut :
+  \texttt{\%Y-\%m-\%d})
+\end{itemize}
+
+Exemple d'usage portable :
+
+\begin{itemize}
+\tightlist
+\item
+  entrée personnalisée : \texttt{data/observations\_public.csv}
+\item
+  sorties personnalisées : \texttt{results/public\_release}
+\item
+  même script :
+  \texttt{scripts/Inventaires\_completude\_representativite.R}
+\end{itemize}
+
+\subsubsection{Bonnes pratiques pour diffusion
+publique}\label{bonnes-pratiques-pour-diffusion-publique}
+
+\begin{itemize}
+\tightlist
+\item
+  Évitez les chemins absolus locaux (\texttt{/Users/...}).
+\item
+  Gardez uniquement des chemins relatifs dans les docs et scripts.
+\item
+  Vérifiez que vos noms de dossiers ne révèlent pas d'information
+  interne.
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{Quick Start}\label{quick-start}
+
+\subsubsection{1) Préparer les
+données}\label{pruxe9parer-les-donnuxe9es}
+
+Placer un fichier d'observations dans \texttt{data/} avec le nom
+recommandé :
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{data/observations.csv}
+\end{itemize}
+
+\begin{quote}
+Le script accepte aussi \texttt{observations.txt} ou
+\texttt{observations.tsv} (\textbf{TSV} = Tab-Separated Values, valeurs
+séparées par tabulation ; détection automatique du séparateur).
+\end{quote}
+
+\subsubsection{2) Lancer l'analyse}\label{lancer-lanalyse}
+
+Depuis la racine du projet (quel que soit son nom) :
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{Rscript\ scripts/Inventaires\_completude\_representativite.R}
+\end{itemize}
+
+\subsubsection{3) Consulter les
+résultats}\label{consulter-les-ruxe9sultats}
+
+Les sorties sont produites dans :
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{results/}
+\item
+  puis un sous-dossier par site
+  (\texttt{results/\textless{}site\_sanitize\textgreater{}/})
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{Structure attendue des
+données}\label{structure-attendue-des-donnuxe9es}
+
+\subsubsection{Colonnes obligatoires}\label{colonnes-obligatoires}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{site}
+\item
+  \texttt{date}
+\item
+  \texttt{visite\_id}
+\item
+  \texttt{espece}
+\end{itemize}
+
+\subsubsection{Colonne optionnelle}\label{colonne-optionnelle}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{placette} (recommandée pour l'analyse spatiale et la CA)
+\end{itemize}
+
+\subsubsection{Format de date}\label{format-de-date}
+
+Par défaut : \texttt{\%Y-\%m-\%d} (ex. \texttt{2026-03-18}).
+
+\subsection{Validation CSV stricte
+(robustesse)}\label{validation-csv-stricte-robustesse}
+
+Le script applique un contrôle de conformité CSV avant les analyses :
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  schéma de colonnes attendu,
+\item
+  contrôle des colonnes supplémentaires,
+\item
+  audit des problèmes de parsing remontés par
+  \texttt{readr::problems()}.
+\end{enumerate}
+
+\subsubsection{Schéma attendu}\label{schuxe9ma-attendu}
+
+\begin{itemize}
+\tightlist
+\item
+  Colonnes requises (défaut) : \texttt{site}, \texttt{date},
+  \texttt{visite\_id}, \texttt{espece}
+\item
+  Colonnes optionnelles (défaut) : \texttt{placette}
+\end{itemize}
+
+\subsubsection{Comportement en mode
+strict}\label{comportement-en-mode-strict}
+
+Par défaut, \texttt{csv\_strict\_mode\ =\ TRUE} (via
+\texttt{INVENTAIRES\_CSV\_STRICT}).
+
+Dans ce mode, l'exécution s'arrête si :
+
+\begin{itemize}
+\tightlist
+\item
+  une colonne obligatoire manque,
+\item
+  une colonne non autorisée est détectée,
+\item
+  un problème de parsing est présent.
+\end{itemize}
+
+\subsubsection{Rapports produits}\label{rapports-produits}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{results/ICR/ICR\_00\_csv\_conformite\_report.csv} (toujours)
+\item
+  \texttt{results/ICR/ICR\_00\_csv\_conformite\_problems.csv} (si
+  anomalies de parsing)
+\end{itemize}
+
+\subsubsection{Paramètres et variables
+d'environnement}\label{paramuxe8tres-et-variables-denvironnement}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{CONFIG\$csv\_strict\_mode} ↔ \texttt{INVENTAIRES\_CSV\_STRICT}
+  (défaut \texttt{TRUE})
+\item
+  \texttt{CONFIG\$csv\_allow\_extra\_cols} ↔
+  \texttt{INVENTAIRES\_CSV\_ALLOW\_EXTRA\_COLS} (défaut \texttt{FALSE})
+\item
+  \texttt{CONFIG\$csv\_required\_cols} (défaut :
+  \texttt{site,date,visite\_id,espece})
+\item
+  \texttt{CONFIG\$csv\_optional\_cols} (défaut : \texttt{placette})
+\end{itemize}
+
+\subsubsection{Définition d'une visite distincte
+(important)}\label{duxe9finition-dune-visite-distincte-important}
+
+Le script considère une visite unique via la clé :
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{date\ +\ visite\_id} (et \texttt{site} lorsque plusieurs sites
+  sont analysés)
+\end{itemize}
+
+Cela permet de gérer les jeux de données où un même \texttt{visite\_id}
+peut être réutilisé à des dates différentes.
+
+\subsubsection{Exemple minimal}\label{exemple-minimal}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}lllll@{}}
+\toprule\noalign{}
+site & date & visite\_id & espece & placette \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Site\_A & 2026-03-01 & V1 & Amanita muscaria & P1 \\
+Site\_A & 2026-03-01 & V1 & Boletus edulis & P2 \\
+Site\_A & 2026-03-15 & V2 & Amanita muscaria & P1 \\
+Site\_B & 2026-03-08 & V1 & Cantharellus cibarius & P3 \\
+\end{longtable}
+}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{Sorties générées}\label{sorties-guxe9nuxe9ruxe9es}
+
+\subsubsection{Vue d'ensemble du pipeline (9 calculs →
+fichiers)}\label{vue-densemble-du-pipeline-9-calculs-fichiers}
+
+\begin{verbatim}
+1) Préparation/validation des données
+    -> Global CSV : ICR_donnees_preparees.csv
+2) Richesse observée et cumulée (courbe temps-espèces)
+    -> Site CSV   : <site>/ICR_01_courbe_temps_especes.csv
+    -> Site PNG   : <site>/ICR_01_richesse_par_visite_et_cumul.png
+3) Ajustements linéaire/hyperbolique (si conditions remplies)
+    -> Site CSV   : <site>/ICR_05_modeles.csv
+    -> Site PNG   : <site>/ICR_02_courbe_temps_especes_hyperbole.png
+4) Asymptote hyperbolique et ratio de complétude
+    -> Site CSV   : <site>/ICR_04_resume_site.csv
+    -> Global CSV : ICR_resume_tous_sites.csv
+    -> Global PNG : ICR_comparaison_completude_sites.png
+5) TEE (taux d'espèces exceptionnelles) et indice Ir
+    -> Site CSV   : <site>/ICR_02_tee_ir.csv
+    -> Site PNG   : <site>/ICR_03_tee_ir.png
+    -> Global PNG : ICR_comparaison_ir_sites.png
+6) Fréquences d'occurrence des espèces
+    -> Site CSV   : <site>/ICR_03_frequence_especes.csv
+    -> Site PNG   : <site>/ICR_04_histogramme_frequences.png
+7) Occupation spatiale (si placette disponible)
+    -> Site CSV   : <site>/ICR_06_occupation_spatiale.csv
+    -> Site PNG   : <site>/ICR_05_temporel_vs_spatial.png
+8) CA/AFC placettes-espèces (si vegan et données adaptées)
+    -> Site PNG   : <site>/ICR_06_CA_placettes_especes.png
+9) Métriques de pertinence scientifique (stabilité, robustesse, cohérence)
+    -> Site CSV   : <site>/ICR_07_metrics_pertinence.csv
+    -> Global CSV : ICR_metrics_pertinence_tous_sites.csv
+    -> Site PNG   : <site>/ICR_07_metrics_pertinence_dashboard.png
+    -> Global PNG : ICR_metrics_pertinence_heatmap_sites.png
+    -> Global PNG : ICR_metrics_pertinence_score_sites.png
+\end{verbatim}
+
+\begin{quote}
+En fin d'exécution, un \textbf{manifeste automatique} liste l'état de
+chaque fichier attendu : OK / MANQUANT / OPTIONNEL\_NON\_GENERE.
+\end{quote}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsubsection{\texorpdfstring{Sorties globales
+(\texttt{results/})}{Sorties globales (results/)}}\label{sorties-globales-results}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Fichier
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Type
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Description
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\texttt{ICR\_00\_csv\_conformite\_report.csv} & CSV & Rapport de
+conformité CSV (schéma + parsing) avant traitement. \\
+\texttt{ICR\_00\_csv\_conformite\_problems.csv} & CSV & Détail des
+anomalies de parsing détectées (si présentes). \\
+\texttt{ICR\_donnees\_preparees.csv} & CSV & Données nettoyées et
+standardisées utilisées pour l'analyse. \\
+\texttt{ICR\_resume\_tous\_sites.csv} & CSV & Synthèse finale
+multi-sites (complétude, représentativité, etc.). \\
+\texttt{ICR\_metrics\_pertinence\_tous\_sites.csv} & CSV & Métriques de
+pertinence scientifique agrégées pour tous les sites. \\
+\texttt{ICR\_comparaison\_completude\_sites.png} & Graphique &
+Comparaison du ratio de complétude entre sites. \\
+\texttt{ICR\_comparaison\_ir\_sites.png} & Graphique & Comparaison de
+l'indice \(Ir\) final entre sites. \\
+\texttt{ICR\_metrics\_pertinence\_heatmap\_sites.png} & Graphique &
+Heatmap comparative des 7 métriques de pertinence pour tous les
+sites. \\
+\texttt{ICR\_metrics\_pertinence\_score\_sites.png} & Graphique &
+Classement global des sites par score de pertinence scientifique
+agrégé. \\
+\end{longtable}
+}
+
+\subsubsection{\texorpdfstring{Sorties par site
+(\texttt{results/\textless{}site\textgreater{}/})}{Sorties par site (results/\textless site\textgreater/)}}\label{sorties-par-site-resultssite}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Fichier
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Type
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Condition
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Description
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\texttt{ICR\_01\_courbe\_temps\_especes.csv} & CSV & Toujours & Données
+de richesse observée et cumulée par visite. \\
+\texttt{ICR\_02\_tee\_ir.csv} & CSV & Toujours & Évolution de TEE et de
+\(Ir\) au fil des visites. \\
+\texttt{ICR\_03\_frequence\_especes.csv} & CSV & Toujours & Fréquences
+d'occurrence des espèces par visite. \\
+\texttt{ICR\_04\_resume\_site.csv} & CSV & Toujours & Résumé synthétique
+du site analysé. \\
+\texttt{ICR\_05\_modeles.csv} & CSV & Si modèles ajustés & Paramètres et
+qualité d'ajustement des modèles. \\
+\texttt{ICR\_06\_occupation\_spatiale.csv} & CSV & Si \texttt{placette}
+exploitable & Occupation spatiale des espèces par placette. \\
+\texttt{ICR\_01\_richesse\_par\_visite\_et\_cumul.png} & Graphique &
+Toujours & Richesse par visite + richesse cumulée. \\
+\texttt{ICR\_02\_courbe\_temps\_especes\_hyperbole.png} & Graphique &
+Toujours (courbe) / hyperbole si modèle dispo & Courbe temps-espèces
+avec ajustement hyperbolique si possible. \\
+\texttt{ICR\_03\_tee\_ir.png} & Graphique & Toujours & Lecture conjointe
+espèces uniques, total et \(Ir\). \\
+\texttt{ICR\_04\_histogramme\_frequences.png} & Graphique & Toujours &
+Distribution des fréquences d'observation des espèces. \\
+\texttt{ICR\_05\_temporel\_vs\_spatial.png} & Graphique & Si spatial
+disponible & Relation fréquence temporelle vs occupation spatiale. \\
+\texttt{ICR\_06\_CA\_placettes\_especes.png} & Graphique & Si
+\texttt{vegan} + données adaptées & Ordination AFC/CA
+placettes-espèces. \\
+\texttt{ICR\_07\_metrics\_pertinence.csv} & CSV & Toujours & Métriques
+de pertinence scientifique (15 colonnes : Ir, complétude, R²,
+score\ldots). \\
+\texttt{ICR\_07\_metrics\_pertinence\_dashboard.png} & Graphique &
+Toujours & Dashboard des 7 métriques de pertinence scientifique du site
+(stabilité, robustesse, cohérence). \\
+\end{longtable}
+}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{Installation et
+dépendances}\label{installation-et-duxe9pendances}
+
+\subsubsection{Packages requis (base)}\label{packages-requis-base}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.5000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.5000}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Package
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Rôle principal
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\texttt{dplyr} & Manipulation de données tabulaires (filtre, jointures,
+agrégations). \\
+\texttt{tidyr} & Restructuration des données (format long/large). \\
+\texttt{ggplot2} & Génération des graphiques. \\
+\texttt{purrr} & Itérations fonctionnelles sur les sites/listes. \\
+\texttt{readr} & Lecture/écriture rapide des fichiers texte/CSV. \\
+\texttt{stringr} & Traitements de chaînes de caractères. \\
+\texttt{forcats} & Gestion des facteurs et de leurs niveaux. \\
+\texttt{tibble} & Structures tabulaires modernes. \\
+\texttt{scales} & Mise en forme des axes et échelles graphiques. \\
+\texttt{gridExtra} & Assemblage de graphiques multi-panneaux (notamment
+\texttt{ICR\_03\_tee\_ir.png}). \\
+\end{longtable}
+}
+
+\subsubsection{Packages optionnels}\label{packages-optionnels}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.5000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.5000}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Package
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Utilisation
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\texttt{minpack.lm} & Ajustement du modèle hyperbolique (estimation
+d'asymptote). \\
+\texttt{vegan} & Ordination AFC/CA (analyse placettes--espèces). \\
+\end{longtable}
+}
+
+Le script vérifie les packages requis au démarrage et affiche une
+commande d'installation explicite si certains sont manquants.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{Configuration}\label{configuration}
+
+La configuration est centralisée dans l'objet \texttt{CONFIG} du script.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Paramètre
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Défaut
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Description
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\texttt{input\_file} & \texttt{data/observations.csv} & Chemin du
+fichier d'entrée des observations. \\
+\texttt{output\_dir} & \texttt{results/ICR} & Dossier de sortie pour les
+CSV et graphiques. \\
+\texttt{date\_format} & \texttt{\%Y-\%m-\%d} & Format attendu pour
+parser la colonne \texttt{date}. \\
+\texttt{csv\_strict\_mode} & \texttt{TRUE} & Stoppe l'exécution si le
+CSV n'est pas conforme. \\
+\texttt{csv\_allow\_extra\_cols} & \texttt{FALSE} & Autorise/refuse les
+colonnes supplémentaires non prévues. \\
+\texttt{csv\_required\_cols} &
+\texttt{c("site","date","visite\_id","espece")} & Colonnes obligatoires
+du schéma CSV. \\
+\texttt{csv\_optional\_cols} & \texttt{c("placette")} & Colonnes
+optionnelles autorisées. \\
+\texttt{make\_ca} & \texttt{TRUE} & Active l'ordination AFC/CA si les
+conditions sont réunies. \\
+\texttt{min\_visits\_for\_model} & \texttt{5} & Nombre minimal de
+visites pour ajuster les modèles de complétude. \\
+\texttt{width} & \texttt{10} & Largeur (en pouces) des graphiques
+exportés. \\
+\texttt{height} & \texttt{6} & Hauteur (en pouces) des graphiques
+exportés. \\
+\texttt{dpi} & \texttt{300} & Résolution d'export des graphiques (dots
+per inch). \\
+\end{longtable}
+}
+
+Le script accepte aussi des surcharges via variables d'environnement :
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{INVENTAIRES\_INPUT\_FILE}
+\item
+  \texttt{INVENTAIRES\_OUTPUT\_DIR}
+\item
+  \texttt{INVENTAIRES\_DATE\_FORMAT}
+\item
+  \texttt{INVENTAIRES\_CSV\_STRICT}
+\item
+  \texttt{INVENTAIRES\_CSV\_ALLOW\_EXTRA\_COLS}
+\end{itemize}
+
+Si besoin, adapter ces valeurs directement dans :
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{scripts/Inventaires\_completude\_representativite.R}
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{Interprétation des
+indicateurs}\label{interpruxe9tation-des-indicateurs}
+
+\subsubsection{TEE (Taux d'Espèces
+Exceptionnelles)}\label{tee-taux-despuxe8ces-exceptionnelles}
+
+\begin{itemize}
+\tightlist
+\item
+  Définit la proportion d'espèces observées une seule fois.
+\item
+  Plus TEE est élevé, plus l'inventaire peut être incomplet.
+\end{itemize}
+
+Lecture pratique :
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{TEE élevé en fin de suivi} : beaucoup d'espèces n'ont été vues
+  qu'une fois, ce qui suggère un inventaire encore en phase
+  d'accumulation.
+\item
+  \textbf{TEE qui diminue avec les visites} : signe positif, les espèces
+  ``uniques'' deviennent progressivement récurrentes.
+\item
+  \textbf{TEE stable et bas} : communauté mieux couverte, effort
+  d'échantillonnage proche d'un plateau.
+\end{itemize}
+
+Repères empiriques (à contextualiser selon habitat/saison/protocole) :
+
+\begin{itemize}
+\tightlist
+\item
+  TEE \textgreater{} 0.40 : inventaire souvent \textbf{incomplet}
+\item
+  0.20 ≤ TEE ≤ 0.40 : inventaire \textbf{intermédiaire}
+\item
+  TEE \textless{} 0.20 : inventaire généralement \textbf{bien consolidé}
+\end{itemize}
+
+\subsubsection{Ir (Indice de
+représentativité)}\label{ir-indice-de-repruxe9sentativituxe9}
+
+\[Ir = 1 - TEE\]
+
+\begin{itemize}
+\tightlist
+\item
+  Plus \(Ir\) est proche de 1, meilleure est la représentativité de
+  l'inventaire.
+\end{itemize}
+
+Lecture pratique :
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Ir en hausse au fil des visites} : le protocole capture mieux
+  la diversité réelle du site.
+\item
+  \textbf{Ir qui plafonne tôt} : effort potentiellement suffisant, sauf
+  si période écologique incomplète.
+\item
+  \textbf{Ir faible et stagnant} : effort, calendrier ou stratification
+  spatiale à revoir.
+\end{itemize}
+
+Repères empiriques (indicatifs) :
+
+\begin{itemize}
+\tightlist
+\item
+  Ir \textless{} 0.60 : représentativité faible
+\item
+  0.60 ≤ Ir \textless{} 0.80 : représentativité moyenne
+\item
+  Ir ≥ 0.80 : représentativité bonne à élevée
+\end{itemize}
+
+\subsubsection{Complétude observée /
+asymptote}\label{compluxe9tude-observuxe9e-asymptote}
+
+Le script estime une asymptote de richesse (modèle hyperbolique, si
+disponible) puis calcule un ratio de complétude :
+
+\[\\text{Complétude} = \\frac{S\_{obs}}{S\_{asymptote}}\]
+
+avec :
+
+\begin{itemize}
+\tightlist
+\item
+  \(S\_{obs}\) : richesse observée finale
+\item
+  \(S\_{asymptote}\) : richesse théorique estimée
+\end{itemize}
+
+Interprétation :
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Complétude proche de 1} : l'inventaire approche la richesse
+  théorique attendue.
+\item
+  \textbf{Complétude intermédiaire} : des espèces restent probablement à
+  détecter.
+\item
+  \textbf{Complétude faible} : effort insuffisant ou forte hétérogénéité
+  écologique.
+\end{itemize}
+
+Repères utiles :
+
+\begin{itemize}
+\tightlist
+\item
+  Complétude \textless{} 0.70 : insuffisante pour conclure sur
+  l'exhaustivité
+\item
+  0.70--0.90 : progression correcte, inventaire partiel
+\end{itemize}
+
+\begin{quote}
+0.90 : inventaire très avancé
+\end{quote}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsubsection{Lecture détaillée des diagrammes (le plus
+important)}\label{lecture-duxe9tailluxe9e-des-diagrammes-le-plus-important}
+
+\paragraph{\texorpdfstring{\texttt{ICR\_01\_richesse\_par\_visite\_et\_cumul.png}}{ICR\_01\_richesse\_par\_visite\_et\_cumul.png}}\label{icr_01_richesse_par_visite_et_cumul.png}
+
+Ce graphique combine :
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{barres} = richesse observée par visite
+  (\texttt{nb\_especes\_trouvees})
+\item
+  \textbf{ligne} = richesse cumulée (\texttt{nb\_cumule})
+\end{itemize}
+
+Comment lire :
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Barres encore hautes + cumul qui monte vite} : inventaire en
+  phase active de découverte.
+\item
+  \textbf{Barres qui baissent + cumul qui se tasse} : entrée dans une
+  phase de saturation.
+\item
+  \textbf{Dents de scie marquées} : forte dépendance
+  météo/saison/observateur.
+\end{itemize}
+
+Signal d'alerte :
+
+\begin{itemize}
+\tightlist
+\item
+  Si les dernières visites apportent encore beaucoup de nouvelles
+  espèces, l'arrêt de l'inventaire peut être prématuré.
+\end{itemize}
+
+\paragraph{\texorpdfstring{\texttt{ICR\_02\_courbe\_temps\_especes\_hyperbole.png}}{ICR\_02\_courbe\_temps\_especes\_hyperbole.png}}\label{icr_02_courbe_temps_especes_hyperbole.png}
+
+Ce graphique superpose les observations à un ajustement hyperbolique (si
+\texttt{minpack.lm} disponible) et une asymptote.
+
+Comment lire :
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Courbe observée proche de la courbe ajustée} : modèle
+  cohérent.
+\item
+  \textbf{Écart important} : structure de données non compatible avec ce
+  modèle (saisonnalité forte, ruptures d'effort, etc.).
+\item
+  \textbf{Asymptote nettement au-dessus de la richesse actuelle} : marge
+  de découverte encore importante.
+\end{itemize}
+
+Point clé :
+
+\begin{itemize}
+\tightlist
+\item
+  Ne pas interpréter l'asymptote comme une ``vérité absolue'', mais
+  comme un \textbf{repère quantitatif} de complétude.
+\end{itemize}
+
+\paragraph{\texorpdfstring{\texttt{ICR\_03\_tee\_ir.png}}{ICR\_03\_tee\_ir.png}}\label{icr_03_tee_ir.png}
+
+Ce graphique présente \textbf{deux panneaux complémentaires} :
+
+\begin{itemize}
+\tightlist
+\item
+  panneau haut : nombre d'espèces observées une seule fois
+  (\texttt{nb\_esp\_1fois}),
+\item
+  panneau bas : indice de représentativité \(Ir\) sur l'échelle
+  \(\[0,1\]\) avec seuils visuels.
+\end{itemize}
+
+Comment lire :
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Espèces uniques qui ralentissent} : signal de consolidation de
+  l'inventaire.
+\item
+  \textbf{Ir qui augmente puis se stabilise} : représentativité qui
+  converge.
+\item
+  \textbf{Ir sous 0.60} : représentativité faible ; \textbf{0.60--0.80}
+  : moyenne ; \textbf{≥ 0.80} : bonne.
+\end{itemize}
+
+Point de vigilance :
+
+\begin{itemize}
+\tightlist
+\item
+  Les seuils sont des repères empiriques : toujours interpréter avec le
+  contexte (saison, effort, habitat).
+\end{itemize}
+
+\paragraph{\texorpdfstring{\texttt{ICR\_04\_histogramme\_frequences.png}}{ICR\_04\_histogramme\_frequences.png}}\label{icr_04_histogramme_frequences.png}
+
+Histogramme du nombre d'espèces selon leur fréquence d'occurrence
+(nombre de visites où elles sont observées).
+
+Comment lire :
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Pic sur les faibles fréquences (1--2 visites)} : communauté
+  riche en espèces rares/occasionnelles.
+\item
+  \textbf{Répartition plus équilibrée} : noyau d'espèces régulières bien
+  documenté.
+\item
+  \textbf{Queue vers les fortes fréquences} : présence d'espèces
+  constantes, potentiels bons indicateurs écologiques.
+\end{itemize}
+
+Usages :
+
+\begin{itemize}
+\tightlist
+\item
+  Ajuster l'effort d'échantillonnage selon l'objectif (détection rareté
+  vs suivi d'espèces communes).
+\end{itemize}
+
+\paragraph{\texorpdfstring{\texttt{ICR\_05\_temporel\_vs\_spatial.png}}{ICR\_05\_temporel\_vs\_spatial.png}}\label{icr_05_temporel_vs_spatial.png}
+
+Nuage de points reliant :
+
+\begin{itemize}
+\tightlist
+\item
+  \(x\) = proportion de visites où l'espèce est vue
+  (\texttt{prop\_visites})
+\item
+  \(y\) = proportion de placettes occupées (\texttt{prop\_placettes})
+\end{itemize}
+
+Lecture écologique :
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Haut-droite} : espèces fréquentes et largement réparties
+  (généralistes/communes).
+\item
+  \textbf{Bas-gauche} : espèces rares et localisées.
+\item
+  \textbf{Bas-droite} : espèces temporellement fréquentes mais
+  spatialement confinées (micro-habitats stables).
+\item
+  \textbf{Haut-gauche} : espèces spatialement larges mais irrégulières
+  dans le temps (phénologie/pulses).
+\end{itemize}
+
+Ce diagramme est très utile pour distinguer :
+
+\begin{itemize}
+\tightlist
+\item
+  rareté vraie,
+\item
+  rareté d'observation,
+\item
+  et hétérogénéité spatiale.
+\end{itemize}
+
+\paragraph{\texorpdfstring{\texttt{ICR\_06\_CA\_placettes\_especes.png}
+(si
+disponible)}{ICR\_06\_CA\_placettes\_especes.png (si disponible)}}\label{icr_06_ca_placettes_especes.png-si-disponible}
+
+Ordination CA/AFC pour explorer les associations placettes--espèces.
+
+Comment lire :
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Points proches} : profils floristiques/mycologiques
+  similaires.
+\item
+  \textbf{Points éloignés} : composition différente.
+\item
+  \textbf{Groupes compacts} : unités écologiques homogènes.
+\item
+  \textbf{Points isolés} : placettes atypiques ou espèces spécialisées.
+\end{itemize}
+
+Précaution d'interprétation :
+
+\begin{itemize}
+\tightlist
+\item
+  Les axes de CA sont relatifs au jeu de données analysé ; comparer des
+  CA entre jeux différents demande prudence.
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsubsection{Lecture des comparaisons
+multi-sites}\label{lecture-des-comparaisons-multi-sites}
+
+\paragraph{\texorpdfstring{\texttt{ICR\_comparaison\_completude\_sites.png}}{ICR\_comparaison\_completude\_sites.png}}\label{icr_comparaison_completude_sites.png}
+
+Classe les sites par ratio de complétude \(S\_{obs}/S\_{asymptote}\).
+
+\begin{itemize}
+\tightlist
+\item
+  Permet d'identifier rapidement les sites à renforcer en effort
+  d'inventaire.
+\item
+  Un site bas en complétude n'est pas ``mauvais'' : il peut être plus
+  hétérogène ou plus difficile à prospecter.
+\end{itemize}
+
+\paragraph{\texorpdfstring{\texttt{ICR\_comparaison\_ir\_sites.png}}{ICR\_comparaison\_ir\_sites.png}}\label{icr_comparaison_ir_sites.png}
+
+Classe les sites par \(Ir\) final.
+
+\begin{itemize}
+\tightlist
+\item
+  Très utile pour prioriser les suivis : sites à \(Ir\) faible =
+  priorité de revisite.
+\item
+  Croiser avec la complétude est recommandé pour éviter les conclusions
+  hâtives.
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\paragraph{\texorpdfstring{\texttt{ICR\_metrics\_pertinence\_heatmap\_sites.png}}{ICR\_metrics\_pertinence\_heatmap\_sites.png}}\label{icr_metrics_pertinence_heatmap_sites.png}
+
+Heatmap comparative (7 métriques × tous les sites), couleurs du rouge
+(faible) au vert (bon).
+
+\begin{itemize}
+\tightlist
+\item
+  Chaque cellule affiche la valeur normalisée (0--1) de l'indicateur
+  pour le site.
+\item
+  Permet d'identifier en un coup d'œil les métriques défaillantes et les
+  sites les plus solides.
+\item
+  7 métriques visualisées : \(Ir\) final, complétude, stabilité finale,
+  robustesse modèle R², cohérence tempo-spatiale Spearman, concordance
+  tempo-spatiale, score de pertinence global.
+\end{itemize}
+
+\paragraph{\texorpdfstring{\texttt{ICR\_metrics\_pertinence\_score\_sites.png}}{ICR\_metrics\_pertinence\_score\_sites.png}}\label{icr_metrics_pertinence_score_sites.png}
+
+Classement horizontal des sites par \textbf{score de pertinence agrégé}
+(pondération : Ir 35 \%, complétude 35 \%, stabilité 20 \%, R² 10 \%).
+
+\begin{itemize}
+\tightlist
+\item
+  Zones de fond : rouge (\textless{} 60 \% = faible), jaune (60--80 \% =
+  intermédiaire), vert (\textgreater{} 80 \% = bon).
+\item
+  Synthèse exécutive idéale pour prioriser les sites nécessitant un
+  effort supplémentaire.
+\end{itemize}
+
+\paragraph{\texorpdfstring{\texttt{ICR\_07\_metrics\_pertinence\_dashboard.png}
+(par
+site)}{ICR\_07\_metrics\_pertinence\_dashboard.png (par site)}}\label{icr_07_metrics_pertinence_dashboard.png-par-site}
+
+Dashboard panoramique par site : barres horizontales pour chacun des 7
+indicateurs, normalisés de 0 à 1.
+
+\begin{itemize}
+\tightlist
+\item
+  Lignes de seuil pointillées à 0,60 (acceptable) et 0,80 (bon).
+\item
+  Lecture : tout indicateur sous 0,60 motive un complément d'effort ou
+  une révision du protocole.
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsubsection{Bonnes pratiques
+d'interprétation}\label{bonnes-pratiques-dinterpruxe9tation}
+
+\begin{itemize}
+\tightlist
+\item
+  Interpréter \textbf{ensemble} : courbe cumulée + TEE/Ir + fréquences +
+  spatial.
+\item
+  Toujours contextualiser avec : saison, pression d'échantillonnage,
+  météo, observateurs.
+\item
+  Préférer les tendances sur plusieurs visites plutôt qu'une lecture
+  ponctuelle.
+\item
+  Pour décisions de gestion, combiner ces indicateurs avec expertise
+  terrain et connaissance taxonomique.
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{Dépannage (FAQ)}\label{duxe9pannage-faq}
+
+\subsubsection{Le manifeste de fin d'exécution signale des fichiers
+MANQUANT}\label{le-manifeste-de-fin-dexuxe9cution-signale-des-fichiers-manquant}
+
+Le manifeste journalise l'état de chaque fichier attendu à la fin de
+l'analyse (statuts : OK, MANQUANT, OPTIONNEL\_NON\_GENERE). Un statut
+MANQUANT indique qu'un fichier obligatoire n'a pas été produit :
+
+\begin{itemize}
+\tightlist
+\item
+  Vérifier les logs d'exécution pour l'erreur associée.
+\item
+  Les fichiers \texttt{OPTIONNEL\_NON\_GENERE} sont normaux si les
+  conditions d'activation ne sont pas réunies (ex. \texttt{placette}
+  absent, \texttt{vegan} non installé, ou \texttt{make\_ca\ =\ FALSE}).
+\end{itemize}
+
+\subsubsection{Les graphiques de métriques ne sont pas
+générés}\label{les-graphiques-de-muxe9triques-ne-sont-pas-guxe9nuxe9ruxe9s}
+
+Les 3 graphiques de métriques de pertinence nécessitent que
+\texttt{ICR\_07\_metrics\_pertinence.csv} ait été produit avec des
+données valides. Vérifier :
+
+\begin{itemize}
+\tightlist
+\item
+  Que le site comporte au moins 2 visites.
+\item
+  Que les colonnes \texttt{Ir\_final} et \texttt{completude} sont
+  présentes dans le résumé du site.
+\end{itemize}
+
+\subsubsection{Le script ne trouve pas mon fichier
+d'entrée}\label{le-script-ne-trouve-pas-mon-fichier-dentruxe9e}
+
+Vérifier qu'un fichier existe dans \texttt{data/} sous l'un des noms
+suivants :
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{observations.csv}
+\item
+  \texttt{observations.txt}
+\item
+  \texttt{observations.tsv}
+\end{itemize}
+
+et que les colonnes obligatoires sont présentes.
+
+\subsubsection{Le script s'arrête avec ``CSV non
+conforme''}\label{le-script-sarruxeate-avec-csv-non-conforme}
+
+Consulter en priorité :
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{results/ICR/ICR\_00\_csv\_conformite\_report.csv}
+\item
+  \texttt{results/ICR/ICR\_00\_csv\_conformite\_problems.csv} (si
+  présent)
+\end{itemize}
+
+Causes typiques :
+
+\begin{itemize}
+\tightlist
+\item
+  colonne obligatoire absente (\texttt{site}, \texttt{date},
+  \texttt{visite\_id}, \texttt{espece}),
+\item
+  colonne supplémentaire non autorisée
+  (\texttt{csv\_allow\_extra\_cols\ =\ FALSE}),
+\item
+  ligne mal formée (parse failure).
+\end{itemize}
+
+Pour assouplir temporairement :
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{INVENTAIRES\_CSV\_STRICT=FALSE}
+\item
+  \texttt{INVENTAIRES\_CSV\_ALLOW\_EXTRA\_COLS=TRUE}
+\end{itemize}
+
+\subsubsection{J'ai une erreur sur les
+dates}\label{jai-une-erreur-sur-les-dates}
+
+Contrôler le format de la colonne \texttt{date} et l'option
+\texttt{CONFIG\$date\_format}.
+
+\subsubsection{Le modèle hyperbolique n'est pas
+calculé}\label{le-moduxe8le-hyperbolique-nest-pas-calculuxe9}
+
+Installer \texttt{minpack.lm} (optionnel). Sans ce package, l'analyse
+continue mais sans asymptote hyperbolique.
+
+\subsubsection{La CA/AFC n'apparaît
+pas}\label{la-caafc-napparauxeet-pas}
+
+Nécessite :
+
+\begin{itemize}
+\tightlist
+\item
+  package \texttt{vegan}
+\item
+  colonne \texttt{placette} utilisable
+\item
+  matrice placette-espèce suffisamment informative
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{🧾 Glossaire}\label{glossaire}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.5000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 2\tabcolsep) * \real{0.5000}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Acronyme
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Définition
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\textbf{TEE} & \textbf{Taux d'Espèces Exceptionnelles} : proportion
+d'espèces observées une seule fois dans l'inventaire. \\
+\textbf{Ir} & \textbf{Indice de représentativité} : indicateur
+synthétique défini par \(Ir = 1 - TEE\). \\
+\textbf{Robustesse} & Qualité d'ajustement du modèle d'asymptote :
+\(R^2\) hyperbolique ou linéaire selon disponibilité. \\
+\textbf{Cohérence} & Corrélation Spearman entre fréquences temporelles
+et spatiales, normalisée en {[}0,1{]}. \\
+\textbf{Score pertinence} & Indicateur agrégé pondéré :
+\(0.35 \\times Ir + 0.35 \\times \\text{complétude} + 0.20 \\times \\text{stabilité} + 0.10 \\times R^2\). \\
+\textbf{AFC} & \textbf{Analyse Factorielle des Correspondances} :
+méthode d'ordination exploratoire pour analyser les associations entre
+catégories (ex. espèces et placettes). \\
+\textbf{CA} & \textbf{Correspondence Analysis} : terme anglophone de
+l'AFC. \\
+\textbf{TSV} & \textbf{Tab-Separated Values} : format texte tabulaire
+avec champs séparés par des tabulations. \\
+\textbf{FAQ} & \textbf{Foire Aux Questions} : section de réponses aux
+problèmes fréquents. \\
+\textbf{R} & Langage et environnement de calcul statistique utilisé pour
+ce pipeline. \\
+\end{longtable}
+}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{Références}\label{ruxe9fuxe9rences}
+
+\begin{itemize}
+\tightlist
+\item
+  Cours 24 Inventaires (diapositives N° 25-48 du ) - DU Mycologie 2026
+  du Professeur Pierre-Arthur Moreau, Université de Lille (UFR3S PHAR)
+\item
+  Méthodes et définitions utilisées dans ce document (TEE, complétude,
+  CA/AFC, cohérence tempo-spatiale) s'appuient sur les principes
+  standards de l'écologie des communautés et de l'analyse multivariée
+  sous R, en particulier via les packages \textbf{vegan}, \textbf{dplyr}
+  et \textbf{ggplot2}. Pour un cadre théorique détaillé, se référer à la
+  documentation officielle de ces packages ainsi qu'aux ouvrages de
+  référence en ordination écologique.
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{Contact}\label{contact}
+
+\textbf{Auteur :} Eddy Boite\\
+Pour les évolutions du script, ouvrir une issue ou documenter les
+changements dans votre projet hôte.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\emph{Dernière mise à jour : 30 Mars 2026}

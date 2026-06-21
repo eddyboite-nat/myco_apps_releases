@@ -9,7 +9,7 @@ cat(" myco_apps_releases - lancement local\n")
 cat("============================================\n\n")
 
 if (!file.exists("app.R")) {
-  stop("Le fichier app.R est introuvable. Lancez ce script depuis le dossier application/.", call. = FALSE)
+  stop("Le fichier app.R est introuvable. Lancez ce script depuis le dossier applications/.", call. = FALSE)
 }
 
 dir.create("logs", showWarnings = FALSE, recursive = TRUE)

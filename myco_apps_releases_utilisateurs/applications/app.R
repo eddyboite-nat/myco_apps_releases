@@ -10,7 +10,8 @@ script_catalogue <- list(
     default_input = file.path("data", "observations.csv"),
     output_dir = file.path("results", "ICR"),
     env_input = "INVENTAIRES_INPUT_FILE",
-    env_output = "INVENTAIRES_OUTPUT_DIR"
+    env_output = "INVENTAIRES_OUTPUT_DIR",
+    required_cols = c("site", "date", "visite_id", "espece")
   ),
   CHEGD = list(
     label = "Évaluation potentiel fongique / intérêt patrimonial / gradient CHEGD",
@@ -18,9 +19,71 @@ script_catalogue <- list(
     default_input = file.path("data", "données_récoltes_chegd_pelouses.csv"),
     output_dir = file.path("results", "EPFIP_CHEGD"),
     env_input = "CHEGD_INPUT_FILE",
-    env_output = "CHEGD_OUTPUT_DIR"
+    env_output = "CHEGD_OUTPUT_DIR",
+    required_cols = c("Espèces", "Famille", "Date", "Nombre d'espèce", "Site", "Fiabilité détermination")
   )
 )
+
+detect_delimiter <- function(path) {
+  first_line <- readLines(path, n = 1, warn = FALSE, encoding = "UTF-8")
+  if (!length(first_line)) return(",")
+  n_tab <- stringr::str_count(first_line, "\\t")
+  n_semi <- stringr::str_count(first_line, ";")
+  n_comma <- stringr::str_count(first_line, ",")
+  if (n_tab >= max(n_semi, n_comma) && n_tab > 0) return("\t")
+  if (n_semi > n_comma) return(";")
+  if (n_comma > 0) return(",")
+  ","
+}
+
+read_input_columns <- function(path) {
+  ext <- tolower(tools::file_ext(path))
+  if (ext %in% c("csv", "txt", "tsv")) {
+    delim <- detect_delimiter(path)
+    df0 <- readr::read_delim(
+      file = path,
+      delim = delim,
+      n_max = 0,
+      show_col_types = FALSE,
+      progress = FALSE,
+      locale = readr::locale(encoding = "UTF-8")
+    )
+    return(names(df0))
+  }
+  if (ext %in% c("xlsx", "xls")) {
+    df0 <- readxl::read_excel(path, n_max = 0)
+    return(names(df0))
+  }
+  character(0)
+}
+
+validate_input_columns <- function(path, script_key) {
+  cfg <- script_catalogue[[script_key]]
+  required <- cfg$required_cols %||% character(0)
+  if (!length(required)) {
+    return(list(ok = TRUE, message = "Validation colonnes non configurée."))
+  }
+
+cols <- tryCatch(read_input_columns(path), error = function(e) character(0))
+  if (!length(cols)) {
+    return(list(ok = FALSE, message = "Impossible de lire les colonnes du fichier fourni."))
+  }
+
+missing <- setdiff(required, cols)
+  if (length(missing)) {
+    return(list(
+      ok = FALSE,
+      message = paste(
+        "Colonnes manquantes :",
+        paste(missing, collapse = ", "),
+        "\nColonnes détectées :",
+        paste(cols, collapse = ", ")
+      )
+    ))
+  }
+
+list(ok = TRUE, message = "Colonnes d'entrée validées.")
+}
 
 safe_list_files <- function(path) {
   if (!dir.exists(path)) return(data.frame(Fichier = character(), Taille = character(), Modifié = character()))
@@ -45,6 +108,39 @@ copy_uploaded_input <- function(datapath, original_name, script_key) {
   normalizePath(dest, winslash = "/", mustWork = TRUE)
 }
 
+cleanup_uploaded_inputs <- function(max_age_days = 30, remove_all = FALSE) {
+  upload_dir <- file.path("data", "uploaded")
+  dir.create(upload_dir, recursive = TRUE, showWarnings = FALSE)
+
+  files <- list.files(upload_dir, full.names = TRUE, recursive = FALSE, all.files = FALSE)
+  files <- files[file.exists(files) & !dir.exists(files)]
+
+  if (!length(files)) {
+    return(list(total = 0L, removed = 0L, kept = 0L))
+  }
+
+  info <- file.info(files)
+  now_ts <- Sys.time()
+  ages_days <- as.numeric(difftime(now_ts, info$mtime, units = "days"))
+
+  to_remove <- if (isTRUE(remove_all)) {
+    rep(TRUE, length(files))
+  } else {
+    ages_days > max_age_days
+  }
+
+  removed <- 0L
+  if (any(to_remove)) {
+    removed <- sum(file.remove(files[to_remove]))
+  }
+
+  list(
+    total = as.integer(length(files)),
+    removed = as.integer(removed),
+    kept = as.integer(length(files) - removed)
+  )
+}
+
 run_pipeline <- function(script_key, input_path = NULL) {
   cfg <- script_catalogue[[script_key]]
   if (is.null(cfg)) stop("Application inconnue.", call. = FALSE)
@@ -53,6 +149,7 @@ run_pipeline <- function(script_key, input_path = NULL) {
   input_path <- input_path %||% cfg$default_input
   if (!file.exists(input_path)) stop("Fichier d'entrée introuvable : ", input_path, call. = FALSE)
 
+  dir.create("logs", recursive = TRUE, showWarnings = FALSE)
   dir.create(cfg$output_dir, recursive = TRUE, showWarnings = FALSE)
   run_log <- file.path("logs", paste0("run_", script_key, "_", format(Sys.time(), "%Y%m%d_%H%M%S"), ".log"))
 
@@ -78,7 +175,8 @@ run_pipeline <- function(script_key, input_path = NULL) {
     ok = identical(status, 0L),
     log = normalizePath(run_log, winslash = "/", mustWork = TRUE),
     output_dir = normalizePath(cfg$output_dir, winslash = "/", mustWork = FALSE),
-    input = normalizePath(input_path, winslash = "/", mustWork = TRUE)
+    input = normalizePath(input_path, winslash = "/", mustWork = TRUE),
+    script_key = script_key
   )
 }
 
@@ -104,11 +202,13 @@ ui <- fluidPage(
       hr(),
       actionButton("run", "Lancer l'analyse", class = "btn-primary"),
       br(), br(),
+      actionButton("clean_uploads", "Nettoyer les fichiers importés", class = "btn-warning"),
+      br(), br(),
       downloadButton("download_log", "Télécharger le dernier log"),
       br(), br(),
       actionButton("quit_app", "Quitter l'application", class = "btn-danger"),
       br(), br(),
-      helpText("Les résultats sont écrits dans le dossier application/results/." ),
+      helpText("Les résultats sont écrits dans le dossier applications/results/." ),
       helpText("Pour fermer complètement l'application, cliquez sur “Quitter l'application”, puis fermez cette page.")
     ),
     mainPanel(
@@ -119,7 +219,7 @@ ui <- fluidPage(
             tags$li("Choisir l'application."),
             tags$li("Utiliser les données d'exemple ou charger un fichier."),
             tags$li("Cliquer sur “Lancer l'analyse”."),
-            tags$li("Consulter les résultats dans l'onglet Résultats, ou dans le dossier application/results/." )
+            tags$li("Consulter les résultats dans l'onglet Résultats, ou dans le dossier applications/results/." )
           ),
           h4("Colonnes attendues — ICR"),
           tags$p("site, date, visite_id, espece ; placette est optionnelle."),
@@ -143,6 +243,25 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   state <- reactiveValues(last = NULL, message = "Aucune analyse lancée.")
+
+  startup_cleanup <- cleanup_uploaded_inputs(max_age_days = 30, remove_all = FALSE)
+  if (startup_cleanup$removed > 0) {
+    showNotification(
+      paste0("Nettoyage automatique : ", startup_cleanup$removed, " fichier(s) importé(s) ancien(s) supprimé(s)."),
+      type = "message",
+      duration = 8
+    )
+  }
+
+  observeEvent(input$clean_uploads, {
+    res <- cleanup_uploaded_inputs(remove_all = TRUE)
+    msg <- paste0(
+      "Nettoyage terminé. Fichiers supprimés : ", res$removed,
+      " | Restants : ", res$kept
+    )
+    state$message <- paste("Aucune analyse lancée.", msg, sep = "\n")
+    showNotification(msg, type = "message", duration = 8)
+  })
 
   observeEvent(input$quit_app, {
     showModal(modalDialog(
@@ -168,12 +287,25 @@ server <- function(input, output, session) {
           req(input$input_file)
           input_path <- copy_uploaded_input(input$input_file$datapath, input$input_file$name, script_key)
         }
+        input_for_validation <- input_path %||% script_catalogue[[script_key]]$default_input
+        validation <- validate_input_columns(input_for_validation, script_key)
+        if (!isTRUE(validation$ok)) {
+          stop(validation$message, call. = FALSE)
+        }
         incProgress(0.4, detail = "Exécution du script R")
         res <- run_pipeline(script_key, input_path)
         incProgress(0.9, detail = "Lecture des sorties")
         state$last <- res
+        produced_files <- nrow(safe_list_files(res$output_dir))
         if (isTRUE(res$ok)) {
-          state$message <- paste("Analyse terminée avec succès.", "Entrée :", res$input, "Sorties :", res$output_dir, sep = "\n")
+          state$message <- paste(
+            "Analyse terminée avec succès.",
+            paste0("Application : ", res$script_key),
+            paste0("Entrée : ", res$input),
+            paste0("Sorties : ", res$output_dir),
+            paste0("Fichiers détectés : ", produced_files),
+            sep = "\n"
+          )
         } else {
           state$message <- paste("L'analyse s'est terminée avec une erreur.", "Consultez le log ci-dessous.", "Log :", res$log, sep = "\n")
         }

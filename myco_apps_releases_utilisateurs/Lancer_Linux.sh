@@ -6,7 +6,7 @@ echo " myco_apps_releases - lancement local"
 echo "============================================"
 echo ""
 
-cd "$(dirname "$0")/application" || exit 1
+cd "$(dirname "$0")/applications" || exit 1
 
 if ! command -v Rscript >/dev/null 2>&1; then
   echo "Rscript est introuvable."

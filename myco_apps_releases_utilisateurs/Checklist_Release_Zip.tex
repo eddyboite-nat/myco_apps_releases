@@ -1,0 +1,30 @@
+\section{Checklist release ZIP --- myco\_apps\_releases\_utilisateurs}
+
+\subsection{Objectif}
+
+Préparer une archive autonome, exécutable sans dépendance au dépôt Git.
+
+\subsection{Checklist avant publication}
+
+\begin{enumerate}
+\item Vérifier la structure attendue : \texttt{Lancer\_Windows.bat}, \texttt{Lancer\_Mac.command}, \texttt{Lancer\_Linux.sh}, dossier \texttt{applications/}.
+\item Vérifier la présence des données d'exemple dans \texttt{applications/data/} et \texttt{exemples/}.
+\item Vérifier que \texttt{applications/logs/} est vide (hors \texttt{.gitkeep}).
+\item Vérifier que \texttt{applications/results/} est vide (hors \texttt{.gitkeep}).
+\item Supprimer les artefacts système (ex. \texttt{.DS\_Store}).
+\item Tester un lancement rapide sur les scripts de lancement des OS cibles.
+\item Vérifier qu'un run ICR et un run CHEGD produisent bien des sorties sous \texttt{applications/results/}.
+\item Vérifier qu'un log d'exécution est bien créé dans \texttt{applications/logs/}.
+\item Vérifier que la documentation utilisateur est cohérente avec les noms de fichiers réels.
+\item Générer le ZIP uniquement à partir de \texttt{myco\_apps\_releases\_utilisateurs/}.
+\end{enumerate}
+
+\subsection{Contrôle final}
+
+La release est valide si un utilisateur peut :
+\begin{itemize}
+\item dézipper,
+\item lancer l'application,
+\item exécuter les deux analyses avec les exemples,
+\item récupérer les résultats et les logs localement.
+\end{itemize}

@@ -7,7 +7,7 @@ echo  myco_apps_releases - lancement local
 echo ============================================
 echo.
 
-cd /d "%~dp0application"
+cd /d "%~dp0applications"
 
 where Rscript >nul 2>nul
 if %errorlevel% neq 0 (

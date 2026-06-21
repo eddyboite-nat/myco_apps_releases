@@ -1,0 +1,109 @@
+\section{Audit packaging ---
+myco\_apps\_releases}\label{audit-packaging-myco_apps_releases}
+
+\subsection{Contenu détecté}\label{contenu-duxe9tectuxe9}
+
+Le dépôt initial contient deux scripts principaux :
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{scripts/Inventaires\_completude\_representativite.R} --- ICR,
+  version 1.4 ;
+\item
+  \texttt{scripts/Evaluation\_Potentiel\_Fongique\_Interets\_Patrimoniaux\_CHEGD.R}
+  --- EPFIP-CHEGD, version 1.0.
+\end{itemize}
+
+Il contient également :
+
+\begin{itemize}
+\tightlist
+\item
+  des données d'exemple dans \texttt{data/} ;
+\item
+  une documentation méthodologique dans \texttt{docs/} ;
+\item
+  des résultats et logs déjà générés dans \texttt{results/} et
+  \texttt{logs/} ;
+\item
+  un dossier \texttt{.git/} et des fichiers macOS \texttt{.DS\_Store}
+  dans l'archive initiale.
+\end{itemize}
+
+\subsection{Modifications apportées dans la release
+utilisateur}\label{modifications-apportuxe9es-dans-la-release-utilisateur}
+
+\begin{itemize}
+\tightlist
+\item
+  Ajout de \texttt{Lancer\_Windows.bat}.
+\item
+  Ajout de \texttt{Lancer\_Mac.command}.
+\item
+  Ajout de \texttt{Lancer\_Linux.sh}.
+\item
+  Ajout de \texttt{applications/app.R} pour l'interface Shiny locale.
+\item
+  Ajout de \texttt{applications/run\_app.R} pour lancer l'interface.
+\item
+  Ajout de \texttt{applications/install\_packages.R} pour installer les
+  packages simples.
+\item
+  Création de dossiers vides \texttt{applications/logs/} et
+  \texttt{applications/results/}.
+\item
+  Copie des données d'exemple dans \texttt{exemples/}.
+\item
+  Exclusion du dossier \texttt{.git/}, des anciens logs, des anciens
+  résultats et des métadonnées macOS.
+\end{itemize}
+
+\subsection{Adaptation technique}\label{adaptation-technique}
+
+Le script CHEGD a été adapté dans cette release pour accepter :
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{CHEGD\_INPUT\_FILE} ;
+\item
+  \texttt{CHEGD\_INPUT\_SHEET} ;
+\item
+  \texttt{CHEGD\_OUTPUT\_DIR}.
+\end{itemize}
+
+Le script ICR acceptait déjà :
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{INVENTAIRES\_INPUT\_FILE} ;
+\item
+  \texttt{INVENTAIRES\_OUTPUT\_DIR} ;
+\item
+  \texttt{INVENTAIRES\_AUTO\_RUN}.
+\end{itemize}
+
+\subsection{Limites de test}\label{limites-de-test}
+
+L'environnement de packaging utilisé ici ne dispose pas de
+\texttt{Rscript}. Les scripts ont donc été inspectés et empaquetés, mais
+pas exécutés complètement dans le sandbox.
+
+À tester localement sur une machine ayant R installé :
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  lancement Windows/macOS/Linux ;
+\item
+  installation des packages ;
+\item
+  exécution ICR avec \texttt{observations.csv} ;
+\item
+  exécution CHEGD avec \texttt{données\_récoltes\_chegd\_pelouses.csv} ;
+\item
+  exécution avec fichiers utilisateur.
+\end{enumerate}
