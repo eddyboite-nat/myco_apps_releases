@@ -1,0 +1,723 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[provide=*,french]{babel}
+\usepackage[a4paper,margin=2.3cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs,longtable,array}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=blue,
+  pdftitle={Conception technique - Evaluation Potentiel Fongique CHEGD}
+}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  backgroundcolor=\color{gray!6}
+}
+
+\title{Conception Technique\\
+\large Evaluation\_Potentiel\_Fongique\_Interets\_Patrimoniaux\_CHEGD}
+\author{Boite Eddy}
+\date{\today}
+
+\hbadness=10000
+\hfuzz=80pt
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Ce document présente la conception technique d'un pipeline d'analyse mycologique
+destiné à l'évaluation du potentiel fongique, de l'intérêt patrimonial et de la fiabilité de détermination.
+La description adopte un cadre d'ingénierie reproductible : architecture, contrats de données,
+méthodes statistiques, robustesse opérationnelle et critères de qualité.
+L'objectif est de fournir un protocole techniquement auditable, scientifiquement explicitable
+et réutilisable pour des campagnes futures.
+\end{abstract}
+\tableofcontents
+\newpage
+
+\section{Structuration IMRaD adaptée}
+Dans une perspective de publication scientifique, la lecture du document peut
+être organisée selon le schéma IMRaD, adapté à une documentation technique :
+\begin{itemize}[leftmargin=1.2cm]
+  \item \textbf{Introduction} : positionnement méthodologique, objectifs techniques, périmètre.
+  \item \textbf{Méthodes} : architecture, modèles de données, procédures statistiques, protocoles de validation.
+  \item \textbf{Résultats} : fichiers générés, métriques, tableaux de validation et critères d'assurance qualité (QA).
+  \item \textbf{Discussion} : menaces à la validité, limites de transférabilité, recommandations d'évolution.
+\end{itemize}
+
+Cette grille de lecture vise à renforcer la comparabilité inter-versions et
+la réutilisation des livrables dans des contextes académiques ou institutionnels.
+
+\section{Positionnement méthodologique}
+Le pipeline relève d'une approche \textit{data-centric} appliquée à l'écologie,
+où les indicateurs métiers sont construits à partir de transformations successives,
+puis consolidés par des procédures d'inférence statistique.
+Deux objectifs sont poursuivis simultanément :
+\begin{itemize}[leftmargin=1.2cm]
+  \item \textbf{validité analytique} (qualité des estimations et des tests),
+  \item \textbf{validité opérationnelle} (stabilité des sorties, exploitabilité décisionnelle).
+\end{itemize}
+
+\section{Cadre théorique des choix statistiques}
+Le dispositif repose sur une articulation entre statistique descriptive,
+modélisation prédictive et inférence fréquentiste. Cette combinaison répond
+à une double exigence : décrire fidèlement les structures observées et tester
+formellement la plausibilité des relations entre variables contextuelles.
+
+Dans ce cadre, la sélection des métriques privilégie :
+\begin{itemize}[leftmargin=1.2cm]
+  \item la \textbf{comparabilité inter-runs} (mesures stables et interprétables),
+  \item la \textbf{sensibilité aux déséquilibres de classes} (Macro-F1),
+  \item la \textbf{capacité explicative} (lecture des effets site/famille/saison),
+  \item la \textbf{traçabilité des décisions} (fichiers de synthèse et journalisation).
+\end{itemize}
+
+\section{Objectif technique}
+Le document décrit l'architecture technique du script
+\url{scripts/Evaluation_Potentiel_Fongique_Interets_Patrimoniaux_CHEGD.R},
+avec un focus sur :
+\begin{itemize}[leftmargin=1.2cm]
+  \item la chaîne de traitement de données,
+  \item la logique de calcul des indicateurs métier,
+  \item les modèles statistiques utilisés,
+  \item la robustesse (contrôles, mécanismes de repli, journalisation, QA).
+\end{itemize}
+
+\section{Architecture logicielle}
+\subsection{Style d'architecture}
+Le script suit une architecture \textbf{pipeline batch séquentielle}, organisée en modules fonctionnels :
+\begin{enumerate}[leftmargin=1.2cm]
+  \item Initialisation (packages, configuration embarquée, journalisation),
+  \item Ingestion/normalisation des données,
+  \item Calculs métier par site,
+  \item Module de fiabilité (objectifs statistiques 1 à 4),
+  \item Génération des exports et visualisations,
+  \item Finalisation et journalisation.
+\end{enumerate}
+
+\subsection{Principes de conception}
+\begin{itemize}[leftmargin=1.2cm]
+  \item \textbf{Déterminisme} : mêmes entrées + même configuration $\Rightarrow$ mêmes sorties (hors horodatage).
+  \item \textbf{Tolérance aux variations de données} : conversions défensives et diagnostics explicites.
+  \item \textbf{Traçabilité dès la conception} : chaque phase significative est journalisée.
+  \item \textbf{Séparation logique} : ingestion, calcul métier, fiabilité, restitution.
+\end{itemize}
+
+\subsection{Points d'entrée}
+\begin{itemize}[leftmargin=1.2cm]
+  \item \texttt{main()} : orchestration principale.
+  \item Bloc \texttt{tryCatch} final : capture d'erreurs globales + log d'échec.
+\end{itemize}
+
+\subsection{Configuration}
+La configuration est intégrée via \texttt{get\_embedded\_config()} :
+\begin{lstlisting}
+input_file    = data/donnees_recoltes_chegd_pelouses.csv
+input_sheet   = NULL
+output_dir    = results
+output_prefix = EPFIP_CHEGD
+columns       = {species, family, date, count, site, reliability}
+\end{lstlisting}
+
+Cette section est désormais alignée sur les commentaires internes du script,
+qui documentent le rôle de chaque paramètre de configuration et la logique de
+résolution des chemins relatifs/absolus depuis la racine projet.
+
+\subsection{Mise à jour technique issue des nouveaux commentaires du code}
+Les commentaires détaillés ajoutés dans le script renforcent la lisibilité
+technique et l'auditabilité. Les points suivants sont explicitement couverts :
+\begin{itemize}[leftmargin=1.2cm]
+  \item \textbf{Contrats de fonctions} : paramètres, stratégie de traitement,
+  valeurs de retour et cas limites.
+  \item \textbf{Résolution d'entrée robuste} : correspondance exacte,
+  normalisée, puis rapprochement par distance de Levenshtein.
+  \item \textbf{Parsing défensif} : conversions sécurisées des dates et
+  numériques, normalisation textuelle et gestion des valeurs manquantes.
+  \item \textbf{Mode fidélité Excel} : alignement optionnel sur un classeur de
+  référence avec recalage des métriques site/visite.
+  \item \textbf{Observabilité} : journalisation structurée de bout en bout avec
+  fonctions dédiées et traces horodatées.
+\end{itemize}
+
+\subsection{Surcharge de configuration}
+Bien que la configuration soit embarquée, le design prévoit une extension simple
+vers une surcharge par fichier externe (ex. YAML/JSON) pour :
+\begin{itemize}[leftmargin=1.2cm]
+  \item les seuils métiers,
+  \item les mappings de colonnes,
+  \item les chemins d'entrée/sortie,
+  \item les paramètres de visualisation.
+\end{itemize}
+
+\section{Dépendances techniques}
+\subsection{Packages R}
+\begin{itemize}[leftmargin=1.2cm]
+  \item \texttt{readxl} : lecture Excel,
+  \item \texttt{dplyr}, \texttt{stringr} : transformation/normalisation,
+  \item \texttt{ggplot2}, \texttt{gridExtra} : visualisation,
+  \item \texttt{MASS} : régression ordinale \texttt{polr},
+  \item \texttt{nnet} : régression multinomiale \texttt{multinom}.
+\end{itemize}
+
+\subsection{Comportement d'installation}
+Les packages manquants sont installés au démarrage : \texttt{requireNamespace(...)} vérifie leur présence, puis \texttt{install.packages(...)} les installe si nécessaire.
+
+\section{Contrats d'entrée et de sortie}
+\subsection{Entrées}
+Formats supportés : \texttt{.csv}, \texttt{.xlsx}.\
+Colonnes obligatoires : espèce, famille, date, effectif, site, fiabilité.
+
+\subsection{Sorties}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Répertoire fixe :
+  \texttt{results/EPFIP\_CHEGD/}
+  \item Logs :
+  \texttt{logs/EPFIP\_CHEGD\_YYYYMMDD\_HHMM.log}
+  \item CSV de synthèse : résumés, indicateurs, QA, objectifs fiabilité
+  \item Figures PNG/PDF : \texttt{fig1} à \texttt{fig7} + figures objectives.
+\end{itemize}
+
+\subsection{Spécification détaillée des fichiers générés}
+Le pipeline produit des artefacts en couches : \textit{ingestion},
+\textit{indicateurs métier}, \textit{statistiques avancées}, \textit{visualisations},
+\textit{observabilité}. Cette structuration permet d'isoler rapidement une anomalie
+dans la chaîne de traitement.
+
+\subsubsection{Couche 1 --- Ingestion et normalisation}
+\begin{center}\begin{tabular}{p{0.36\textwidth}p{0.22\textwidth}p{0.34\textwidth}}
+\toprule
+\textbf{Artefact} & \textbf{Type} & \textbf{Rôle technique} \\
+\midrule
+\texttt{donnees\_brutes\_nettoyees.csv} & table plate & Point de vérité post-nettoyage, base de toutes les agrégations. \\
+\texttt{resume\_global.csv} & table synthèse & QA global, volumétrie, indicateurs de cohérence et métadonnées de run. \\
+\bottomrule
+\end{tabular}\end{center}
+
+\subsubsection{Couche 2 --- Indicateurs métier consolidés}
+\begin{center}\begin{tabular}{p{0.40\textwidth}p{0.18\textwidth}p{0.34\textwidth}}
+\toprule
+\textbf{Artefact} & \textbf{Clé primaire logique} & \textbf{Variables critiques attendues} \\
+\midrule
+potentiel fongique & \texttt{site} & \texttt{potentiel\_score}, \texttt{potentiel\_classe} \\
+indice patrimonial & \texttt{site} & \texttt{indice\_patrimonial}, \texttt{classe\_patrimoniale} \\
+gradient CHEGD & \texttt{site} & \texttt{gradient\_visite\_*}, \texttt{chegd\_total}, \texttt{chegd\_moyen} \\
+indice de représentativité & \texttt{site} & \texttt{ir\_visite\_*}, \texttt{ir\_moyen} \\
+\bottomrule
+\end{tabular}\end{center}
+
+\subsubsection{Couche 3 --- Sorties statistiques objectives (fiabilité)}
+\begin{center}\begin{tabular}{p{0.23\textwidth}p{0.21\textwidth}p{0.46\textwidth}}
+\toprule
+\textbf{Préfixe} & \textbf{Objectif} & \textbf{Contenu typique} \\
+\midrule
+\texttt{stat\_obj1\_*} & O1 & distribution de classes, fréquences, proportions, diagnostics descriptifs. \\
+\texttt{stat\_obj2\_*} & O2 & scores pondérés par schéma, $\rho$ de Spearman, overlap top-k. \\
+\texttt{stat\_obj3\_*} & O3 & métriques CV par modèle (Accuracy, Macro-F1, Log-loss), décision de sélection. \\
+\texttt{stat\_obj4\_*} & O4 & test choisi ($\chi^2$/Fisher), $p$-value, mesure $M=-\log_{10}(p)$. \\
+synthèse de sélection modèle & O3 & synthèse consolidée du meilleur candidat et justification numérique. \\
+\bottomrule
+\end{tabular}\end{center}
+
+\subsubsection{Couche 4 --- Restitution graphique}
+\begin{itemize}[leftmargin=1.2cm]
+  \item \textbf{Figures de pilotage} : classement sites, gradients, IR, classes patrimoniales.
+  \item \textbf{Figures de diagnostic} : distribution fiabilité, dispersion inter-sites, sensibilité aux pondérations.
+  \item \textbf{Formats} : PNG (consommation rapide), PDF (publication/rapport).
+\end{itemize}
+
+\subsubsection{Couche 5 --- Observabilité}
+\begin{itemize}[leftmargin=1.2cm]
+  \item \texttt{logs/EPFIP\_CHEGD\_*.log} : chronologie d'exécution, anomalies, durée, statut final.
+  \item Option recommandée : \textit{manifest} JSON de run (version R, packages, hash input, liste outputs).
+\end{itemize}
+
+\subsection{Convention de nommage}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Préfixe stable métier : \texttt{EPFIP\_CHEGD}.
+  \item Noms de fichiers en \texttt{snake\_case} pour faciliter l'automatisation.
+  \item Horodatage réservé aux logs et, si besoin, aux exports de diffusion externe.
+\end{itemize}
+
+\section{Modèle de données technique}
+\subsection{Schéma logique minimal des observations}
+\begin{center}\begin{tabular}{p{0.22\textwidth}p{0.18\textwidth}p{0.52\textwidth}}
+\toprule
+\textbf{Champ logique} & \textbf{Type attendu} & \textbf{Rôle dans le pipeline} \\
+\midrule
+\texttt{species} & caractère & Unité taxonomique de base pour agrégations espèce/site. \\
+\texttt{family} & caractère & Regroupements taxonomiques et variables explicatives objectif 3. \\
+\texttt{date} & date & Saisonnalité, agrégations temporelles et qualité de saisie. \\
+\texttt{count} & numérique & Intensité/abondance utile aux statistiques descriptives et modèles. \\
+\texttt{site} & caractère & Clé d'agrégation principale des indicateurs. \\
+\texttt{reliability} & facteur ordinal & Cible ou poids selon objectifs 1 à 4. \\
+\bottomrule
+\end{tabular}\end{center}
+
+\subsection{Artefacts intermédiaires}
+Le pipeline manipule des tables intermédiaires standardisées :
+\begin{itemize}[leftmargin=1.2cm]
+  \item données nettoyées (
+  \texttt{donnees\_brutes\_nettoyees}),
+  \item agrégats site/famille/espèce/date,
+  \item tables de scores (
+  \texttt{potentiel}, \texttt{patrimonial}, \texttt{chegd}),
+  \item table consolidée (
+  \texttt{combined}) pour export et visualisation.
+\end{itemize}
+
+\section{Pipeline technique détaillé}
+\subsection{Phase A --- Ingestion et normalisation}
+\begin{itemize}[leftmargin=1.2cm]
+  \item \texttt{resolve\_input\_file} : résolution robuste du chemin (exact, normalisé, distance minimale),
+  \item \texttt{read\_input\_data} : chargement CSV/XLSX, détection séparateur CSV,
+  \item suppression des colonnes techniques \texttt{...*},
+  \item conversion de types :
+  \begin{itemize}
+    \item \texttt{to\_date\_safe} (dates Excel numériques + formats texte),
+    \item \texttt{to\_numeric\_safe} (virgule décimale).
+  \end{itemize}
+\end{itemize}
+
+Les commentaires du code décrivent également la détection du séparateur CSV
+sur les premières lignes non vides et le nettoyage des colonnes entièrement
+vides, afin de fiabiliser les imports issus d'exports hétérogènes.
+
+\subsubsection{Critères de qualité de données}
+À l'issue de la phase A, les contrôles suivants sont attendus :
+\begin{itemize}[leftmargin=1.2cm]
+  \item complétude minimale des variables critiques,
+  \item cohérence typologique (dates, numériques, facteurs),
+  \item traçabilité des exclusions et imputations implicites.
+\end{itemize}
+
+\subsection{Phase B --- Calculs métier}
+\texttt{build\_site\_level\_metrics} produit 4 tables :
+\begin{itemize}[leftmargin=1.2cm]
+  \item \texttt{potentiel},
+  \item \texttt{patrimonial},
+  \item \texttt{chegd},
+  \item \texttt{combined} (jointure consolidée).
+\end{itemize}
+
+\subsubsection{Potentiel fongique}
+Score obtenu par somme pondérée de groupes/taxons indicateurs (génériques et spécifiques).
+Classification :
+\[
+\text{classe}=
+\begin{cases}
+\text{faible} & \text{si } s\le 10\\
+\text{intéressant} & \text{si } 10<s<30\\
+\text{élevé} & \text{si } s\ge 30
+\end{cases}
+\]
+
+\subsubsection{Intérêt patrimonial}
+Soit $C,H,E,G,D$ les effectifs des 5 groupes CHEGD.
+\[
+I_{patrimonial}=\max(C,H,E,G,D)
+\]
+Puis mapping vers classes ordinales (faible/local/régional/national/international).
+
+\subsubsection{Gradient CHEGD}
+Comptage d'espèces CHEGD par visite, puis :
+\[
+CHEGD_{total}=\sum_{v} gradient\_visite_v,
+\qquad
+CHEGD_{moyen}=\frac{CHEGD_{total}}{N_{visites}}
+\]
+En mode référence, les valeurs peuvent être alignées depuis le classeur externe,
+avec réajustement des gradients par visite pour conserver la cohérence des sommes.
+
+\subsubsection{Indice de représentativité (IR)}
+Calculé par visite selon le modèle Excel :
+\[
+IR_{visite}=\max\left(0,1-\frac{gradient\_visite}{nombre\_total}\right)
+\]
+avec \(nombre\_total = CHEGD_{total}\) au niveau site.
+Le pipeline exporte \url{ir_visite_1..5} et \url{ir_moyen}.
+
+\subsection{Phase C --- Module fiabilité (Objectifs 1 à 4)}
+Le module est orchestré par \texttt{run\_reliability\_objectives}.
+
+\subsubsection{Contrôles préalables au module fiabilité}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Vérification du nombre minimal d'observations par classe.
+  \item Vérification de la diversité de classes (éviter la classe unique).
+  \item Vérification de la variance des variables explicatives principales.
+\end{itemize}
+
+\subsubsection{Préparation des données fiabilité}
+\begin{itemize}[leftmargin=1.2cm]
+  \item normalisation des niveaux : \texttt{Non renseignée}, \texttt{Probable}, \texttt{Certaine},
+  \item création de variables explicatives : abondance, saison, site, famille,
+  \item encodage en facteur ordinal pour la cible.
+\end{itemize}
+
+\subsubsection{Objectif 1 --- Descriptif}
+Distribution fréquence/\% des niveaux de fiabilité.
+
+Sorties : \url{stat_obj1_reliability_distribution.csv} + figure dédiée.
+
+\subsubsection{Objectif 2 --- Schémas de pondération}
+Trois schémas candidats (S1/S2/S3) pondèrent les niveaux de fiabilité,
+puis impactent un score de site.
+
+Métriques de comparaison :
+\begin{itemize}[leftmargin=1.2cm]
+  \item corrélation de rang de Spearman $\rho$ entre score de référence et score pondéré,
+  \item overlap top-5 des sites classés.
+\end{itemize}
+Le meilleur schéma maximise d'abord $\rho$, puis l'overlap.
+
+\paragraph{Sorties techniques attendues (O2)}
+\begin{itemize}[leftmargin=1.2cm]
+  \item table des scores par site et par schéma,
+  \item table comparative des métriques ($\rho$, overlap top-5),
+  \item indicateur de robustesse de classement (fort/modéré/faible).
+\end{itemize}
+
+\subsubsection{Objectif 3 --- Sélection de modèles prédictifs}
+\paragraph{Cible}
+Variable ordinale \texttt{fiabilite} à 3 niveaux.
+
+\paragraph{Variables explicatives}
+\begin{itemize}[leftmargin=1.2cm]
+  \item \texttt{abundance},
+  \item \texttt{season\_model},
+  \item \texttt{site\_model} (top-k + \texttt{Autre}),
+  \item \texttt{family\_model} (top-k + \texttt{Autre}).
+\end{itemize}
+
+\paragraph{Candidats}
+\begin{enumerate}[leftmargin=1.2cm]
+  \item \textbf{Ordinal logit} : \texttt{MASS::polr} (hypothèse proportional odds),
+  \item \textbf{Multinomial logit} : \texttt{nnet::multinom},
+  \item \textbf{Baseline majoritaire} : prédiction de la classe la plus fréquente.
+\end{enumerate}
+
+\paragraph{Validation}
+Validation croisée stratifiée à 5 folds.
+
+\paragraph{Métriques}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Accuracy,
+  \item Macro-F1,
+  \item Log-loss multiclasses (quand probabilités disponibles).
+\end{itemize}
+
+Formules :
+\[
+\text{Precision}_c=\frac{TP_c}{TP_c+FP_c},
+\qquad
+\text{Recall}_c=\frac{TP_c}{TP_c+FN_c}
+\]
+\[
+F1_c=\frac{2\,\text{Precision}_c\,\text{Recall}_c}{\text{Precision}_c+\text{Recall}_c},
+\qquad
+\text{Macro-F1}=\frac{1}{|C|}\sum_{c\in C}F1_c
+\]
+\[
+\text{LogLoss}=-\frac{1}{n}\sum_{i=1}^{n}\log p_{i,y_i}
+\]
+Le modèle retenu maximise Macro-F1 puis Accuracy.
+
+\paragraph{Sorties techniques attendues (O3)}
+\begin{itemize}[leftmargin=1.2cm]
+  \item métriques par fold et par modèle,
+  \item moyenne/écart-type par métrique,
+  \item matrice de confusion agrégée,
+  \item fichier de décision finale de sélection de modèle.
+\end{itemize}
+
+\paragraph{Interprétation scientifique}
+Le choix d'une métrique prioritaire orientée classes (Macro-F1) limite
+l'effet de domination des classes majoritaires et soutient une interprétation
+plus équilibrée de la performance prédictive dans des jeux potentiellement déséquilibrés.
+
+Cette orientation est cohérente avec les standards méthodologiques
+en écologie quantitative, où la performance globale doit être examinée
+conjointement à la performance par classe pour éviter les conclusions biaisées.
+
+\subsubsection{\texorpdfstring{Objectif 4 --- Inférence statistique site $\times$ fiabilité}{Objectif 4 --- Inférence statistique site x fiabilité}}
+Table de contingence \texttt{site\_label} \texttimes{} \texttt{fiabilite}.
+
+Stratégie de test :
+\begin{itemize}[leftmargin=1.2cm]
+  \item test du $\chi^2$ si conditions d'approximation satisfaites,
+  \item sinon test exact de Fisher,
+  \item fallback Fisher simulé ($B=10000$) si l'exact échoue (grandes tables).
+\end{itemize}
+
+Métrique primaire stockée :
+\[
+M=-\log_{10}(p)
+\]
+Plus $M$ est grand, plus l'association est marquée.
+
+\paragraph{Sorties techniques attendues (O4)}
+\begin{itemize}[leftmargin=1.2cm]
+  \item table de contingence \texttt{site\_label} $\times$ \texttt{fiabilite},
+  \item type de test effectivement utilisé,
+  \item statistique de test, $p$-value et mesure $M$,
+  \item drapeau de fallback (exact/simulé) pour traçabilité méthodologique.
+\end{itemize}
+
+\subsection{Phase D --- Visualisation}
+Fonctions dédiées :
+\begin{itemize}[leftmargin=1.2cm]
+  \item \texttt{build\_site\_dashboard} (3 panneaux),
+  \item \texttt{build\_scatter\_positionnement},
+  \item \texttt{build\_potentiel\_breakdown},
+  \item \texttt{build\_chegd\_by\_visit},
+  \item \texttt{build\_classes\_heatmap},
+  \item \texttt{build\_reliability\_levels\_plot},
+  \item \texttt{build\_ir\_by\_visit\_plot},
+  \item figures spécifiques objectifs 1 à 4.
+\end{itemize}
+
+\subsection{Contrats graphiques}
+Les graphiques doivent respecter les principes suivants :
+\begin{itemize}[leftmargin=1.2cm]
+  \item lisibilité sur fond clair, palettes contrastées, légendes explicites,
+  \item titres/axes homogènes en français,
+  \item reproductibilité des dimensions d'export (PNG/PDF).
+\end{itemize}
+
+\section{Alignement référence (mode fidélité Excel)}
+\subsection{Détection}
+Recherche d'un classeur \texttt{.xlsx} (hors input) contenant la feuille
+\texttt{Visites sur sites}.
+
+\subsection{Feuilles exploitées}
+\begin{itemize}[leftmargin=1.2cm]
+  \item \texttt{Analyse des résultats},
+  \item \texttt{Intérêt patrimonial},
+  \item \texttt{Visites sur sites},
+  \item \texttt{Évaluation CHEGD pelouses}.
+\end{itemize}
+
+\subsection{Principe technique}
+Les métriques calculées localement peuvent être remplacées par les références,
+puis consolidées dans \texttt{combined}.
+Les gradients par visite sont prioritairement alignés sur
+\texttt{Évaluation CHEGD pelouses}, ce qui garantit la reproduction exacte de l'IR du classeur.
+Objectif : reproductibilité métier avec le classeur de référence.
+
+\section{Logging et observabilité}
+\subsection{Fonctions dédiées}
+\begin{itemize}[leftmargin=1.2cm]
+  \item \texttt{setup\_logging}, \texttt{log\_info}, \texttt{log\_warning\_msg}, \texttt{log\_error},
+  \item \texttt{log\_section}, \texttt{log\_header}, \texttt{log\_data\_summary}, \texttt{log\_footer}.
+\end{itemize}
+
+\subsection{Comportement}
+\begin{itemize}[leftmargin=1.2cm]
+  \item duplication console + fichier,
+  \item messages en français,
+  \item étapes majeures horodatées,
+  \item en-tête + résumé de données + pied de page (durée/chemin).
+\end{itemize}
+
+\subsection{Événements clés attendus dans le log}
+\begin{itemize}[leftmargin=1.2cm]
+  \item démarrage et chargement de configuration,
+  \item état des données en entrée (volumétries, colonnes détectées),
+  \item passage de chaque phase A/B/C/D,
+  \item sorties produites (chemins de fichiers),
+  \item erreurs bloquantes et stack simplifiée,
+  \item durée totale d'exécution.
+\end{itemize}
+
+\section{Robustesse et gestion d'erreurs}
+\subsection{Niveaux de protection}
+\begin{itemize}[leftmargin=1.2cm]
+  \item validation de schéma d'entrée,
+  \item conversion défensive des types,
+  \item \texttt{tryCatch} local sur modèles/tests sensibles,
+  \item \texttt{tryCatch} global autour de \texttt{main()}.
+\end{itemize}
+
+\subsection{Fallbacks notables}
+\begin{itemize}[leftmargin=1.2cm]
+  \item fallback Fisher simulé en inférence,
+  \item baseline majoritaire si modèles indisponibles,
+  \item gestion classe unique / données insuffisantes pour l'objectif 3.
+\end{itemize}
+
+\subsection{Politique de sévérité des anomalies}
+\begin{center}\begin{tabular}{>{\raggedright\arraybackslash}p{0.2\textwidth}>{\raggedright\arraybackslash}p{0.32\textwidth}>{\raggedright\arraybackslash}p{0.4\textwidth}}
+\toprule
+\textbf{Niveau} & \textbf{Exemple} & \textbf{Action système} \\
+\midrule
+INFO & Volumétrie et progression & Trace sans interruption \\
+ALERTE & Valeurs partiellement manquantes/non standard & Poursuite avec normalisation ou exclusion ciblée \\
+ERREUR & Colonnes obligatoires absentes, lecture impossible & Arrêt propre avec message explicite \\
+\bottomrule
+\end{tabular}\end{center}
+
+\section{Contrôles qualité et non-régression}
+\subsection{Indicateurs d'assurance qualité (QA) exportés}
+Dans \texttt{resume\_global.csv} :
+\begin{itemize}[leftmargin=1.2cm]
+  \item \texttt{coherence\_chegd\_gradients\_ok},
+  \item \texttt{nb\_sites\_incoherents\_chegd},
+  \item \texttt{ir\_moyen\_global},
+  \item métriques volumétriques (nb lignes, espèces, familles, sites, dates).
+\end{itemize}
+
+\subsection{Critères techniques d'acceptation}
+\begin{enumerate}[leftmargin=1.2cm]
+  \item exécution sans erreur fatale,
+  \item génération complète des sorties CSV/figures,
+  \item log horodaté présent dans \texttt{logs/},
+  \item cohérence gradients CHEGD validée.
+\end{enumerate}
+
+\subsection{Stratégie de tests recommandée}
+\begin{itemize}[leftmargin=1.2cm]
+  \item \textbf{Tests unitaires} : fonctions de conversion et formules métier (potentiel, CHEGD, IR).
+  \item \textbf{Tests d'intégration} : exécution de bout en bout sur un jeu réduit connu.
+  \item \textbf{Tests de non-régression} : comparaison d'exports clés avec des snapshots de référence.
+  \item \textbf{Tests de robustesse} : jeux volontairement bruités (dates ambiguës, valeurs manquantes, classes rares).
+\end{itemize}
+
+\subsection{Matrice de validation des artefacts}
+\begin{center}\begin{tabular}{p{0.21\textwidth}p{0.34\textwidth}p{0.37\textwidth}}
+\toprule
+\textbf{Bloc} & \textbf{Règle de validation} & \textbf{Preuve attendue} \\
+\midrule
+Ingestion & Colonnes critiques présentes et typées & \texttt{donnees\_brutes\_nettoyees.csv} + warnings ciblés dans log \\
+Indicateurs métier & 1 ligne par site, pas de duplication clé & tables \texttt{*\_par\_site.csv} cohérentes \\
+CHEGD/IR & somme gradients visite cohérente avec total & QA indicateur de cohérence CHEGD \\
+Objectif 2 & classement stable sous pondérations & \texttt{stat\_obj2\_*.csv} avec $\rho$ et overlap \\
+Objectif 3 & modèle gagnant justifié numériquement & synthèse de sélection modèle \\
+Objectif 4 & type de test tracé et interprétable & \texttt{stat\_obj4\_*.csv} + log test \\
+Observabilité & run horodaté complet & fichier \texttt{logs/EPFIP\_CHEGD\_*.log} \\
+\bottomrule
+\end{tabular}\end{center}
+
+\subsection{Critères de stabilité statistique recommandés}
+Pour une exploitation en contexte institutionnel, il est recommandé de viser :
+\begin{itemize}[leftmargin=1.2cm]
+  \item une variabilité inter-fold modérée des métriques O3 (écart-type limité),
+  \item une corrélation de rang O2 élevée (idéalement $\rho \geq 0.85$),
+  \item une cohérence des conclusions O4 entre test principal et fallback simulé,
+  \item une documentation explicite de toute déviation méthodologique dans le log.
+\end{itemize}
+
+\subsection{Menaces à la validité}
+\begin{itemize}[leftmargin=1.2cm]
+  \item \textbf{Validité interne} : dépend de la qualité des transformations de variables et de la stabilité des mappings.
+  \item \textbf{Validité externe} : transférabilité limitée si nouveaux territoires ou protocoles d'échantillonnage très différents.
+  \item \textbf{Validité de conclusion} : prudence requise en cas d'effectifs faibles par classe pour l'inférence site $\times$ fiabilité.
+\end{itemize}
+
+\section{Complexité et performances (qualitatives)}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Agrégations principales : complexité proche de $O(n)$ à $O(n\log n)$ selon tris/groupements,
+  \item Objectif 3 : coût dominant, approximativement proportionnel à
+  \(k \times m\) (folds \texttimes{} modèles) multiplié par le coût d'entraînement,
+  \item Visualisations : coût linéaire en nombre de points/agrégats.
+\end{itemize}
+
+\subsection{Pistes d'optimisation}
+\begin{itemize}[leftmargin=1.2cm]
+  \item limiter les copies de tables intermédiaires volumineuses,
+  \item mutualiser les agrégations redondantes,
+  \item mémoriser certains objets dérivés (facteurs top-k) entre objectifs,
+  \item paralléliser la validation croisée si nécessaire (selon environnement d'exécution).
+\end{itemize}
+
+\section{Sécurité, conformité et exploitation}
+\subsection{Sécurité des données}
+\begin{itemize}[leftmargin=1.2cm]
+  \item pas de secret applicatif requis pour l'exécution standard,
+  \item privilégier des chemins locaux contrôlés pour les données sources,
+  \item limiter la diffusion des logs si ceux-ci contiennent des métadonnées sensibles.
+\end{itemize}
+
+\subsection{Conformité et bonnes pratiques}
+\begin{itemize}[leftmargin=1.2cm]
+  \item conserver la provenance des données (source, date d'extraction),
+  \item documenter les transformations non triviales,
+  \item archiver le triplet \textit{input + outputs + log} pour auditabilité.
+\end{itemize}
+
+\subsection{Procédure opératoire standard (POS)}
+\begin{enumerate}[leftmargin=1.2cm]
+  \item Vérifier présence du fichier d'entrée et structure minimale des colonnes.
+  \item Exécuter le script dans l'environnement R cible.
+  \item Contrôler le log et les indicateurs QA de \texttt{resume\_global.csv}.
+  \item Diffuser les exports validés vers l'équipe métier.
+  \item Archiver les artefacts de run avec identifiant de campagne.
+\end{enumerate}
+
+\section{Réplicabilité et transparence scientifique}
+Afin de favoriser la réplication des résultats, chaque exécution devrait documenter :
+\begin{itemize}[leftmargin=1.2cm]
+  \item la version de R et des packages,
+  \item le hachage ou l'empreinte du jeu d'entrée,
+  \item les paramètres de configuration effectifs,
+  \item les sorties consolidées (CSV, figures, log) associées au même identifiant de run.
+\end{itemize}
+
+\subsection{Spécification d'un manifeste de run (recommandée)}
+Format proposé : \texttt{run\_manifest.json} stocké à la racine des résultats.
+Champs minimaux suggérés :
+\begin{itemize}[leftmargin=1.2cm]
+  \item \texttt{run\_id}, \texttt{timestamp\_start}, \texttt{timestamp\_end},
+  \item \texttt{r\_version}, \texttt{packages} (versions),
+  \item \texttt{input\_file}, \texttt{input\_hash},
+  \item \texttt{config\_effective},
+  \item \texttt{outputs\_generated} (liste exhaustive),
+  \item \texttt{qa\_summary} (cohérence CHEGD, nombre d'alertes, statut final).
+\end{itemize}
+
+Ce manifeste facilite les audits comparatifs inter-campagnes et la reproductibilité
+scientifique au-delà du seul environnement local d'exécution.
+
+\section{Évolutions techniques recommandées}
+\begin{itemize}[leftmargin=1.2cm]
+  \item externaliser les seuils et poids métier dans un bloc paramétrable,
+  \item factoriser les fonctions communes entre script principal et alias historique,
+  \item ajouter une suite de tests unitaires ciblant les formules métier,
+  \item versionner les modèles/statistiques de fiabilité avec métadonnées de run.
+\end{itemize}
+
+\section{Protocole de base}
+Ce pipeline implémente le protocole d'évaluation décrit par Sellier et collaborateurs :
+
+\begin{quote}
+  \textit{Sellier, Y. et coll.} (s.d.). Évaluation du potentiel fongique et de l'intérêt patrimonial des pelouses.
+  Ressource en ligne : \url{https://www.mycofrance.fr/wp-content/uploads/2025/05/Bull.-SMF-131-1-2-Y-Sellier-et-coll.pdf}.
+\end{quote}
+
+Le protocole original spécifie : 
+\begin{itemize}[leftmargin=1.2cm]
+  \item Les cinq groupes CHEGD : Clavaria, Hygrocybe, Entoloma, Geoglossaceae, Dermoloma.
+  \item Les pondérations de potentiel fongique par espèce/groupe indicateur.
+  \item L'indice patrimonial comme maximum des effectifs CHEGD.
+  \item L'indice de représentativité relatif au gradient CHEGD par visite.
+\end{itemize}
+
+\section{Références bibliographiques (style harmonisé)}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Hastie, T., Tibshirani, R., \& Friedman, J. (2009). \textit{The elements of statistical learning} (2nd ed.). Springer.
+  \item ISO. (s.d.). \textit{ISO 8000 series -- Data quality}. International Organization for Standardization.
+  \item James, G., Witten, D., Hastie, T., \& Tibshirani, R. (2021). \textit{An introduction to statistical learning} (2nd ed.). Springer.
+  \item Sellier, Y., et coll. (s.d.). \textit{Évaluation du potentiel fongique et de l'intérêt patrimonial des pelouses}. Mycofrance. \url{https://www.mycofrance.fr/wp-content/uploads/2025/05/Bull.-SMF-131-1-2-Y-Sellier-et-coll.pdf}.
+  \item Wickham, H., \& Grolemund, G. (2017). \textit{R for data science}. O'Reilly.
+\end{itemize}
+
+\end{document}
