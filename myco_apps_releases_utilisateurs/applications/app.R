@@ -31,14 +31,29 @@ library(DT)
 # ==================================================================================================================================
 # Fonctions utilitaires
 # =================================================================================================================================
-`%||%` <- function(x, y) if (is.null(x) || length(x) == 0 || is.na(x) || !nzchar(x)) y else x
+`%||%` <- function(x, y) {
+  if (is.null(x) || length(x) == 0) {
+    return(y)
+  }
+
+  if (length(x) == 1) {
+    if (is.na(x)) {
+      return(y)
+    }
+    if (is.character(x) && !nzchar(x)) {
+      return(y)
+    }
+  }
+
+  x
+}
 
 # Catalogue des applications disponibles
 script_catalogue <- list(
   ICR = list(
     label = "Inventaires fongiques — Complétude & Représentativité (ICR)",
     script = file.path("scripts", "Inventaires_completude_representativite.R"),
-    default_input = file.path("data", "observations.csv"),
+    default_input = file.path("..", "..", "data", "observations.csv"),
     output_dir = file.path("results", "ICR"),
     env_input = "INVENTAIRES_INPUT_FILE",
     env_output = "INVENTAIRES_OUTPUT_DIR",
@@ -47,7 +62,7 @@ script_catalogue <- list(
   CHEGD = list(
     label = "Évaluation potentiel fongique / intérêt patrimonial / gradient CHEGD",
     script = file.path("scripts", "Evaluation_Potentiel_Fongique_Interets_Patrimoniaux_CHEGD.R"),
-    default_input = file.path("data", "données_récoltes_chegd_pelouses.csv"),
+    default_input = file.path("..", "..", "data", "données_récoltes_chegd_pelouses.csv"),
     output_dir = file.path("results", "EPFIP_CHEGD"),
     env_input = "CHEGD_INPUT_FILE",
     env_output = "CHEGD_OUTPUT_DIR",

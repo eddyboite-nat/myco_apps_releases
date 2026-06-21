@@ -321,9 +321,9 @@ log_footer <- function() {
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 get_embedded_config <- function() {
   list(
-    input_file = Sys.getenv("CHEGD_INPUT_FILE", unset = "data/données_récoltes_chegd_pelouses.csv"),
-    input_sheet = { x <- Sys.getenv("CHEGD_INPUT_SHEET", unset = ""); if (nzchar(x)) x else NULL },
-    output_dir = Sys.getenv("CHEGD_OUTPUT_DIR", unset = "results"),
+    input_file = "data/données_récoltes_chegd_pelouses.csv",
+    input_sheet = NULL,
+    output_dir = "results",
     output_prefix = "EPFIP_CHEGD",
     columns = list(
       species = "Espèces",
@@ -580,8 +580,16 @@ read_input_data <- function(input_file, input_sheet = NULL) {
       }
     }
 
-    # Supprime les colonnes totalement vides (cas fréquent avec CSV exportés avec ; en bord).
-    keep_cols <- vapply(raw, function(col) any(trimws(as.character(col)) != "" & !is.na(col)), logical(1))
+    # Supprime uniquement les colonnes sans nom ET totalement vides
+    # (artefacts fréquents d'exports CSV avec séparateur en bord),
+    # tout en conservant les colonnes métier nommées même si les valeurs sont vides.
+    col_names <- names(raw)
+    keep_cols <- vapply(seq_along(raw), function(idx) {
+      col <- raw[[idx]]
+      has_values <- any(trimws(as.character(col)) != "" & !is.na(col))
+      has_name <- !is.na(col_names[[idx]]) && trimws(col_names[[idx]]) != ""
+      has_values || has_name
+    }, logical(1))
     raw <- raw[, keep_cols, drop = FALSE]
     return(raw)
   }
@@ -602,13 +610,53 @@ read_input_data <- function(input_file, input_sheet = NULL) {
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ensure_required_columns <- function(df, cfg) {
   required <- unlist(cfg$columns, use.names = TRUE)
-  missing_cols <- required[!required %in% names(df)]
+  present_names <- names(df)
+
+  normalize_colname <- function(x) {
+    x_chr <- trimws(as.character(x))
+    x_ascii <- iconv(x_chr, from = "", to = "ASCII//TRANSLIT")
+    x_ascii[is.na(x_ascii)] <- x_chr[is.na(x_ascii)]
+    x_ascii <- tolower(x_ascii)
+    gsub("[^a-z0-9]", "", x_ascii)
+  }
+
+  required_norm <- normalize_colname(required)
+  present_norm <- normalize_colname(present_names)
+
+  rename_map <- setNames(rep(NA_character_, length(required)), required)
+  for (idx in seq_along(required)) {
+    direct_match <- which(present_names == required[[idx]])
+    if (length(direct_match) > 0) {
+      rename_map[[idx]] <- present_names[[direct_match[[1]]]]
+      next
+    }
+
+    norm_match <- which(present_norm == required_norm[[idx]])
+    if (length(norm_match) > 0) {
+      rename_map[[idx]] <- present_names[[norm_match[[1]]]]
+    }
+  }
+
+  missing_cols <- required[is.na(rename_map)]
   if (length(missing_cols) > 0) {
     stop(
       "Colonnes manquantes dans la feuille d'entrée : ",
-      paste(missing_cols, collapse = ", ")
+      paste(missing_cols, collapse = ", "),
+      "\nColonnes détectées : ",
+      paste(present_names, collapse = ", ")
     )
   }
+
+  # Renomme les colonnes trouvées par matching robuste vers les noms canoniques attendus.
+  for (idx in seq_along(required)) {
+    matched_name <- rename_map[[idx]]
+    target_name <- required[[idx]]
+    if (!is.na(matched_name) && matched_name != target_name) {
+      names(df)[names(df) == matched_name] <- target_name
+    }
+  }
+
+  df
 }
 
 # -----------------------------------------------------------------------------
@@ -3054,7 +3102,7 @@ main <- function() {
   log_section("Lecture et traitement des données d'entrée")
   raw <- read_input_data(cfg$input_file, cfg$input_sheet)
   raw <- raw[, !grepl("^\\.\\.\\.", names(raw)), drop = FALSE]
-  ensure_required_columns(raw, cfg)
+  raw <- ensure_required_columns(raw, cfg)
 
   cols <- cfg$columns
 
