@@ -1,8 +1,39 @@
+##
+# ==================================================================================================================================
+# Script : app.R
+# Objet  : Interface Shiny locale pour lancer les pipelines myco_apps_releases
+#          (ICR et CHEGD), valider les fichiers d'entrée et consulter les résultats.
+#
+# Fonctionnalités principales :
+#   1) Sélection de l'application à exécuter (ICR ou CHEGD)
+#   2) Utilisation d'un fichier d'exemple ou import d'un fichier utilisateur
+#   3) Validation des colonnes d'entrée attendues
+#   4) Exécution du pipeline via Rscript avec journalisation
+#   5) Visualisation des sorties et téléchargement du dernier log
+# ==================================================================================================================================
+#
+# Usage : Exécuter via run_app.R (recommandé)
+#         ou directement avec shiny::runApp(appDir = ".") depuis ce dossier
+#
+# Dépendances : shiny, DT, readr, readxl, stringr, later
+# Auteur : Eddy Boite
+# Date : 2026-06-21
+# Version : 1.0
+# ==================================================================================================================================
+
+# Configuration des options R
+options(
+  repos = c(CRAN = "https://cloud.r-project.org"),
+  shiny.launch.browser = TRUE
+)
 library(shiny)
 library(DT)
-
+# ==================================================================================================================================
+# Fonctions utilitaires
+# =================================================================================================================================
 `%||%` <- function(x, y) if (is.null(x) || length(x) == 0 || is.na(x) || !nzchar(x)) y else x
 
+# Catalogue des applications disponibles
 script_catalogue <- list(
   ICR = list(
     label = "Inventaires fongiques — Complétude & Représentativité (ICR)",
@@ -24,6 +55,7 @@ script_catalogue <- list(
   )
 )
 
+# Fonctions utilitaires pour la validation des colonnes d'entrée et l'exécution des scripts
 detect_delimiter <- function(path) {
   first_line <- readLines(path, n = 1, warn = FALSE, encoding = "UTF-8")
   if (!length(first_line)) return(",")
@@ -36,6 +68,7 @@ detect_delimiter <- function(path) {
   ","
 }
 
+# Lecture des colonnes d'entrée
 read_input_columns <- function(path) {
   ext <- tolower(tools::file_ext(path))
   if (ext %in% c("csv", "txt", "tsv")) {
@@ -57,18 +90,19 @@ read_input_columns <- function(path) {
   character(0)
 }
 
+# Validation des colonnes d'entrée
 validate_input_columns <- function(path, script_key) {
   cfg <- script_catalogue[[script_key]]
   required <- cfg$required_cols %||% character(0)
   if (!length(required)) {
     return(list(ok = TRUE, message = "Validation colonnes non configurée."))
   }
-
+# Lecture des colonnes d'entrée
 cols <- tryCatch(read_input_columns(path), error = function(e) character(0))
   if (!length(cols)) {
     return(list(ok = FALSE, message = "Impossible de lire les colonnes du fichier fourni."))
   }
-
+# Validation des colonnes requises
 missing <- setdiff(required, cols)
   if (length(missing)) {
     return(list(
@@ -85,6 +119,7 @@ missing <- setdiff(required, cols)
 list(ok = TRUE, message = "Colonnes d'entrée validées.")
 }
 
+# Liste des fichiers dans un répertoire
 safe_list_files <- function(path) {
   if (!dir.exists(path)) return(data.frame(Fichier = character(), Taille = character(), Modifié = character()))
   files <- list.files(path, recursive = TRUE, full.names = TRUE, all.files = FALSE)
@@ -99,6 +134,7 @@ safe_list_files <- function(path) {
   )
 }
 
+# Copie d'un fichier téléchargé vers le répertoire des entrées 
 copy_uploaded_input <- function(datapath, original_name, script_key) {
   dir.create(file.path("data", "uploaded"), recursive = TRUE, showWarnings = FALSE)
   ext <- tools::file_ext(original_name)
@@ -108,6 +144,7 @@ copy_uploaded_input <- function(datapath, original_name, script_key) {
   normalizePath(dest, winslash = "/", mustWork = TRUE)
 }
 
+# Nettoyage des fichiers importés plus anciens que max_age_days ou suppression de tous les fichiers si remove_all = TRUE
 cleanup_uploaded_inputs <- function(max_age_days = 30, remove_all = FALSE) {
   upload_dir <- file.path("data", "uploaded")
   dir.create(upload_dir, recursive = TRUE, showWarnings = FALSE)
@@ -141,6 +178,7 @@ cleanup_uploaded_inputs <- function(max_age_days = 30, remove_all = FALSE) {
   )
 }
 
+# Exécution d'un script R avec journalisation et gestion des variables d'environnement 
 run_pipeline <- function(script_key, input_path = NULL) {
   cfg <- script_catalogue[[script_key]]
   if (is.null(cfg)) stop("Application inconnue.", call. = FALSE)
@@ -180,6 +218,9 @@ run_pipeline <- function(script_key, input_path = NULL) {
   )
 }
 
+# ==================================================================================================================================
+# Interface Shiny
+# ==================================================================================================================================
 ui <- fluidPage(
   titlePanel("myco_apps_releases — lancement local"),
   sidebarLayout(
@@ -241,6 +282,9 @@ ui <- fluidPage(
   )
 )
 
+# ==================================================================================================================================
+# Serveur Shiny
+# ==================================================================================================================================
 server <- function(input, output, session) {
   state <- reactiveValues(last = NULL, message = "Aucune analyse lancée.")
 
@@ -343,4 +387,5 @@ server <- function(input, output, session) {
   )
 }
 
+# Lancement de l'application Shiny
 shinyApp(ui, server)
