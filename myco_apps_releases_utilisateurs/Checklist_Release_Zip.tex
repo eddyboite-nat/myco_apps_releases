@@ -1,30 +1,216 @@
-\section{Checklist release ZIP --- myco\_apps\_releases\_utilisateurs}
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[provide=*,french]{babel}
+\usepackage[a4paper,margin=2.3cm]{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{booktabs,longtable,array}
+\usepackage{xcolor}
+\usepackage{fancyvrb}
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue, pdftitle={myco\_apps\_releases --- guide utilisateur}}
+\providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+\newenvironment{Shaded}{\begin{quote}}{\end{quote}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\ExtensionTok}[1]{#1}
+\setlength{\emergencystretch}{3em}
+\title{myco\_apps\_releases --- guide utilisateur}
+\author{Boite Eddy}
+\date{\today}
+\begin{document}
+\maketitle
+\section{myco\_apps\_releases --- guide
+utilisateur}\label{myco_apps_releases-guide-utilisateur}
 
-\subsection{Objectif}
+\subsection{Objectif}\label{objectif}
 
-Préparer une archive autonome, exécutable sans dépendance au dépôt Git.
-
-\subsection{Checklist avant publication}
+Cette archive fournit une interface locale pour lancer deux analyses R
+sans ouvrir RStudio :
 
 \begin{enumerate}
-\item Vérifier la structure attendue : \texttt{Lancer\_Windows.bat}, \texttt{Lancer\_Mac.command}, \texttt{Lancer\_Linux.sh}, dossier \texttt{applications/}.
-\item Vérifier la présence des données d'exemple dans \texttt{applications/data/} et \texttt{exemples/}.
-\item Vérifier que \texttt{applications/logs/} est vide (hors \texttt{.gitkeep}).
-\item Vérifier que \texttt{applications/results/} est vide (hors \texttt{.gitkeep}).
-\item Supprimer les artefacts système (ex. \texttt{.DS\_Store}).
-\item Tester un lancement rapide sur les scripts de lancement des OS cibles.
-\item Vérifier qu'un run ICR et un run CHEGD produisent bien des sorties sous \texttt{applications/results/}.
-\item Vérifier qu'un log d'exécution est bien créé dans \texttt{applications/logs/}.
-\item Vérifier que la documentation utilisateur est cohérente avec les noms de fichiers réels.
-\item Générer le ZIP uniquement à partir de \texttt{myco\_apps\_releases\_utilisateurs/}.
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Inventaires fongiques --- Complétude \& Représentativité
+  (ICR)} ;
+\item
+  \textbf{Évaluation potentiel fongique / intérêt patrimonial / gradient
+  CHEGD}.
 \end{enumerate}
 
-\subsection{Contrôle final}
+L'application s'ouvre dans votre navigateur, mais les calculs restent
+exécutés sur votre ordinateur.
 
-La release est valide si un utilisateur peut :
-\begin{itemize}
-\item dézipper,
-\item lancer l'application,
-\item exécuter les deux analyses avec les exemples,
-\item récupérer les résultats et les logs localement.
-\end{itemize}
+\subsection{Prérequis}\label{pruxe9requis}
+
+Vous devez installer \textbf{R} une fois sur votre ordinateur :
+
+\url{https://cran.r-project.org/}
+
+RStudio n'est pas obligatoire.
+
+\subsection{Lancement}\label{lancement}
+
+\subsubsection{Windows}\label{windows}
+
+Double-cliquez sur :
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{Lancer\_Windows.bat}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{macOS}\label{macos}
+
+Double-cliquez sur :
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{Lancer\_Mac.command}
+\end{Highlighting}
+\end{Shaded}
+Si macOS bloque le lancement, faites clic droit puis \textbf{Ouvrir}.
+Au premier lancement sur macOS, le système peut afficher : ``Apple n'a
+pas pu confirmer que ce fichier ne contenait pas de logiciel
+malveillant.''
+
+\noindent Dans ce cas :
+
+\begin{enumerate}
+\item Cliquer sur \textbf{Terminé}.
+\item Ouvrir Terminal dans le dossier de l'application.
+\item Exécuter les commandes suivantes :
+\end{enumerate}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{xattr -dr com.apple.quarantine .}
+\NormalTok{chmod +x Lancer\_Mac.command}
+\NormalTok{./Lancer\_Mac.command}
+\end{Highlighting}
+\end{Shaded}
+
+\subsubsection{Linux}\label{linux}
+
+Dans un terminal :
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\ExtensionTok{./Lancer\_Linux.sh}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{Premier lancement}\label{premier-lancement}
+
+Au premier lancement, l'application installe automatiquement les
+composants R nécessaires. Une connexion internet est donc nécessaire. Les lancements suivants sont normalement plus rapides.
+
+\subsection{Utilisation}\label{utilisation}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Choisir l'application à lancer.
+\item
+  Utiliser le fichier d'exemple ou charger votre propre fichier.
+\item
+  Cliquer sur \textbf{Lancer l'analyse}.
+\item
+  Consulter les fichiers produits dans l'onglet \textbf{Résultats} ou
+  dans \texttt{applications/results/}.
+\end{enumerate}
+
+\subsection{Colonnes attendues}\label{colonnes-attendues}
+
+\subsubsection{ICR}\label{icr}
+
+Colonnes obligatoires :
+
+{% table sans légende
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Colonne & Description \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\texttt{site} & Nom du site \\
+\texttt{date} & Date de visite \\
+\texttt{visite\_id} & Identifiant de visite \\
+\texttt{espece} & Nom d'espèce \\
+\end{longtable}
+}
+
+Colonne optionnelle :
+
+{% table sans légende
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Colonne & Description \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\texttt{placette} & Placette ou unité spatiale \\
+\end{longtable}
+}
+
+\subsubsection{CHEGD}\label{chegd}
+
+Colonnes attendues :
+
+{% table sans légende
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Colonne & Description \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\texttt{Espèces} & Nom de l'espèce \\
+\texttt{Famille} & Famille taxonomique \\
+\texttt{Date} & Date d'observation \\
+\texttt{Nombre\ d\textquotesingle{}espèce} & Abondance / effectif \\
+\texttt{Site} & Site ou pelouse \\
+\texttt{Fiabilité\ détermination} & Niveau de fiabilité \\
+\end{longtable}
+}
+
+\subsection{Où sont les résultats ?}\label{ouxf9-sont-les-ruxe9sultats}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{applications/results/ICR/}
+\NormalTok{applications/results/EPFIP\_CHEGD/}
+\end{Highlighting}
+\end{Shaded}
+
+\subsection{Où sont les journaux d'exécution
+?}\label{ouxf9-sont-les-journaux-dexuxe9cution}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{applications/logs/}
+\end{Highlighting}
+\end{Shaded}
+
+En cas de problème, transmettre le dernier fichier \texttt{run\_...log}.
+
+\subsection{Notes techniques}\label{notes-techniques}
+
+Cette version ajoute une interface Shiny locale et des lanceurs multi-OS
+autour des scripts existants. Le cœur des scripts métier est conservé.
+Le script CHEGD a seulement été adapté pour accepter un fichier d'entrée
+choisi depuis l'interface via variable d'environnement.
+
+\subsection{Quitter l'application}\label{quitter-lapplication}
+
+Dans l'interface, cliquez sur \textbf{Quitter l'application}.
+
+Ensuite, fermez l'onglet du navigateur et, si elle reste ouverte, la
+fenêtre Terminal.
+
+\end{document}

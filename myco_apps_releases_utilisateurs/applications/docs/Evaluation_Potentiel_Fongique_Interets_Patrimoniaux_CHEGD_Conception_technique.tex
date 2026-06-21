@@ -123,7 +123,7 @@ Le script suit une architecture \textbf{pipeline batch séquentielle}, organisé
 \subsection{Configuration}
 La configuration est intégrée via \texttt{get\_embedded\_config()} :
 \begin{lstlisting}
-input_file    = data/données_récoltes_chegd_pelouses.csv
+input_file    = data/donnees_recoltes_chegd_pelouses.csv
 input_sheet   = NULL
 output_dir    = results
 output_prefix = EPFIP_CHEGD
@@ -561,7 +561,7 @@ Objectif : reproductibilité métier avec le classeur de référence.
 \textbf{Niveau} & \textbf{Exemple} & \textbf{Action système} \\
 \midrule
 INFO & Volumétrie et progression & Trace sans interruption \\
-AVERTISSEMENT & Valeurs partiellement manquantes/non standard & Poursuite avec normalisation ou exclusion ciblée \\
+ALERTE & Valeurs partiellement manquantes/non standard & Poursuite avec normalisation ou exclusion ciblée \\
 ERREUR & Colonnes obligatoires absentes, lecture impossible & Arrêt propre avec message explicite \\
 \bottomrule
 \end{tabular}\end{center}

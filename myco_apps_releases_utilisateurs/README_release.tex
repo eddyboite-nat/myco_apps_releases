@@ -1,3 +1,25 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[provide=*,french]{babel}
+\usepackage[a4paper,margin=2.3cm]{geometry}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{booktabs,longtable,array}
+\usepackage{xcolor}
+\usepackage{fancyvrb}
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue, pdftitle={myco\_apps\_releases\_utilisateurs --- Guide rapide}}
+\providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+\newenvironment{Shaded}{\begin{quote}}{\end{quote}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\ExtensionTok}[1]{#1}
+\setlength{\emergencystretch}{3em}
+\title{myco\_apps\_releases\_utilisateurs --- Guide rapide}
+\author{Boite Eddy}
+\date{\today}
+\begin{document}
+\maketitle
 \section{myco\_apps\_releases\_utilisateurs --- Guide rapide}
 
 \subsection{Objectif}
@@ -53,7 +75,11 @@ Colonnes obligatoires : \texttt{site}, \texttt{date}, \texttt{visite\_id}, \text
 Colonne optionnelle : \texttt{placette}.
 
 \subsubsection{CHEGD}
-Colonnes attendues : \texttt{Espèces}, \texttt{Famille}, \texttt{Date}, \texttt{Nombre d'espèce}, \texttt{Site}, \texttt{Fiabilité détermination}.
+Colonnes attendues :
+\begin{itemize}
+\item \texttt{Espèces}, \texttt{Famille}, \texttt{Date} ;
+\item \texttt{Nombre d'espèce}, \texttt{Site}, \texttt{Fiabilité détermination}.
+\end{itemize}
 
 \subsection{Où trouver les résultats et les logs ?}
 
@@ -67,7 +93,7 @@ En cas de problème, transmettre le dernier fichier \texttt{run\_...log}.
 
 \subsection{Fin de session}
 
-Dans l'application, cliquer sur \textbf{Quitter l'application}, puis fermer l'onglet navigateur et la fenêtre Terminal si nécessaire.
+Dans l'application, cliquer sur \textbf{Quitter l'application}. Fermer ensuite l'onglet navigateur et la fenêtre Terminal si nécessaire.
 
 \subsection{Contenu recommandé du ZIP}
 
@@ -77,3 +103,5 @@ myco_apps_releases_utilisateurs/
 \end{verbatim}
 
 Ce dossier est autonome pour le déploiement utilisateur.
+
+\end{document}
