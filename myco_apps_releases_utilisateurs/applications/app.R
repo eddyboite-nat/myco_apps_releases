@@ -134,72 +134,98 @@ missing <- setdiff(required, cols)
 list(ok = TRUE, message = "Colonnes d'entrée validées.")
 }
 
-# Validation spécifique CHEGD : vérifie que la colonne Site contient des identifiants numérisables
+# Validation spécifique CHEGD : vérifie que le fichier a des données réelles et que
+# la colonne Site contient des identifiants numériques exploitables par le pipeline.
 validate_chegd_site_format <- function(path) {
   ext <- tolower(tools::file_ext(path))
-  
+
   tryCatch({
-    if (ext == "xlsx" || ext == "xls") {
-      df <- readxl::read_excel(path, col_names = TRUE, n_max = 1000)
-    } else if (ext == "csv" || ext == "txt") {
-      first_line <- readLines(path, n = 1, warn = FALSE, encoding = "UTF-8")
-      if (!length(first_line)) return(list(ok = FALSE, message = "Fichier CSV vide."))
-      n_tab <- stringr::str_count(first_line, "\\t")
-      n_semi <- stringr::str_count(first_line, ";")
-      n_comma <- stringr::str_count(first_line, ",")
-      sep <- if (n_tab >= max(n_semi, n_comma) && n_tab > 0) "\t" else if (n_semi > n_comma) ";" else ","
-      
-      csv_lines <- readLines(path, warn = FALSE, encoding = "UTF-8")
-      csv_lines <- csv_lines[!grepl("^[[:space:];,]+$", csv_lines)]
-      df <- utils::read.table(
-        text = csv_lines, header = TRUE, sep = sep, quote = '"', comment.char = "",
-        stringsAsFactors = FALSE, check.names = FALSE, fill = TRUE
+    # Lecture avec readr/readxl (gestion CRLF, encodage, lignes vides automatique)
+    if (ext %in% c("xlsx", "xls")) {
+      df <- readxl::read_excel(path, col_names = TRUE, n_max = 5000)
+    } else if (ext %in% c("csv", "txt")) {
+      delim <- detect_delimiter(path)
+      df <- readr::read_delim(
+        file = path, delim = delim, n_max = 5000,
+        show_col_types = FALSE, progress = FALSE,
+        locale = readr::locale(encoding = "UTF-8"),
+        name_repair = "minimal"
       )
     } else {
-      return(list(ok = FALSE, message = paste("Format non reconnu:", ext)))
+      return(list(ok = FALSE, message = paste("Format non reconnu :", ext)))
     }
-    
-    # Rechercher la colonne Site avec matching robuste
-    site_col <- NULL
-    col_names_lower <- tolower(names(df))
-    site_idx <- which(col_names_lower == "site")
-    if (length(site_idx) > 0) {
-      site_col <- df[[site_idx[1]]]
-    } else {
-      return(list(ok = FALSE, message = "Colonne 'Site' non trouvée dans le fichier."))
-    }
-    
-    # Vérifier que TOUTES les valeurs Site (non-vides) contiennent au moins un chiffre
-    site_chars <- as.character(site_col)
-    site_chars_trimmed <- trimws(site_chars)
-    
-    # Filtrer les valeurs non-vides et non-NA
-    valid_sites <- site_chars_trimmed[!is.na(site_chars_trimmed) & site_chars_trimmed != ""]
-    
-    if (length(valid_sites) == 0) {
-      return(list(ok = FALSE, message = "Colonne 'Site' vide ou sans valeurs valides."))
-    }
-    
-    # Vérifier que chaque Site contient au least un chiffre
-    has_digit <- grepl("\\d", valid_sites)
-    count_without_digit <- sum(!has_digit)
-    
-    if (count_without_digit > 0) {
-      invalid_samples <- head(valid_sites[!has_digit], 5)
+
+    # Supprimer les lignes où TOUTES les colonnes sont NA ou vides
+    row_has_data <- apply(df, 1, function(row) {
+      any(!is.na(row) & trimws(as.character(row)) != "")
+    })
+    df <- df[row_has_data, , drop = FALSE]
+
+    if (nrow(df) == 0) {
       return(list(
         ok = FALSE,
         message = paste(
-          "La colonne 'Site' doit contenir des identifiants numéricos (ex: 'Pelouse 1', 'Site 3', '12').",
-          paste0("Valeurs invalides trouvées : ", paste(invalid_samples, collapse = ", ")),
-          "Veuillez corriger le fichier et réessayer.",
+          "Le fichier d'entrée ne contient aucune donnée.",
+          "Le fichier d'exemple fourni est un modèle vide.",
+          "Utilisez \"Charger mon propre fichier\" pour importer vos données réelles.",
           sep = "\n"
         )
       ))
     }
-    
+
+    # Localiser la colonne Site
+    site_idx <- which(tolower(names(df)) == "site")
+    if (length(site_idx) == 0) {
+      return(list(ok = FALSE, message = "Colonne 'Site' introuvable dans le fichier."))
+    }
+    site_vals <- trimws(as.character(df[[site_idx[1]]]))
+    site_vals <- site_vals[!is.na(site_vals) & site_vals != ""]
+
+    if (length(site_vals) == 0) {
+      return(list(
+        ok = FALSE,
+        message = paste(
+          "La colonne 'Site' est vide dans toutes les lignes de données.",
+          "Le fichier d'exemple fourni est un modèle vide.",
+          "Utilisez \"Charger mon propre fichier\" pour importer vos données réelles.",
+          sep = "\n"
+        )
+      ))
+    }
+
+    # Simuler extract_site_id() du pipeline : extrait le premier entier dans la valeur
+    site_ids <- suppressWarnings(as.integer(stringr::str_extract(site_vals, "\\d+")))
+    n_valid  <- sum(!is.na(site_ids))
+
+    if (n_valid == 0) {
+      samples <- paste(head(unique(site_vals), 5), collapse = ", ")
+      return(list(
+        ok = FALSE,
+        message = paste(
+          "La colonne 'Site' ne contient aucun identifiant numérique.",
+          paste0("Valeurs trouvées : ", samples),
+          "Chaque site doit contenir un nombre (ex: 'Pelouse 1', 'Site 3', '12').",
+          sep = "\n"
+        )
+      ))
+    }
+
+    if (n_valid < length(site_vals)) {
+      bad <- head(site_vals[is.na(site_ids)], 3)
+      return(list(
+        ok = FALSE,
+        message = paste(
+          "Certaines valeurs de la colonne 'Site' ne contiennent pas de numéro.",
+          paste0("Exemples : ", paste(bad, collapse = ", ")),
+          "Toutes les valeurs Site doivent contenir un entier (ex: 'Pelouse 1', '3').",
+          sep = "\n"
+        )
+      ))
+    }
+
     list(ok = TRUE, message = "Format Site valide.")
   }, error = function(e) {
-    list(ok = FALSE, message = paste("Erreur lors de la lecture du fichier:", conditionMessage(e)))
+    list(ok = FALSE, message = paste("Erreur lors de la validation du fichier :", conditionMessage(e)))
   })
 }
 
@@ -425,7 +451,7 @@ server <- function(input, output, session) {
           stop(validation$message, call. = FALSE)
         }
         
-        # Validation supplémentaire pour CHEGD : format de la colonne Site
+        # Validation supplémentaire pour CHEGD : données non-vides + colonne Site numérique
         if (identical(script_key, "CHEGD")) {
           site_validation <- validate_chegd_site_format(input_for_validation)
           if (!isTRUE(site_validation$ok)) {
