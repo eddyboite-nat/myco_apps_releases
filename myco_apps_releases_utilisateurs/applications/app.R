@@ -134,6 +134,71 @@ missing <- setdiff(required, cols)
 list(ok = TRUE, message = "Colonnes d'entrée validées.")
 }
 
+# Validation spécifique CHEGD : vérifie que la colonne Site contient des identifiants numérisables
+validate_chegd_site_format <- function(path) {
+  ext <- tolower(tools::file_ext(path))
+  
+  tryCatch({
+    if (ext == "xlsx" || ext == "xls") {
+      df <- readxl::read_excel(path, col_names = TRUE, n_max = 1000)
+    } else if (ext == "csv" || ext == "txt") {
+      first_line <- readLines(path, n = 1, warn = FALSE, encoding = "UTF-8")
+      if (!length(first_line)) return(list(ok = FALSE, message = "Fichier CSV vide."))
+      n_tab <- stringr::str_count(first_line, "\\t")
+      n_semi <- stringr::str_count(first_line, ";")
+      n_comma <- stringr::str_count(first_line, ",")
+      sep <- if (n_tab >= max(n_semi, n_comma) && n_tab > 0) "\t" else if (n_semi > n_comma) ";" else ","
+      
+      csv_lines <- readLines(path, warn = FALSE, encoding = "UTF-8")
+      csv_lines <- csv_lines[!grepl("^[[:space:];,]+$", csv_lines)]
+      df <- utils::read.table(
+        text = csv_lines, header = TRUE, sep = sep, quote = '"', comment.char = "",
+        stringsAsFactors = FALSE, check.names = FALSE, fill = TRUE
+      )
+    } else {
+      return(list(ok = FALSE, message = paste("Format non reconnu:", ext)))
+    }
+    
+    # Rechercher la colonne Site avec matching robuste
+    site_col <- NULL
+    col_names_lower <- tolower(names(df))
+    site_idx <- which(col_names_lower == "site")
+    if (length(site_idx) > 0) {
+      site_col <- df[[site_idx[1]]]
+    } else {
+      return(list(ok = FALSE, message = "Colonne 'Site' non trouvée dans le fichier."))
+    }
+    
+    # Compter combien de valeurs Site contiennent au moins un chiffre
+    site_chars <- as.character(site_col)
+    has_digit <- grepl("\\d", site_chars)
+    count_with_digit <- sum(has_digit, na.rm = TRUE)
+    count_total <- sum(!is.na(site_chars) & trimws(site_chars) != "")
+    
+    if (count_total == 0) {
+      return(list(ok = FALSE, message = "Colonne 'Site' vide ou sans valeurs valides."))
+    }
+    
+    # Exiger au moins 50% des valeurs avec un numéro
+    pct_with_digit <- count_with_digit / count_total
+    if (pct_with_digit < 0.5) {
+      return(list(
+        ok = FALSE,
+        message = paste(
+          "La colonne 'Site' doit contenir des identifiants numériques (ex: 'Pelouse 1', 'Site 3', '12').",
+          paste0("Actuellement, seulement ", round(100 * pct_with_digit, 1), "% des valeurs contiennent un nombre."),
+          "Veuillez corriger le fichier et réessayer.",
+          sep = "\n"
+        )
+      ))
+    }
+    
+    list(ok = TRUE, message = "Format Site valide.")
+  }, error = function(e) {
+    list(ok = FALSE, message = paste("Erreur lors de la lecture du fichier:", conditionMessage(e)))
+  })
+}
+
 # Liste des fichiers dans un répertoire
 safe_list_files <- function(path) {
   if (!dir.exists(path)) return(data.frame(Fichier = character(), Taille = character(), Modifié = character()))
@@ -351,6 +416,15 @@ server <- function(input, output, session) {
         if (!isTRUE(validation$ok)) {
           stop(validation$message, call. = FALSE)
         }
+        
+        # Validation supplémentaire pour CHEGD : format de la colonne Site
+        if (identical(script_key, "CHEGD")) {
+          site_validation <- validate_chegd_site_format(input_for_validation)
+          if (!isTRUE(site_validation$ok)) {
+            stop(site_validation$message, call. = FALSE)
+          }
+        }
+        
         incProgress(0.4, detail = "Exécution du script R")
         res <- run_pipeline(script_key, input_path)
         incProgress(0.9, detail = "Lecture des sorties")
