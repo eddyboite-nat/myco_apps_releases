@@ -169,24 +169,28 @@ validate_chegd_site_format <- function(path) {
       return(list(ok = FALSE, message = "Colonne 'Site' non trouvée dans le fichier."))
     }
     
-    # Compter combien de valeurs Site contiennent au moins un chiffre
+    # Vérifier que TOUTES les valeurs Site (non-vides) contiennent au moins un chiffre
     site_chars <- as.character(site_col)
-    has_digit <- grepl("\\d", site_chars)
-    count_with_digit <- sum(has_digit, na.rm = TRUE)
-    count_total <- sum(!is.na(site_chars) & trimws(site_chars) != "")
+    site_chars_trimmed <- trimws(site_chars)
     
-    if (count_total == 0) {
+    # Filtrer les valeurs non-vides et non-NA
+    valid_sites <- site_chars_trimmed[!is.na(site_chars_trimmed) & site_chars_trimmed != ""]
+    
+    if (length(valid_sites) == 0) {
       return(list(ok = FALSE, message = "Colonne 'Site' vide ou sans valeurs valides."))
     }
     
-    # Exiger au moins 50% des valeurs avec un numéro
-    pct_with_digit <- count_with_digit / count_total
-    if (pct_with_digit < 0.5) {
+    # Vérifier que chaque Site contient au least un chiffre
+    has_digit <- grepl("\\d", valid_sites)
+    count_without_digit <- sum(!has_digit)
+    
+    if (count_without_digit > 0) {
+      invalid_samples <- head(valid_sites[!has_digit], 5)
       return(list(
         ok = FALSE,
         message = paste(
-          "La colonne 'Site' doit contenir des identifiants numériques (ex: 'Pelouse 1', 'Site 3', '12').",
-          paste0("Actuellement, seulement ", round(100 * pct_with_digit, 1), "% des valeurs contiennent un nombre."),
+          "La colonne 'Site' doit contenir des identifiants numéricos (ex: 'Pelouse 1', 'Site 3', '12').",
+          paste0("Valeurs invalides trouvées : ", paste(invalid_samples, collapse = ", ")),
           "Veuillez corriger le fichier et réessayer.",
           sep = "\n"
         )
@@ -345,7 +349,11 @@ ui <- fluidPage(
           h4("Colonnes attendues — ICR"),
           tags$p("site, date, visite_id, espece ; placette est optionnelle."),
           h4("Colonnes attendues — CHEGD"),
-          tags$p("Espèces, Famille, Date, Nombre d'espèce, Site, Fiabilité détermination.")
+          tags$p(
+            "Espèces, Famille, Date, Nombre d'espèce, Site, Fiabilité détermination.",
+            tags$br(),
+            tags$em("Important : la colonne Site doit contenir des identifiants numéricos, ex: 'Pelouse 1', 'Site 5', ou '12'.")
+          )
         ),
         tabPanel("Exécution",
           h3("État"),
