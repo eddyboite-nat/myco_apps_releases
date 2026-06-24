@@ -1,12 +1,13 @@
 "Site","nb_lignes","nb_especes_uniques","nb_familles_uniques","abondance_totale","nb_visites"
-"Pelouse 3",14,13,9,66,4
-"Pelouse 20",11,9,5,27,3
-"Pelouse 5",11,8,5,29,4
+"Pelouse 3",15,13,9,67,4
+"Pelouse 20",12,10,5,29,3
+"Pelouse 5",12,9,5,30,4
+"Pelouse 16",10,8,5,22,4
+"Pelouse 4",10,7,5,23,4
 "Pelouse 19",5,5,4,19,3
-"Pelouse 4",8,5,3,19,3
-"Pelouse 16",7,5,2,17,4
 "Pelouse 1",5,5,3,9,1
 "Pelouse 8",3,3,3,4,1
+"",3,3,3,0,0
 "Pelouse 2",2,2,2,6,1
 "Pelouse 7",2,2,2,6,1
 "Pelouse 13",2,2,2,2,2
