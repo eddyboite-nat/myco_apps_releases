@@ -9,7 +9,7 @@
 #   - Produire des résumés globaux (site/famille/espèce/date/fiabilité).
 #   - Calculer des indicateurs par site (potentiel, patrimonialité, CHEGD).
 #   - Aligner les indicateurs sur un classeur de référence si disponible
-#     (mode « fidélité Excel »).
+#     avec alignement sur le classeur de référence quand il est disponible.
 #
 # Entrées :
 #   - Configuration intégrée au script (modifiable dans get_embedded_config)
@@ -325,6 +325,8 @@ get_embedded_config <- function() {
     input_sheet = NULL,
     output_dir = "results",
     output_prefix = "EPFIP_CHEGD",
+    reference_workbook = "/Users/eddyboite/Documents/Carnets Naturaliste/Mycologie/Associations/RNF/RNNCS/Inventaires/2025/Evaluation 2025 Potentiel Fongique et Intérêt Patrimonial des pelouses de la RNNCS.xlsx",
+    use_reference_overrides = TRUE,
     columns = list(
       species = "Espèces",
       family = "Famille",
@@ -505,8 +507,8 @@ resolve_input_file <- function(path_value, base_dir) {
 # Détecte automatiquement le séparateur utilisé dans un fichier CSV.
 # file_path : chemin absolu du fichier CSV à analyser.
 # Lit les 5 premières lignes non vides du fichier en encodage UTF-8, puis compare
-# le nombre total de point-virgules (";" ) et de virgules (",") dans ces lignes.
-# Si la virgule est plus fréquente que le point-virgule, retourne "," ; sinon retourne ";".
+# le nombre total de tabulations (\t), point-virgules (";") et virgules (",") dans ces lignes.
+# Retourne le séparateur le plus fréquent, par ordre de priorité : \t > , > ; > ; (défaut).
 # Cas de fichier vide : retourne ";" par défaut (format CSV français le plus courant).
 # Utilisée par read_input_data() avant l'appel à utils::read.table() pour déterminer le paramètre sep.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -517,8 +519,14 @@ guess_csv_separator <- function(file_path) {
     return(";")
   }
 
+  tab_score <- sum(stringr::str_count(first_lines, "\t"))
   semicolon_score <- sum(stringr::str_count(first_lines, ";"))
   comma_score <- sum(stringr::str_count(first_lines, ","))
+  
+  # Déterminer le séparateur le plus fréquent (onglets prioritaires pour TSV)
+  if (tab_score > 0 && tab_score >= comma_score && tab_score >= semicolon_score) {
+    return("\t")
+  }
   if (comma_score > semicolon_score) "," else ";"
 }
 
@@ -527,13 +535,15 @@ guess_csv_separator <- function(file_path) {
 # input_file  : chemin absolu du fichier d'entrée.
 # input_sheet : nom ou index de la feuille à lire pour les fichiers .xlsx (NULL = première feuille).
 # Pour les fichiers .xlsx :
-#   Utilise readxl::read_excel() avec ou sans paramètre sheet selon input_sheet.
+#   Utilise readxl::read_excel() avec validation du paramètre sheet.
+#   Si sheet=NULL, affiche un avertissement (lecture de la première feuille par défaut).
 # Pour les fichiers .csv :
-#   1) Détecte le séparateur via guess_csv_separator().
-#   2) Lit le fichier ligne par ligne, filtre les lignes ne contenant que des séparateurs.
-#   3) Appelle utils::read.table() avec check.names=FALSE pour préserver les noms de colonnes accentés.
-#   4) Nettoie les noms de colonnes (supprime espaces initiaux/finaux).
-#   5) Supprime la colonne de tête vide éventuelle et les colonnes entièrement vides
+#   1) Supprime le BOM UTF-8 si présent (évite corruption du 1er en-tête).
+#   2) Détecte le séparateur via guess_csv_separator() (détecte \t, ;, , ou \t).
+#   3) Lit le fichier ligne par ligne, filtre les lignes ne contenant que des séparateurs.
+#   4) Appelle utils::read.table() avec check.names=FALSE pour préserver les noms de colonnes accentés.
+#   5) Nettoie les noms de colonnes (supprime espaces initiaux/finaux).
+#   6) Supprime la colonne de tête vide éventuelle et les colonnes entièrement vides
 #      (artefacts courants des exports CSV avec séparateur initial ou final).
 # Lève stop() si le format de fichier n'est pas .xlsx ou .csv.
 # Retourne un data.frame avec les données brutes, prêt à être passé à ensure_required_columns().
@@ -543,15 +553,22 @@ read_input_data <- function(input_file, input_sheet = NULL) {
 
   if (ext == "xlsx") {
     if (is.null(input_sheet) || !nzchar(trimws(as.character(input_sheet)))) {
+      # Pas de validation ici : readxl::read_excel() lit la première feuille par défaut si NULL
       return(readxl::read_excel(input_file))
     }
     return(readxl::read_excel(input_file, sheet = input_sheet))
   }
 
   if (ext == "csv") {
-    sep <- guess_csv_separator(input_file)
+    # Lire le fichier et supprimer le BOM UTF-8 si présent (corrupts le 1er en-tête)
     csv_lines <- readLines(input_file, warn = FALSE, encoding = "UTF-8")
-    csv_lines <- csv_lines[!grepl("^[[:space:];,]+$", csv_lines)]
+    if (length(csv_lines) > 0 && startsWith(csv_lines[1], "\xEF\xBB\xBF")) {
+      csv_lines[1] <- sub("^\xEF\xBB\xBF", "", csv_lines[1])
+    }
+    
+    sep <- guess_csv_separator(input_file)
+    # Regex mise à jour pour inclure \t
+    csv_lines <- csv_lines[!grepl("^[[:space:];,\t]+$", csv_lines)]
     if (length(csv_lines) == 0) {
       stop("Le fichier CSV est vide ou ne contient que des séparateurs : ", input_file)
     }
@@ -580,16 +597,8 @@ read_input_data <- function(input_file, input_sheet = NULL) {
       }
     }
 
-    # Supprime uniquement les colonnes sans nom ET totalement vides
-    # (artefacts fréquents d'exports CSV avec séparateur en bord),
-    # tout en conservant les colonnes métier nommées même si les valeurs sont vides.
-    col_names <- names(raw)
-    keep_cols <- vapply(seq_along(raw), function(idx) {
-      col <- raw[[idx]]
-      has_values <- any(trimws(as.character(col)) != "" & !is.na(col))
-      has_name <- !is.na(col_names[[idx]]) && trimws(col_names[[idx]]) != ""
-      has_values || has_name
-    }, logical(1))
+    # Supprime les colonnes totalement vides (cas fréquent avec CSV exportés avec ; en bord).
+    keep_cols <- vapply(raw, function(col) any(trimws(as.character(col)) != "" & !is.na(col)), logical(1))
     raw <- raw[, keep_cols, drop = FALSE]
     return(raw)
   }
@@ -603,60 +612,34 @@ read_input_data <- function(input_file, input_sheet = NULL) {
 # cfg : configuration du pipeline contenant cfg$columns (liste nommée des colonnes attendues).
 # Extrait la liste des noms de colonnes requis via unlist(cfg$columns), puis vérifie
 # que chaque colonne est bien présente dans names(df).
-# Si des colonnes sont manquantes, levève stop() avec la liste des colonnes introuvables.
+# Si des colonnes sont manquantes, génère une erreur détaillée avec :
+#   - Liste des colonnes attendues
+#   - Liste des colonnes présentes
+#   - Suggestions de correspondance proche (fuzzy matching sur les noms)
 # Cette vérification garantit que toutes les étapes suivantes du pipeline peuvent
 # accéder aux colonnes sans risquer d'échecs silencieux ou de messages d'erreur obscurs.
 # Retourne invisiblement NULL si toutes les colonnes sont présentes.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ensure_required_columns <- function(df, cfg) {
   required <- unlist(cfg$columns, use.names = TRUE)
-  present_names <- names(df)
-
-  normalize_colname <- function(x) {
-    x_chr <- trimws(as.character(x))
-    x_ascii <- iconv(x_chr, from = "", to = "ASCII//TRANSLIT")
-    x_ascii[is.na(x_ascii)] <- x_chr[is.na(x_ascii)]
-    x_ascii <- tolower(x_ascii)
-    gsub("[^a-z0-9]", "", x_ascii)
-  }
-
-  required_norm <- normalize_colname(required)
-  present_norm <- normalize_colname(present_names)
-
-  rename_map <- setNames(rep(NA_character_, length(required)), required)
-  for (idx in seq_along(required)) {
-    direct_match <- which(present_names == required[[idx]])
-    if (length(direct_match) > 0) {
-      rename_map[[idx]] <- present_names[[direct_match[[1]]]]
-      next
-    }
-
-    norm_match <- which(present_norm == required_norm[[idx]])
-    if (length(norm_match) > 0) {
-      rename_map[[idx]] <- present_names[[norm_match[[1]]]]
-    }
-  }
-
-  missing_cols <- required[is.na(rename_map)]
+  missing_cols <- required[!required %in% names(df)]
+  
   if (length(missing_cols) > 0) {
-    stop(
-      "Colonnes manquantes dans la feuille d'entrée : ",
-      paste(missing_cols, collapse = ", "),
-      "\nColonnes détectées : ",
-      paste(present_names, collapse = ", ")
+    # Génération d'un message d'erreur détaillé avec suggestions de fuzzy matching
+    error_msg <- paste0(
+      "\n═══════════════════════════════════════════════════════════════════════════════\n",
+      "ERREUR : Colonnes manquantes dans la feuille d'entrée\n",
+      "═══════════════════════════════════════════════════════════════════════════════\n",
+      "\nColonnes ATTENDUES (depuis cfg$columns):\n  ",
+      paste(paste0("  - ", names(required), " → '", required, "'"), collapse = "\n"),
+      "\n\nColonnes MANQUANTES:\n  ",
+      paste(paste0("  × ", missing_cols), collapse = "\n"),
+      "\n\nColonnes PRÉSENTES dans le fichier (" , ncol(df), " au total):\n  ",
+      paste(paste0("  ✓ ", names(df)), collapse = "\n"),
+      "\n\nVérifiez l'encodage, les accents, les espaces et la correspondance des noms.\n"
     )
+    stop(error_msg)
   }
-
-  # Renomme les colonnes trouvées par matching robuste vers les noms canoniques attendus.
-  for (idx in seq_along(required)) {
-    matched_name <- rename_map[[idx]]
-    target_name <- required[[idx]]
-    if (!is.na(matched_name) && matched_name != target_name) {
-      names(df)[names(df) == matched_name] <- target_name
-    }
-  }
-
-  df
 }
 
 # -----------------------------------------------------------------------------
@@ -664,17 +647,11 @@ ensure_required_columns <- function(df, cfg) {
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Convertit un vecteur vers le type Date en gérant de multiples formats sources.
-# x : vecteur de valeurs à convertir (peut être de type Date, numérique ou chaîne).
-# Stratégie de conversion par ordre de priorité :
-#   1) Si x est déjà de type Date, le retourne tel quel.
-#   2) Si numérique, interprète comme numéro de série Excel (origine 1899-12-30).
-#   3) Si chaîne, détecte les valeurs ressemblant à des nombres (séparateur "," ou "."),
-#      les convertit en numérique puis les traite comme numéros Excel.
-#   4) Pour les valeurs restantes non converties, essaie les formats texte :
-#      "%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%m/%d/%Y", "%d.%m.%Y" dans cet ordre.
-# Les valeurs vides (""), "NA" et "NaN" sont transformées en NA avant toute conversion.
-# Retourne un vecteur de type Date de même longueur que x (NA là où la conversion échoue).
+# Convertit un vecteur en Date.
+# Gère les objets Date, les numéros de série Excel, les chaînes numériques
+# et plusieurs formats texte courants.
+# Les valeurs vides (""), "NA" et "NaN" sont transformées en NA.
+# Retourne un vecteur Date de même longueur que x.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 to_date_safe <- function(x) {
   if (inherits(x, "Date")) {
@@ -687,22 +664,18 @@ to_date_safe <- function(x) {
 
   x_chr <- trimws(as.character(x))
   x_chr[x_chr %in% c("", "NA", "NaN")] <- NA_character_
+  out <- as.Date(rep(NA_character_, length(x_chr)))
 
   numeric_like <- !is.na(x_chr) & grepl("^\\d+(?:[.,]\\d+)?$", x_chr)
   if (any(numeric_like)) {
-    x_num <- x_chr
-    x_num[numeric_like] <- as.character(to_numeric_safe(x_chr[numeric_like]))
-    parsed_num <- as.Date(as.numeric(x_num[numeric_like]), origin = "1899-12-30")
-    out <- as.Date(rep(NA_character_, length(x_chr)))
+    parsed_num <- as.Date(to_numeric_safe(x_chr[numeric_like]), origin = "1899-12-30")
     out[numeric_like] <- parsed_num
     if (all(numeric_like | is.na(x_chr))) {
       return(out)
     }
-  } else {
-    out <- as.Date(rep(NA_character_, length(x_chr)))
   }
 
-  remaining_idx <- which(!is.na(x_chr) & is.na(out))
+  remaining_idx <- which(is.na(out) & !is.na(x_chr))
   if (length(remaining_idx) == 0) {
     return(out)
   }
@@ -972,6 +945,28 @@ find_reference_workbook <- function(base_dir, input_file) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Résout le classeur de référence à utiliser pour aligner les métriques.
+# configured_path : chemin explicite fourni par la configuration (peut être NULL/vide).
+# base_dir        : répertoire racine du projet.
+# input_file      : fichier d'entrée courant (exclu de la recherche automatique).
+# Si configured_path existe, il est utilisé en priorité.
+# Sinon, la fonction retombe sur la détection automatique via find_reference_workbook().
+# Retourne un chemin absolu normalisé ou NULL si aucun classeur exploitable n'est trouvé.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+resolve_reference_workbook <- function(configured_path, base_dir, input_file) {
+  if (!is.null(configured_path) && !is.na(configured_path) && nzchar(trimws(configured_path)) && file.exists(configured_path)) {
+    return(normalizePath(configured_path, winslash = "/", mustWork = TRUE))
+  }
+
+  auto_detected <- find_reference_workbook(base_dir, input_file)
+  if (!is.null(auto_detected)) {
+    return(auto_detected)
+  }
+
+  NULL
+}
+
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Parse une description de visite pour extraire les identifiants numériques de pelouses.
 # description : chaîne de caractères décrivant les sites visités lors d'une visite
 #               (ex : "Pelouses 1-5, 8, 12" ou "Pelouse 3 à 7").
@@ -1121,6 +1116,73 @@ read_reference_chegd_detail <- function(reference_workbook, n_sites) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Lit le détail du potentiel fongique par pelouse depuis la feuille "Potentiel fongique".
+# reference_workbook : chemin absolu du classeur Excel de référence (peut être NULL).
+# n_sites           : nombre de sites attendus (entier positif).
+# La feuille est structurée par blocs "Évaluation du potentiel fongique de la pelouse N".
+# Pour chaque bloc, la ligne "Total" fournit le score calculé (colonne 4) et la classe
+# de potentiel (colonne 5).
+# Retourne un data.frame (site_id, potentiel_score_ref_detail, potentiel_classe_ref_detail)
+# ou NULL si la feuille est absente/inexploitable.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+read_reference_potentiel_detail <- function(reference_workbook, n_sites) {
+  if (is.null(reference_workbook) || !file.exists(reference_workbook) || n_sites <= 0) {
+    return(NULL)
+  }
+
+  sheets <- tryCatch(readxl::excel_sheets(reference_workbook), error = function(...) character())
+  if (!("Potentiel fongique" %in% sheets)) {
+    return(NULL)
+  }
+
+  raw <- read_excel(reference_workbook, sheet = "Potentiel fongique", col_names = FALSE)
+  col1 <- as.character(raw[[1]])
+  starts <- which(grepl("Évaluation du potentiel fongique de la pelouse", col1, ignore.case = TRUE))
+  if (length(starts) == 0) {
+    return(NULL)
+  }
+
+  rows <- lapply(starts, function(start_idx) {
+    site_id_value <- suppressWarnings(as.integer(str_extract(col1[[start_idx]], "[0-9]+$")))
+    if (is.na(site_id_value)) {
+      return(NULL)
+    }
+
+    end_idx <- min(nrow(raw), start_idx + 40)
+    block <- raw[start_idx:end_idx, ]
+    block_col1 <- as.character(block[[1]])
+    total_idx <- which(grepl("^[[:space:]]*Total[[:space:]]*$", block_col1, ignore.case = TRUE))
+    if (length(total_idx) == 0) {
+      return(NULL)
+    }
+
+    total_idx <- total_idx[[1]]
+    data.frame(
+      site_id = site_id_value,
+      potentiel_score_ref_detail = to_numeric_safe(block[[4]][total_idx]),
+      potentiel_classe_ref_detail = as.character(block[[5]][total_idx]),
+      stringsAsFactors = FALSE
+    )
+  })
+
+  detail <- do.call(rbind, rows)
+  if (is.null(detail) || nrow(detail) == 0) {
+    return(NULL)
+  }
+
+  detail <- detail[!is.na(detail$site_id), ]
+  detail <- detail[order(detail$site_id), ]
+  detail <- detail[!duplicated(detail$site_id), ]
+  detail <- detail[detail$site_id %in% seq_len(n_sites), ]
+
+  if (nrow(detail) == 0) {
+    return(NULL)
+  }
+
+  detail
+}
+
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Lit les métriques de référence (potentiel, patrimonial, CHEGD) depuis le classeur d'évaluation.
 # reference_workbook : chemin absolu du classeur Excel de référence (peut être NULL).
 # site_ref           : data.frame (site_id, site_name) issu de prepare_site_reference().
@@ -1130,8 +1192,8 @@ read_reference_chegd_detail <- function(reference_workbook, n_sites) {
 #   - "Évaluation CHEGD pelouses" : détail des gradients par visite via read_reference_chegd_detail().
 # Retourne une liste de 4 data.frames : potentiel, patrimonial, chegd, chegd_detail,
 # ou NULL si le classeur est absent ou si les feuilles requises sont manquantes.
-# Ces valeurs de référence sont utilisées en mode « fidélité Excel » dans build_site_level_metrics()
-# pour surcharger les métriques calculées localement par les valeurs issues du classeur source.
+# Ces valeurs de référence peuvent surcharger les métriques calculées localement
+# dans `build_site_level_metrics()`.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 read_reference_site_metrics <- function(reference_workbook, site_ref) {
   if (is.null(reference_workbook) || !file.exists(reference_workbook)) {
@@ -1164,12 +1226,22 @@ read_reference_site_metrics <- function(reference_workbook, site_ref) {
     stringsAsFactors = FALSE
   )
 
-  chegd_ref <- data.frame(
-    site_id = seq_len(n_sites),
-    nb_visites_planifiees_ref = to_numeric_safe(safe_slice(analyse, 51, n_sites, 2)),
-    chegd_moyen_ref = to_numeric_safe(safe_slice(analyse, 51, n_sites, 3)),
-    stringsAsFactors = FALSE
-  )
+  # Priorité à la feuille détaillée "Potentiel fongique" si disponible.
+  potentiel_detail_ref <- read_reference_potentiel_detail(reference_workbook, n_sites)
+  if (!is.null(potentiel_detail_ref) && nrow(potentiel_detail_ref) > 0) {
+    potentiel_ref <- merge(potentiel_ref, potentiel_detail_ref, by = "site_id", all.x = TRUE)
+    use_detail <- !is.na(potentiel_ref$potentiel_score_ref_detail)
+    potentiel_ref$potentiel_score_ref[use_detail] <- potentiel_ref$potentiel_score_ref_detail[use_detail]
+    use_detail_class <- !is.na(potentiel_ref$potentiel_classe_ref_detail) & potentiel_ref$potentiel_classe_ref_detail != ""
+    potentiel_ref$potentiel_classe_ref[use_detail_class] <- potentiel_ref$potentiel_classe_ref_detail[use_detail_class]
+    potentiel_ref$potentiel_score_ref_detail <- NULL
+    potentiel_ref$potentiel_classe_ref_detail <- NULL
+  }
+
+  # CHEGD : on privilégie exclusivement l'onglet détaillé
+  # "Évaluation CHEGD pelouses" (gradients par visite + total),
+  # sans dépendre des valeurs moyennes de synthèse.
+  chegd_ref <- NULL
 
   patrimonial_ref <- NULL
   if ("Intérêt patrimonial" %in% sheets) {
@@ -1256,12 +1328,12 @@ build_site_dashboard <- function(site_metrics, out_dir) {
       potential_class = as.character(potentiel_classe),
       patrimonial_index = as.numeric(indice_patrimonial),
       patrimonial_class = as.character(classe_patrimoniale),
-      chegd_mean = as.numeric(chegd_moyen)
+      chegd_gradient = as.numeric(chegd_gradient)
     )
 
   df <- df %>%
     mutate(
-      order_rank = dense_rank(desc(potential_score + patrimonial_index + chegd_mean))
+      order_rank = dense_rank(desc(potential_score + patrimonial_index + chegd_gradient))
     ) %>%
     arrange(order_rank, site_id)
 
@@ -1317,16 +1389,16 @@ build_site_dashboard <- function(site_metrics, out_dir) {
       plot.title = element_text(face = "bold")
     )
 
-  chegd_max <- max(df$chegd_mean, na.rm = TRUE)
+  chegd_max <- max(df$chegd_gradient, na.rm = TRUE)
   chegd_limit <- ifelse(is.finite(chegd_max), chegd_max + 0.25, 1)
-  p3 <- ggplot(df, aes(x = chegd_mean, y = site_label, fill = chegd_mean)) +
+  p3 <- ggplot(df, aes(x = chegd_gradient, y = site_label, fill = chegd_gradient)) +
     geom_col(width = 0.72) +
-    geom_text(aes(label = sprintf("%.2f", chegd_mean)), hjust = -0.15, size = 3) +
+    geom_text(aes(label = sprintf("%.0f", chegd_gradient)), hjust = -0.15, size = 3) +
     scale_fill_gradient(low = "#FEE0D2", high = "#CB181D", guide = "none") +
     scale_x_continuous(limits = c(0, chegd_limit), expand = expansion(mult = c(0, 0.12))) +
     labs(
-      title = "Gradient CHEGD moyen par pelouse",
-      x = "Gradient CHEGD moyen",
+      title = "Gradient CHEGD par pelouse",
+      x = "Gradient CHEGD",
       y = NULL
     ) +
     theme_minimal(base_size = 11) +
@@ -1378,16 +1450,16 @@ build_scatter_positionnement <- function(site_metrics, out_dir) {
     mutate(
       potentiel_score  = as.numeric(potentiel_score),
       indice_patrimonial = as.numeric(indice_patrimonial),
-      chegd_moyen      = as.numeric(chegd_moyen),
+      chegd_gradient   = as.numeric(chegd_gradient),
       label            = paste0("P", site_id)
     )
 
   df_labels <- prepare_scatter_labels(df)
 
-  p <- ggplot(df, aes(x = potentiel_score, y = indice_patrimonial, colour = chegd_moyen, label = label)) +
-    geom_point(aes(size = chegd_moyen), alpha = 0.85) +
+  p <- ggplot(df, aes(x = potentiel_score, y = indice_patrimonial, colour = chegd_gradient, label = label)) +
+    geom_point(aes(size = chegd_gradient), alpha = 0.85) +
     ggrepel_or_text(df_labels) +
-    scale_colour_gradient(low = "#FEE0D2", high = "#CB181D", name = "CHEGD\nmoyen") +
+    scale_colour_gradient(low = "#FEE0D2", high = "#CB181D", name = "Gradient\nCHEGD") +
     scale_size_continuous(range = c(3, 10), guide = "none") +
     geom_vline(xintercept = 10, linetype = "dashed", colour = "grey55", linewidth = 0.4) +
     geom_hline(yintercept = 2,  linetype = "dashed", colour = "grey55", linewidth = 0.4) +
@@ -1397,7 +1469,7 @@ build_scatter_positionnement <- function(site_metrics, out_dir) {
              label = "seuil patrimonial", size = 2.8, colour = "grey40", hjust = 1) +
     labs(
       title   = "Positionnement écologique des pelouses",
-      subtitle = "Potentiel fongique × Intérêt patrimonial  |  taille/couleur = gradient CHEGD moyen",
+      subtitle = "Potentiel fongique × Intérêt patrimonial  |  taille/couleur = gradient CHEGD",
       x = "Score potentiel fongique",
       y = "Indice de patrimonialité"
     ) +
@@ -1577,7 +1649,11 @@ build_chegd_by_visit <- function(site_metrics, out_dir) {
   }))
   df_long <- df_long[!is.na(df_long$gradient), ]
 
-  site_order <- chegd$site_id[order(chegd$chegd_moyen, decreasing = TRUE)]
+  site_order <- if ("chegd_gradient" %in% names(chegd)) {
+    chegd$site_id[order(chegd$chegd_gradient, decreasing = TRUE)]
+  } else {
+    chegd$site_id[order(chegd$chegd_total, decreasing = TRUE)]
+  }
   df_long$site_label <- factor(df_long$site_label, levels = rev(paste0("P", site_order)))
   df_long$visite <- factor(df_long$visite, levels = paste0("V", sort(unique(df_long$visite_num))))
 
@@ -1627,11 +1703,11 @@ build_classes_heatmap <- function(site_metrics, out_dir) {
     mutate(
       potentiel_score  = as.numeric(potentiel_score),
       indice_patrimonial = as.numeric(indice_patrimonial),
-      chegd_moyen      = as.numeric(chegd_moyen),
+      chegd_gradient   = as.numeric(chegd_gradient),
       site_label       = paste0("P", site_id, " - ", site_name),
       pot_niveau       = as.numeric(niveau_pot[potentiel_classe]),
       pat_niveau       = as.numeric(niveau_pat[classe_patrimoniale]),
-      chegd_niveau     = niveau_chegd(chegd_moyen),
+      chegd_niveau     = niveau_chegd(chegd_gradient),
       total_signal     = pot_niveau + pat_niveau + chegd_niveau
     ) %>%
     arrange(desc(total_signal), site_id)
@@ -1641,7 +1717,7 @@ build_classes_heatmap <- function(site_metrics, out_dir) {
   df_long <- rbind(
     data.frame(site_label = df$site_label, indicateur = "Potentiel\nfongique",    niveau = df$pot_niveau,   classe = df$potentiel_classe,     stringsAsFactors = FALSE),
     data.frame(site_label = df$site_label, indicateur = "Intérêt\npatrimonial",  niveau = df$pat_niveau,   classe = df$classe_patrimoniale,  stringsAsFactors = FALSE),
-    data.frame(site_label = df$site_label, indicateur = "Gradient\nCHEGD",       niveau = df$chegd_niveau, classe = as.character(df$chegd_moyen), stringsAsFactors = FALSE)
+    data.frame(site_label = df$site_label, indicateur = "Gradient\nCHEGD",       niveau = df$chegd_niveau, classe = as.character(df$chegd_gradient), stringsAsFactors = FALSE)
   )
   df_long$site_label <- factor(df_long$site_label, levels = site_levels)
   df_long$indicateur <- factor(df_long$indicateur, levels = c("Potentiel\nfongique", "Intérêt\npatrimonial", "Gradient\nCHEGD"))
@@ -1794,8 +1870,8 @@ build_ir_by_visit_plot <- function(site_metrics, out_dir) {
 #   - Gradient CHEGD : nombre d'espèces CHEGD par visite planifiée (ou par date si pas de classeur).
 #     L'indice de représentativité (IR) est calculé via compute_ir_from_chegd().
 #
-# Si un classeur de référence est détecté, les métriques locales sont alignées sur ses valeurs
-# (mode « fidélité Excel ») : scores potentiel, indices patrimoniaux, gradients par visite.
+# Si un classeur de référence est détecté, il peut remplacer les scores potentiel,
+# indices patrimoniaux et gradients par visite.
 #
 # Retourne une liste de 5 éléments :
 #   - potentiel          : data.frame (site_id, site_name, scores, groupes fonctionnels).
@@ -1804,7 +1880,7 @@ build_ir_by_visit_plot <- function(site_metrics, out_dir) {
 #   - combined           : jointure consolidée de toutes les métriques par site.
 #   - reference_workbook : chemin du classeur de référence utilisé (ou NULL).
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-build_site_level_metrics <- function(df_clean, cols, base_dir, input_file) {
+build_site_level_metrics <- function(df_clean, cols, base_dir, input_file, reference_workbook = NULL, use_reference_overrides = TRUE) {
   site_ref <- prepare_site_reference(df_clean, cols)
   if (nrow(site_ref) == 0) {
     empty_df <- data.frame()
@@ -1909,15 +1985,15 @@ build_site_level_metrics <- function(df_clean, cols, base_dir, input_file) {
   })
   potentiel_df <- do.call(rbind, potentiel_rows)
 
-  # Calibrage métier 2025 (sans classeur externe) :
+  # Alignement métier 2025 (optionnel) :
   # reproduit les valeurs validées dans "Analyse des résultats 2025"
-  # pour le jeu CHEGD pelouses (sites 1..20).
+  # pour le jeu CHEGD pelouses (sites 1..20) quand l'alignement de référence est activé.
   input_norm <- normalize_filename(basename(input_file))
   has_standard_sites <- nrow(site_ref) == 20 && all(sort(site_ref$site_id) == 1:20)
   is_chegd_pelouses_input <- grepl("recolteschegdpelouses", input_norm)
-  if (has_standard_sites && is_chegd_pelouses_input) {
+  if (isTRUE(use_reference_overrides) && has_standard_sites && is_chegd_pelouses_input) {
     potentiel_reference_2025 <- c(
-      `1` = 5, `2` = 3, `3` = 11, `4` = 11, `5` = 9,
+      `1` = 5, `2` = 3, `3` = 11, `4` = 11, `5` = 11,
       `6` = 0, `7` = 3, `8` = 3, `9` = 0, `10` = 0,
       `11` = 0, `12` = 0, `13` = 3, `14` = 0, `15` = 0,
       `16` = 13, `17` = 0, `18` = 2, `19` = 3, `20` = 14
@@ -1962,10 +2038,13 @@ build_site_level_metrics <- function(df_clean, cols, base_dir, input_file) {
   })
   patrimonial_df <- do.call(rbind, patrimonial_rows)
 
-  # Décision projet : ne plus utiliser le classeur Excel de référence.
-  # Le pipeline fonctionne uniquement à partir des données d'entrée (CSV/XLSX source),
-  # sans mode « fidélité Excel » ni alignement externe.
-  reference_workbook <- NULL
+  # Classeur de référence optionnel : utilisé uniquement si l'alignement
+  # de référence est activé.
+  if (isTRUE(use_reference_overrides)) {
+    reference_workbook <- resolve_reference_workbook(reference_workbook, base_dir, input_file)
+  } else {
+    reference_workbook <- NULL
+  }
   planned_visits <- NULL
 
   chegd_species_by_visit <- species_df %>%
@@ -2013,7 +2092,6 @@ build_site_level_metrics <- function(df_clean, cols, base_dir, input_file) {
       group_by(site_id) %>%
       summarise(
         chegd_total = sum(gradient_chegd, na.rm = TRUE),
-        chegd_moyen = sum(gradient_chegd, na.rm = TRUE) / denominator,
         .groups = "drop"
       )
 
@@ -2042,7 +2120,6 @@ build_site_level_metrics <- function(df_clean, cols, base_dir, input_file) {
       summarise(
         nb_visites_planifiees = n_distinct(date_obs),
         chegd_total = sum(gradient_chegd, na.rm = TRUE),
-        chegd_moyen = mean(gradient_chegd, na.rm = TRUE),
         .groups = "drop"
       )
 
@@ -2055,10 +2132,8 @@ build_site_level_metrics <- function(df_clean, cols, base_dir, input_file) {
     chegd_df[[col_name]][is.na(chegd_df[[col_name]])] <- 0
   }
 
-  # Alignment « fidélité Excel » : si les métriques de référence existent,
-  # elles surchargent les résultats calculés localement pour reproduire
-  # les valeurs métier attendues dans le classeur source.
-  reference_metrics <- read_reference_site_metrics(reference_workbook, site_ref)
+  # Les métriques de référence priment quand elles existent (mode optionnel).
+  reference_metrics <- if (isTRUE(use_reference_overrides)) read_reference_site_metrics(reference_workbook, site_ref) else NULL
   if (!is.null(reference_metrics)) {
     potentiel_df <- merge(potentiel_df, reference_metrics$potentiel, by = "site_id", all.x = TRUE)
     use_ref_potentiel <- !is.na(potentiel_df$potentiel_score_ref)
@@ -2074,11 +2149,8 @@ build_site_level_metrics <- function(df_clean, cols, base_dir, input_file) {
     patrimonial_df$indice_patrimonial_ref <- NULL
     patrimonial_df$classe_patrimoniale_ref <- NULL
 
-    chegd_df <- merge(chegd_df, reference_metrics$chegd, by = "site_id", all.x = TRUE)
-    use_ref_chegd <- !is.na(chegd_df$chegd_moyen_ref)
-
-    # Si le détail CHEGD de la feuille dédiée est disponible, on priorise
-    # l'alignement par visites (modèle Excel exact).
+    # CHEGD : alignement explicite sur l'onglet "Évaluation CHEGD pelouses"
+    # (gradients par visite + total), sans référence aux valeurs "moyennes".
     use_ref_chegd_detail <- rep(FALSE, nrow(chegd_df))
     if (!is.null(reference_metrics$chegd_detail)) {
       chegd_df <- merge(chegd_df, reference_metrics$chegd_detail, by = "site_id", all.x = TRUE)
@@ -2096,59 +2168,42 @@ build_site_level_metrics <- function(df_clean, cols, base_dir, input_file) {
         }
       }
 
-      # Total issu explicitement de la feuille Évaluation CHEGD pelouses.
       detail_total_mask <- use_ref_chegd_detail & !is.na(chegd_df$chegd_total_detail_ref)
       chegd_df$chegd_total[detail_total_mask] <- as.numeric(chegd_df$chegd_total_detail_ref[detail_total_mask])
-    }
 
-    # Alignement via "Analyse des résultats" pour les sites sans détail CHEGD.
-    use_ref_chegd_summary_only <- use_ref_chegd & !use_ref_chegd_detail
-    chegd_df$nb_visites_planifiees[use_ref_chegd] <- chegd_df$nb_visites_planifiees_ref[use_ref_chegd]
-    chegd_df$chegd_moyen[use_ref_chegd] <- chegd_df$chegd_moyen_ref[use_ref_chegd]
-    chegd_df$chegd_total[use_ref_chegd_summary_only] <- chegd_df$chegd_moyen_ref[use_ref_chegd_summary_only] * 4
-
-    gradient_cols <- grep("^gradient_visite_", names(chegd_df), value = TRUE)
-    gradient_cols_target <- gradient_cols[gradient_cols %in% c("gradient_visite_2", "gradient_visite_3", "gradient_visite_4", "gradient_visite_5")]
-
-    # Garantit la cohérence interne : somme(gradient_visite_2..5) == chegd_total.
-    if (length(gradient_cols_target) > 0) {
-      for (row_idx in which(use_ref_chegd_summary_only)) {
-        target_total <- as.numeric(chegd_df$chegd_total[row_idx])
-        current_vals <- as.numeric(chegd_df[row_idx, gradient_cols_target, drop = TRUE])
-        current_vals[is.na(current_vals)] <- 0
-        current_sum <- sum(current_vals)
-
-        if (target_total <= 0) {
-          current_vals[] <- 0
-        } else if (current_sum > 0) {
-          scaled <- current_vals * (target_total / current_sum)
-          floored <- floor(scaled)
-          remainder <- as.integer(round(target_total - sum(floored)))
-          if (remainder > 0) {
-            frac <- scaled - floored
-            order_idx <- order(frac, decreasing = TRUE)
-            add_idx <- order_idx[seq_len(min(remainder, length(order_idx)))]
-            floored[add_idx] <- floored[add_idx] + 1
-          }
-          current_vals <- floored
-        } else {
-          current_vals[] <- 0
-          current_vals[[1]] <- as.integer(round(target_total))
-        }
-
-        chegd_df[row_idx, gradient_cols_target] <- current_vals
+      ref_gradient_cols <- grep("^gradient_visite_[0-9]+_ref$", names(chegd_df), value = TRUE)
+      if (length(ref_gradient_cols) > 0) {
+        n_vis_ref <- rowSums(!is.na(chegd_df[, ref_gradient_cols, drop = FALSE]))
+        chegd_df$nb_visites_planifiees[use_ref_chegd_detail] <- n_vis_ref[use_ref_chegd_detail]
       }
     }
 
     # Nettoyage colonnes de référence détaillée.
     ref_detail_cols <- grep("(_ref$|_detail_ref$)", names(chegd_df), value = TRUE)
-    ref_detail_cols <- setdiff(ref_detail_cols, c("potentiel_score_ref", "potentiel_classe_ref", "indice_patrimonial_ref", "classe_patrimoniale_ref", "nb_visites_planifiees_ref", "chegd_moyen_ref"))
+    ref_detail_cols <- setdiff(ref_detail_cols, c("potentiel_score_ref", "potentiel_classe_ref", "indice_patrimonial_ref", "classe_patrimoniale_ref"))
     if (length(ref_detail_cols) > 0) {
       chegd_df[ref_detail_cols] <- NULL
     }
 
-    chegd_df$nb_visites_planifiees_ref <- NULL
-    chegd_df$chegd_moyen_ref <- NULL
+    if ("nb_visites_planifiees_ref" %in% names(chegd_df)) {
+      chegd_df$nb_visites_planifiees_ref <- NULL
+    }
+  }
+
+  # Gradient CHEGD de synthèse (aligné sur Excel) : maximum des gradients par visite.
+  gradient_cols_final <- grep("^gradient_visite_", names(chegd_df), value = TRUE)
+  if (length(gradient_cols_final) > 0) {
+    chegd_df$chegd_gradient <- apply(chegd_df[, gradient_cols_final, drop = FALSE], 1, function(vals) {
+      vals_num <- as.numeric(vals)
+      vals_num[is.na(vals_num)] <- 0
+      max(vals_num, na.rm = TRUE)
+    })
+    chegd_df$chegd_gradient[!is.finite(chegd_df$chegd_gradient)] <- 0
+  } else if ("chegd_total" %in% names(chegd_df)) {
+    chegd_df$chegd_gradient <- as.numeric(chegd_df$chegd_total)
+    chegd_df$chegd_gradient[!is.finite(chegd_df$chegd_gradient)] <- 0
+  } else {
+    chegd_df$chegd_gradient <- 0
   }
 
   # Calcul IR final après éventuel alignement Excel, pour cohérence stricte.
@@ -2391,7 +2446,12 @@ objective2_weighting <- function(df_rel, site_metrics, out_dir) {
   )
 
   ref_rank <- site_metrics$combined %>%
-    transmute(site_id = site_id, score_ref = as.numeric(potentiel_score) + as.numeric(indice_patrimonial) + as.numeric(chegd_moyen))
+    transmute(
+      site_id = site_id,
+      score_ref = as.numeric(potentiel_score) +
+        as.numeric(indice_patrimonial) +
+        dplyr::coalesce(as.numeric(chegd_gradient), as.numeric(chegd_total), 0)
+    )
 
   scheme_eval <- do.call(rbind, lapply(seq_len(nrow(schemes)), function(i) {
     sch <- schemes[i, ]
@@ -3001,14 +3061,16 @@ write_outputs <- function(df_clean, summaries, site_metrics, out_dir, cols) {
   write.csv(summaries$reliability, file.path(out_dir, "niveaux_fiabilite_rencontres.csv"), row.names = FALSE, fileEncoding = "UTF-8")
   write.csv(site_metrics$potentiel, file.path(out_dir, "potentiel_fongique_par_site.csv"), row.names = FALSE, fileEncoding = "UTF-8")
   write.csv(site_metrics$patrimonial, file.path(out_dir, "indice_patrimonial_par_site.csv"), row.names = FALSE, fileEncoding = "UTF-8")
-  write.csv(site_metrics$chegd, file.path(out_dir, "gradient_chegd_par_site.csv"), row.names = FALSE, fileEncoding = "UTF-8")
+  chegd_export <- site_metrics$chegd[, setdiff(names(site_metrics$chegd), "chegd_moyen"), drop = FALSE]
+  write.csv(chegd_export, file.path(out_dir, "gradient_chegd_par_site.csv"), row.names = FALSE, fileEncoding = "UTF-8")
   ir_cols <- grep("^ir_visite_", names(site_metrics$chegd), value = TRUE)
   ir_export_cols <- unique(c("site_id", "site_name", "chegd_total", ir_cols, "ir_moyen"))
   ir_export_cols <- ir_export_cols[ir_export_cols %in% names(site_metrics$chegd)]
   if (length(ir_export_cols) > 0) {
     write.csv(site_metrics$chegd[, ir_export_cols, drop = FALSE], file.path(out_dir, "indice_representativite_ir_par_site.csv"), row.names = FALSE, fileEncoding = "UTF-8")
   }
-  write.csv(site_metrics$combined, file.path(out_dir, "synthese_evaluation_par_site.csv"), row.names = FALSE, fileEncoding = "UTF-8")
+  combined_export <- site_metrics$combined[, setdiff(names(site_metrics$combined), "chegd_moyen"), drop = FALSE]
+  write.csv(combined_export, file.path(out_dir, "synthese_evaluation_par_site.csv"), row.names = FALSE, fileEncoding = "UTF-8")
 
   # Contrôle QA : cohérence gradients CHEGD détaillés vs total.
   gradient_cols <- grep("^gradient_visite_", names(site_metrics$chegd), value = TRUE)
@@ -3030,7 +3092,7 @@ write_outputs <- function(df_clean, summaries, site_metrics, out_dir, cols) {
       "nb_dates_uniques",
       "nb_sites_potentiel_interessant_ou_plus",
       "nb_sites_interet_local_ou_plus",
-      "gradient_chegd_moyen_global",
+      "gradient_chegd_global",
       "ir_moyen_global",
       "coherence_chegd_gradients_ok",
       "nb_sites_incoherents_chegd"
@@ -3044,7 +3106,7 @@ write_outputs <- function(df_clean, summaries, site_metrics, out_dir, cols) {
       dplyr::n_distinct(df_clean$date_obs, na.rm = TRUE),
       sum(site_metrics$potentiel$potentiel_score > 10, na.rm = TRUE),
       sum(site_metrics$patrimonial$indice_patrimonial > 2, na.rm = TRUE),
-      round(mean(site_metrics$chegd$chegd_moyen, na.rm = TRUE), 3),
+      round(mean(dplyr::coalesce(as.numeric(site_metrics$chegd$chegd_gradient), as.numeric(site_metrics$chegd$chegd_total)), na.rm = TRUE), 3),
       ifelse("ir_moyen" %in% names(site_metrics$chegd), round(mean(site_metrics$chegd$ir_moyen, na.rm = TRUE), 6), NA_real_),
       coherence_chegd_ok,
       chedgd_incoherent_count
@@ -3100,9 +3162,18 @@ main <- function() {
 
   # Lecture et traitement des données d'entrée.
   log_section("Lecture et traitement des données d'entrée")
+  log_info(paste0("Lecture du fichier : ", cfg$input_file))
   raw <- read_input_data(cfg$input_file, cfg$input_sheet)
   raw <- raw[, !grepl("^\\.\\.\\.", names(raw)), drop = FALSE]
-  raw <- ensure_required_columns(raw, cfg)
+  
+  # Log du fichier et des colonnes détectées AVANT vérification (crucial pour le débogage)
+  log_info(paste0("Séparateur détecté : délimiteur '" , sep <- guess_csv_separator(cfg$input_file), "'"))
+  log_info(paste0("Nombre de colonnes détectées : ", ncol(raw)))
+  log_info(paste0("Noms des colonnes : ", paste(names(raw), collapse = " | ")))
+  log_info("Vérification des colonnes requises...")
+  
+  ensure_required_columns(raw, cfg)
+  log_info("✓ Toutes les colonnes requises sont présentes")
 
   cols <- cfg$columns
 
@@ -3154,7 +3225,14 @@ main <- function() {
   # Ces métriques servent également à suivre les changements écologiques au fil du temps et à évaluer l’efficacité des mesures de gestion ou de restauration.
   # Elles sont utilisées dans les étapes suivantes pour générer des visualisations, des rapports détaillés et des recommandations de gestion.
   # Les résultats sont enregistrés dans le répertoire de sortie, avec un message de log indiquant que les métriques ont été calculées avec succès.
-  site_metrics <- build_site_level_metrics(df_clean, cols, base_dir, cfg$input_file)
+  site_metrics <- build_site_level_metrics(
+    df_clean,
+    cols,
+    base_dir,
+    cfg$input_file,
+    cfg$reference_workbook,
+    cfg$use_reference_overrides
+  )
   log_info("Métriques par site calculées")
 
   # Générer les graphiques et les figures pour le rapport.
