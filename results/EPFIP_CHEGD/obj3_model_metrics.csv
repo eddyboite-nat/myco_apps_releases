@@ -1,4 +1,4 @@
 "objectif","candidat","metric_primary","metric_secondary","metric_accuracy","metric_macro_f1","metric_logloss","selected"
-"Objectif3_Modeles","baseline_majority",0.8707,0.7711,0.7711,0.8707,7.9236,1
-"Objectif3_Modeles","multinom",0.5078,NA,NA,0.5078,7.2619,0
-"Objectif3_Modeles","polr",NA,NA,NA,NA,NA,0
+"Objectif3_Modeles","baseline_majority",0.879,0.7841,0.7841,0.879,7.4495,1
+"Objectif3_Modeles","multinom",0.7045,NA,NA,0.7045,5.0881,0
+"Objectif3_Modeles","polr",0.575,NA,NA,0.575,2.1533,0

@@ -1,0 +1,6 @@
+"rule","failed_sites","total_sites"
+"qa_gradient_non_negative",0,20
+"qa_gradient_equals_max_visit",0,20
+"qa_total_equals_sum_visits",0,20
+"qa_ir_bounds",0,20
+"qa_overall",0,20

@@ -1,84 +1,89 @@
 "Espèces","Famille","Date","Nombre d'espèce","Prélèvement","Fungarium","N° Exsiccata","Récolteur(s)","Déterminateur(s)","Légataire récolte","Site","Fiabilité détermination","Commentaire","date_obs","nombre_espece_num"
-"Tubaria furfuracea (Pers.) Gillet","Tubariaceae","27/09/2025","3","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 20","Probable","",2025-09-27,3
-"Agrocybe pediades (Fr.) Fayod","Strophariaceae","27/09/2025","2","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 20","Probable","",2025-09-27,2
-"Caloboletus radicans (Pers.) Vizzini","Boletaceae","27/09/2025","2","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 20","Certaine","",2025-09-27,2
-"Agaricus campestris","Agaricaceae","15/10/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 3","Probable","Non prélevé car exemplaire.",2025-10-15,1
-"Lycoperdon perlatum","Agaricaceae","27/09/2025","2","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 19","Certaine","",2025-09-27,2
+"Tubaria furfuracea (Pers.) Gillet","Tubariaceae","27/09/2025","3","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 20","Probable","Non prélevé car trop peu d’exemplaire mature.",2025-09-27,3
+"Agrocybe pediades (Fr.) Fayod","Strophariaceae","27/09/2025","2","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 20","Probable","Non prélevé car trop peu d’exemplaire mature.",2025-09-27,2
+"Caloboletus radicans (Pers.) Vizzini","Boletaceae","27/09/2025","2","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 20","Certaine","Non prélevé car trop peu d’exemplaire.",2025-09-27,2
+"Agrocybe dura (Bolt.) Singer","Strophariaceae","27/09/2025","2","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 20","Certaine","Non prélevé car seul exemplaire et dégradé.",2025-09-27,2
+"Lycoperdon perlatum Pers., nom. sanct.","Agaricaceae","27/09/2025","2","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 19","Certaine","Non prélevé car trop peu d’exemplaire mature.",2025-09-27,2
 "Agaricus campestris L., nom. sanct.","Agaricaceae","27/09/2025","3","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 19","Certaine","Non prélevé individus dégradé.",2025-09-27,3
-"Marasmius oreades (Bolt.) Fr.","Marasmiaceae","27/09/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 19","Probable","",2025-09-27,1
+"Marasmius oreades (Bolt.) Fr.","Marasmiaceae","27/09/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 19","Probable","Non prélevé car trop peu d’exemplaire mature.",2025-09-27,1
 "Bolbitius titubans (Bull.) Fr.","Bolbitiaceae","27/09/2025","1","Oui","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 18","Probable","Individu très abîmé. Pas d'exsiccatum.",2025-09-27,1
+"Agaricus campestris L., nom. sanct.","Agaricaceae","27/09/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 16","Probable","Non prélevé car seul exemplaire.",2025-09-27,1
+"Volvopluteus gloiocephalus (DC.) Vizzini, Contu & Justo","Pluteaceae","27/09/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 16","Certaine","",2025-09-27,1
 "Coprinopsis pseudonivea (Bender & Uljé) Redhead, Vilgalys & Moncalvo","Psathyrellaceae","27/09/2025","3","Oui","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 16","Certaine","Espèce fimicole. Validation macro et micro (spore mitriforme). Déliquescence rapide. Pas d'exsiccatum.",2025-09-27,3
-"Hymenopellis radicata (Relhan) R.H. Petersen","Physalacriaceae","15/10/2025","5","Oui","Oui","RNNCA-P03-151025-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 3","Certaine","Proximité feuillu moribond.",2025-10-15,5
-"Coprinellus micaceus","Psathyrellaceae","15/10/2025","6","Oui","Oui","RNNCA-P03-151025-002","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 3","Certaine","Sporée noire, lames déliquescentes rapidement.",2025-10-15,6
-"Bolbitius titubans","Bolbitiaceae","15/10/2025","1","Oui","Oui","RNNCA-P03-151025-003","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 3","Certaine","",2025-10-15,1
-"Hygrocybe euroflavescens","Hygrophoraceae","15/10/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 3","Probable","Non prélevé car seul exemplaire.",2025-10-15,1
-"Hygrocybe conica","Hygrophoraceae","15/10/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 3","Probable","Non prélevé car seul exemplaire chétif.",2025-10-15,1
-"Agaricus campestris","Agaricaceae","15/10/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 3","Probable","Non prélevé car exemplaire déjà dégradé.",2025-10-15,1
-"Lepista sordida","Tricholomataceae","15/10/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 5","Probable","",2025-10-15,1
-"Russula foetens","Russulaceae","15/10/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 13","Probable","Individu déjà très dégradé",2025-10-15,1
-"Hygrocybe conica","Hygrophoraceae","16/11/2025","2","Oui","Oui","RNNCA-P04-161125-002","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 4","Probable","",2025-11-16,2
-"Cuphophyllus virgineus","Hygrophoraceae","16/11/2025","10","Oui","Oui","RNNCA-P04-161125-003","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 4","Probable","",2025-11-16,10
-"Hygrocybe euroflavescens","Hygrophoraceae","16/11/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 4","Probable","Non prélevé car seul exemplaire.",2025-11-16,1
-"Hebeloma sp","Strophariaceae","16/11/2025","1","Oui","Oui","RNNCA-P04-161125-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 4","Probable","A déterminer en microscopie pour avoir une certitude",2025-11-16,1
-"Agaricus campestris","Agaricaceae","16/11/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 4","Probable","Non prélevé car exemplaire déjà dégradé.",2025-11-16,1
-"Agaricus cupreobrunneus","Agaricaceae","15/10/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 5","Probable","Un seul individu abîmé.",2025-10-15,1
-"Cuphophyllus virgineus","Hygrophoraceae","16/11/2025","11","Oui","Oui","RNNCA-P05-161125-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 5","Probable","",2025-11-16,11
-"Hygrocybe conica","Hygrophoraceae","16/11/2025","4","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 5","Probable","Individus dégradés.",2025-11-16,4
-"Hygrocybe euroflavescens","Hygrophoraceae","16/11/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 5","Probable","Individu déjà très dégradé.",2025-11-16,1
-"Cuphophyllus russocoriacea","Hygrophoraceae","16/11/2025","1","Oui","Oui","RNNCA-P05-161125-003","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 5","Probable","",2025-11-16,1
-"Cuphophyllus berkeleyii","Hygrophoraceae","16/11/2025","1","Oui","Oui","RNNCA-P05-161125-002","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 5","Probable","",2025-11-16,1
-"Cuphophyllus virgineus","Hygrophoraceae","16/11/2025","4","Oui","Oui","RNNCA-P07-161125-002","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 7","Probable","",2025-11-16,4
-"Clitocybe dealbata (rivulosa)","Clitocybaceae","16/11/2025","2","Oui","Oui","RNNCA-P07-161125-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 7","Probable","",2025-11-16,2
-"Tubaria conspersa","Tubariaceae","16/11/2025","1","Oui","Oui","RNNCA-P08-161125-002","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 8","Probable","",2025-11-16,1
-"Clitocybe dealbata (rivulosa)","Clitocybaceae","16/11/2025","1","Oui","Oui","RNNCA-P08-161125-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 8","Probable","",2025-11-16,1
-"Galerina sp","Hymenogastraceae","16/11/2025","2","Oui","Oui","RNNCA-P08-161125-003","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 8","","A déterminer en microscopie pour avoir une certitude : Pas Entoloma !",2025-11-16,2
-"Mycena stylobates","Mycenaceae","16/11/2025","1","Oui","Oui","RNNCA-P03-161125-003","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 3","Probable","Sur feuille de chêne avec disque basale cilié.",2025-11-16,1
-"Volvopluteus gloiocephalus","Pluteaceae","16/11/2025","1","Oui","Oui","RNNCA-P03-161125-002","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 3","Certaine","",2025-11-16,1
-"Cuphophyllus virgineus","Hygrophoraceae","16/11/2025","30","Oui","Oui","RNNCA-P03-161125-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 3","Probable","",2025-11-16,30
-"Agaricus campestris","Agaricaceae","27/09/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 16","Probable","Non prélevé car seul exemplaire.",2025-09-27,1
-"Agrocybe dura","Strophariaceae ","27/09/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 16","Probable","Non prélevé car seul exemplaire et dégradé.",2025-09-27,1
-"Hygrocybe conica","Hygrophoraceae","16/11/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 16","Probable","Individu déjà très dégradé.",2025-11-16,1
-"Cuphophyllus flavipes","Hygrophoraceae","16/11/2025","1","Oui","Oui","RNNCA-P16-161125-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 16","Probable","",2025-11-16,1
-"Mycena leptocephala","Mycenaceae","16/11/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 16","Probable","Individu déjà très dégradé.",2025-11-16,1
-"Cuphophyllus virgineus","Hygrophoraceae","16/11/2025","3","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 16","Probable","Déjà prélevé en 2024, peu d’individus présents.",2025-11-16,3
-"Hygrocybe conica","Hygrophoraceae","16/11/2026","5","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 16","Probable","Individus déjà très dégradés.",2026-11-16,5
-"Hebeloma sp","Strophariaceae","16/11/2025","1","Oui","Oui","RNNCA-P18-161125-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 18","Probable","A déterminer (genre très compliqué, probabilité de séquençage)",2025-11-16,1
-"Hygrocybe euroflavescens","Hygrophoraceae","16/11/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 16","Probable","Non prélevé car seul exemplaire.",2025-11-16,1
-"Trametes pubescens","Polyporaceae","16/11/2025","12","Oui","Oui","RNNCA-P19-161125-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 19","Certaine","",2025-11-16,12
-"Agrocybe dura","Strophariaceae","27/09/2025","2","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 20","Certaine","Non prélevé car seul exemplaire et dégradé.",2025-09-27,2
-"Hygrocybe euroflavescens","Hygrophoraceae","16/11/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 20","Probable","Non prélevé car seul exemplaire et dégradé.",2025-11-16,1
-"Tapinella panuoides","Tapinellaceae","29/11/2025","3","Oui","Oui","RNNCA-P20-291125-003","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 20","","Sporée brune. Micro à effectuer pour confirmer",2025-11-29,3
-"Hygrocybe conica","Hygrophoraceae","16/11/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 20","Probable","Individus dégradés, trop peu nombreux.",2025-11-16,1
-"Cuphophyllus virgineus","Hygrophoraceae","16/11/2025","2","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 20","Probable","Individus abîmés, trop peu nombreux pour un prélèvement.",2025-11-16,2
-"Tubaria sp","Tubariaceae","29/11/2025","4","Oui","Oui","RNNCA-P20-291125-002","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 20","","Tubaria furfuracea ou Galerina vittiformis",2025-11-29,4
-"Cuphophyllus virgineus","Hygrophoraceae","29/11/2025","3","Oui","Oui","RNNCA-P20-291125-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 20","Probable","",2025-11-29,3
-"Cuphophyllus russocoriacea","Hygrophoraceae","29/11/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 20","Probable","",2025-11-29,1
-"Hygrocybe conica","Hygrophoraceae","29/11/2025","5","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 20","Probable","Individus complètement noircis, dégradés.",2025-11-29,5
-"Mycena leptocephala","Mycenaceae","29/11/2026","1","Oui","Oui","RNNCA-P19-291125-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 19","Probable","",2026-11-29,1
-"Hygrocybe conica","Hygrophoraceae","29/11/2026","5","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 16","Probable","Individus déjà très dégradés.",2026-11-29,5
-"Clitocybe fragrans","Clitocybaceae","29/11/2026","1","Oui","Oui","RNNCA-P13-291125-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 13","Probable","",2026-11-29,1
-"Cuphophyllus virgineus","Hygrophoraceae","29/11/2026","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 4","Probable","",2026-11-29,1
-"Hygrocybe euroflavescens","Hygrophoraceae","29/11/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 4","Probable","Non prélevé car très dégradés.",2025-11-29,1
-"Hygrocybe conica","Hygrophoraceae","29/11/2025","2","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 4","Probable","Individus très dégradés, noircis.",2025-11-29,2
-"Cuphophyllus virgineus","Hygrophoraceae","29/11/2026","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 5","Probable","",2026-11-29,1
-"Cuphophyllus russocoriacea","Hygrophoraceae","29/11/2026","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 5","Probable","",2026-11-29,1
-"Collybia sordida","Clitocybaceae","29/11/2026","1","Oui","Oui","RNNCA-P05-291125-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 5","Probable","",2026-11-29,1
-"Cuphophyllus russocoriacea","Hygrophoraceae","29/11/2026","1","Oui","Oui","RNNCA-P03-291125-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 3","Probable","",2026-11-29,1
-"Lepista sordida","Tricholomataceae","18/12/2025","2","Oui","Oui","RNNCA-P05-181225-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 5","Probable","",2025-12-18,2
-"Panaeolus foenisecii","Galeropsidaceae","18/12/2025","5","Oui","Oui","RNNCA-P05-181225-002","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 5","Probable","",2025-12-18,5
-"Volvopluteus gloiocephalus","Pluteaceae","18/12/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 3","Certaine","",2025-12-18,1
-"Stereum hirsutum ","Stereaceae","18/12/2025","12","Oui","Oui","RNNCA-P03-181225-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 3","Certaine","",2025-12-18,12
-"Mycena galericulata","Mycenaceae","18/12/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 3","Probable","",2025-12-18,1
-"Panaeolus foenisecii","Galeropsidaceae","18/12/2025","4","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 3","Probable","",2025-12-18,4
-"Tubaria furfuracea","Tubariaceae","18/12/2025","2","Oui","Oui","RNNCA-P01-181225-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 1","Probable","",2025-12-18,2
-"Cuphophyllus virgineus","Hygrophoraceae","18/12/2025","2","Oui","Oui","RNNCA-P01-181225-002","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 1","Probable","",2025-12-18,2
-"Tulostoma brumale","Tulostomataceae","18/12/2025","2","Oui","Oui","RNNCA-P01-181225-003","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 1","Certaine","",2025-12-18,2
-"Hygrocybe cf calciphila","Hygrophoraceae","18/12/2025","2","Oui","Oui","RNNCA-P01-181225-004","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 1","Probable","",2025-12-18,2
-"Hygrocybe insipida ","Hygrophoraceae","18/12/2025","1","Oui","Oui","RNNCA-P01-181225-005","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 1","Probable","",2025-12-18,1
-"Conocybe tenera","Bolbitiaceae","18/12/2025","2","Oui","Oui","RNNCA-P02-181225-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 2","Probable","",2025-12-18,2
-"Cuphophyllus virgineus","Hygrophoraceae","18/12/2025","4","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 2","Probable","",2025-12-18,4
-"Conocybe tenera","Bolbitiaceae","18/12/2025","2","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 4","Probable","",2025-12-18,2
-"Mycena galericulata","Galeropsidaceae","18/12/2025","2","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 4","Probable","",2025-12-18,2
+"Volvopluteus gloiocephalus (DC.) Vizzini, Contu & Justo","Pluteaceae","27/09/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 3","Certaine","",2025-09-27,1
+"Melanoleuca sp.","Tricholomataceae ","15/10/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 3","Probable","Individu dégradé non prélevé.",2025-10-15,1
+"Hymenopellis radicata (Relhan) R.H. Petersen","Physalacriaceae","15/10/2025","5","Oui","Oui","RNNCS-P03-151025-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 3","Certaine","Proximité feuillu moribond.",2025-10-15,5
+"Coprinellus micaceus (Bull.) Vilgalys, Hopple & J. E. Johnson","Psathyrellaceae","15/10/2025","6","Oui","Oui","RNNCS-P03-151025-002","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 3","Certaine","Sporée noire, lames déliquescentes rapidement.",2025-10-15,6
+"Melanoleuca sp.","Tricholomataceae ","15/10/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 4","Probable","Non prélevé car seul exemplaire.",2025-10-15,1
+"Bolbitius titubans (Bull.) Fr.","Bolbitiaceae","15/10/2025","1","Oui","Oui","RNNCS-P03-151025-003","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 3","Certaine","",2025-10-15,1
+"Hygrocybe euroflavescens Kühner","Hygrophoraceae","15/10/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 3","Probable","Non prélevé car seul exemplaire.",2025-10-15,1
+"Hygrocybe conica (Schaeff.) Kumm.","Hygrophoraceae","15/10/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 3","Probable","Non prélevé car seul exemplaire chétif.",2025-10-15,1
+"Agaricus campestris L., nom. sanct.","Agaricaceae","15/10/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 3","Probable","Non prélevé car exemplaire déjà dégradé.",2025-10-15,1
+"Lepista sordida (Schumach.) Singer","Tricholomataceae","15/10/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 5","Probable","",2025-10-15,1
+"Melanoleuca sp.","Tricholomataceae","15/10/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 5","Probable","",2025-10-15,1
+"Agaricus cupreobrunneus (J. Schäffer & Steer ex F.H. Møller) Pilát","Agaricaceae","15/10/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 5","Probable","Un seul individu abîmé.",2025-10-15,1
+"Russula foetens (Pers.)","Russulaceae","15/10/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 13","Probable","Individu déjà très dégradé",2025-10-15,1
+"Agaricus campestris L., nom. sanct.","Agaricaceae","15/10/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 4","Probable","Non prélevé car un seul exemplaire.",2025-10-15,1
+"Melanoleuca sp.","Tricholomataceae","15/10/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 16","Certaine","Individu dégradé. Genre difficile à ce stade.",2025-10-15,1
+"Hygrocybe conica (Schaeff.) Kumm.","Hygrophoraceae","16/11/2025","2","Oui","Oui","RNNCS-P04-161125-002","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 4","Probable","",2025-11-16,2
+"Cuphophyllus virgineus (Wulfen) Kovalenko","Hygrophoraceae","16/11/2025","10","Oui","Oui","RNNCS-P04-161125-003","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 4","Probable","",2025-11-16,10
+"Hygrocybe euroflavescens Kühner","Hygrophoraceae","16/11/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 4","Probable","Non prélevé car seul exemplaire.",2025-11-16,1
+"Hebeloma sp","Strophariaceae","16/11/2025","1","Oui","Oui","RNNCS-P04-161125-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 4","Probable","A déterminer en microscopie pour avoir une certitude",2025-11-16,1
+"Agaricus campestris L., nom. sanct.","Agaricaceae","16/11/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 4","Probable","Non prélevé car exemplaire déjà dégradé.",2025-11-16,1
+"Cuphophyllus virgineus (Wulfen) Kovalenko","Hygrophoraceae","16/11/2025","11","Oui","Oui","RNNCS-P05-161125-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 5","Probable","",2025-11-16,11
+"Hygrocybe conica (Schaeff.) Kumm.","Hygrophoraceae","16/11/2025","4","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 5","Probable","Individus dégradés.",2025-11-16,4
+"Hygrocybe euroflavescens Kühner","Hygrophoraceae","16/11/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 5","Probable","Individu déjà très dégradé.",2025-11-16,1
+"Cuphophyllus russocoriaceus (Berk. & Miller) Bon","Hygrophoraceae","16/11/2025","1","Oui","Oui","RNNCS-P05-161125-003","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 5","Probable","",2025-11-16,1
+"Cuphophyllus berkeleyi (P.D. Orton & Watling) Bon","Hygrophoraceae","16/11/2025","1","Oui","Oui","RNNCS-P05-161125-002","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 5","Probable","",2025-11-16,1
+"Cuphophyllus virgineus (Wulfen) Kovalenko","Hygrophoraceae","16/11/2025","4","Oui","Oui","RNNCS-P07-161125-002","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 7","Probable","",2025-11-16,4
+"Clitocybe dealbata (Sowerby) Kumm.","Clitocybaceae","16/11/2025","2","Oui","Oui","RNNCS-P07-161125-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 7","Probable","",2025-11-16,2
+"Tubaria conspersa (Pers.) Fayod","Tubariaceae","16/11/2025","1","Oui","Oui","RNNCS-P08-161125-002","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 8","Probable","",2025-11-16,1
+"Clitocybe dealbata (Sowerby) Kumm.","Clitocybaceae","16/11/2025","1","Oui","Oui","RNNCS-P08-161125-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 8","Probable","",2025-11-16,1
+"Tubaria furfuracea (Pers.) Gillet","Hymenogastraceae","16/11/2025","2","Oui","Oui","RNNCS-P08-161125-003","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 8","Probable","",2025-11-16,2
+"Mycena stylobates (Pers.) Kumm.","Mycenaceae","16/11/2025","1","Oui","Oui","RNNCS-P03-161125-003","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 3","Probable","Sur feuille de chêne avec disque basale cilié.",2025-11-16,1
+"Cuphophyllus virgineus (Wulfen) Kovalenko","Hygrophoraceae","16/11/2025","30","Oui","Oui","RNNCS-P03-161125-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 3","Probable","",2025-11-16,30
+"Hygrocybe conica (Schaeff.) Kumm.","Hygrophoraceae","16/11/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 16","Probable","Individu déjà très dégradé.",2025-11-16,1
+"Cuphophyllus flavipes (Britzelm.) Bon","Hygrophoraceae","16/11/2025","1","Oui","Oui","RNNCS-P16-161125-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 16","Probable","Individu dégradé.",2025-11-16,1
+"Mycena leptocephala (Pers.) Gillet","Mycenaceae","16/11/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 16","Probable","Individu déjà très dégradé.",2025-11-16,1
+"Cuphophyllus virgineus (Wulfen) Kovalenko","Hygrophoraceae","16/11/2025","3","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 16","Probable","Déjà prélevé en 2024, peu d’individus présents.",2025-11-16,3
+"Hygrocybe conica (Schaeff.) Kumm.","Hygrophoraceae","16/11/2025","5","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 16","Probable","Individus déjà très dégradés.",2025-11-16,5
+"Hebeloma sp","Strophariaceae","16/11/2025","1","Oui","Oui","RNNCS-P18-161125-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 18","Probable","A déterminer (genre très compliqué, probabilité de séquençage)",2025-11-16,1
+"Hygrocybe euroflavescens Kühner","Hygrophoraceae","16/11/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 16","Probable","Non prélevé car seul exemplaire.",2025-11-16,1
+"Trametes pubescens (Schumach.) Pilát","Polyporaceae","16/11/2025","12","Oui","Oui","RNNCS-P19-161125-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 19","Certaine","",2025-11-16,12
+"Hygrocybe euroflavescens Kühner","Hygrophoraceae","16/11/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 20","Probable","Non prélevé car seul exemplaire et dégradé.",2025-11-16,1
+"Hygrocybe conica (Schaeff.) Kumm.","Hygrophoraceae","16/11/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 20","Probable","Individus dégradés, trop peu nombreux.",2025-11-16,1
+"Cuphophyllus virgineus (Wulfen) Kovalenko","Hygrophoraceae","16/11/2025","2","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 20","Probable","Individus abîmés, trop peu nombreux pour un prélèvement.",2025-11-16,2
+"Tapinella panuoides (Fr.) E.-J. Gilbert","Tapinellaceae","29/11/2025","3","Oui","Oui","RNNCS-P20-291125-003","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 20","Probable","Sporée brune.",2025-11-29,3
+"Galerina vittiformis (Fr.) Singer","Tubariaceae","29/11/2025","4","Oui","Oui","RNNCS-P20-291125-002","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 20","Probable","",2025-11-29,4
+"Cuphophyllus virgineus (Wulfen) Kovalenko","Hygrophoraceae","29/11/2025","3","Oui","Oui","RNNCS-P20-291125-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 20","Probable","",2025-11-29,3
+"Cuphophyllus russocoriaceus (Berk. & Miller) Bon","Hygrophoraceae","29/11/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 20","Probable","",2025-11-29,1
+"Hygrocybe conica (Schaeff.) Kumm.","Hygrophoraceae","29/11/2025","5","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 20","Probable","Individus complètement noircis, dégradés.",2025-11-29,5
+"Mycena leptocephala (Pers.) Gillet","Mycenaceae","29/11/2025","1","Oui","Oui","RNNCS-P19-291125-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 19","Probable","",2025-11-29,1
+"Hygrocybe conica (Schaeff.) Kumm.","Hygrophoraceae","29/11/2025","5","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 16","Probable","Individus déjà très dégradés.",2025-11-29,5
+"Clitocybe fragrans (With.) Kumm.","Clitocybaceae","29/11/2025","1","Oui","Oui","RNNCS-P13-291125-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 13","Probable","",2025-11-29,1
+"Cuphophyllus virgineus (Wulfen) Kovalenko","Hygrophoraceae","29/11/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 4","Probable","",2025-11-29,1
+"Hygrocybe euroflavescens Kühner","Hygrophoraceae","29/11/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 4","Probable","Non prélevé car très dégradés.",2025-11-29,1
+"Hygrocybe conica (Schaeff.) Kumm.","Hygrophoraceae","29/11/2025","2","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 4","Probable","Individus très dégradés, noircis.",2025-11-29,2
+"Volvopluteus gloiocephalus (DC.) Vizzini, Contu & Justo","Pluteaceae","29/11/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 4","Certaine","Individus déjà très dégradés.",2025-11-29,1
+"Cuphophyllus virgineus (Wulfen) Kovalenko","Hygrophoraceae","29/11/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 5","Probable","",2025-11-29,1
+"Cuphophyllus russocoriaceus (Berk. & Miller) Bon","Hygrophoraceae","29/11/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 5","Probable","",2025-11-29,1
+"Agaricus sordidus Schumach.","Clitocybaceae","29/11/2025","1","Oui","Oui","RNNCS-P05-291125-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 5","Probable","",2025-11-29,1
+"Cuphophyllus russocoriaceus (Berk. & Miller) Bon","Hygrophoraceae","29/11/2025","1","Oui","Oui","RNNCS-P03-291125-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 3","Probable","",2025-11-29,1
+"Lepista sordida (Schumach.) Singer","Tricholomataceae","18/12/2025","2","Oui","Oui","RNNCS-P05-181225-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 5","Probable","",2025-12-18,2
+"Panaeolus foenisecii (Pers.) Kühner","Galeropsidaceae","18/12/2025","5","Oui","Oui","RNNCS-P05-181225-002","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 5","Probable","",2025-12-18,5
+"Volvopluteus gloiocephalus (DC.) Vizzini, Contu & Justo","Pluteaceae","18/12/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 3","Certaine","Individus déjà très dégradés.",2025-12-18,1
+"Stereum hirsutum (Willd.) Pers.","Stereaceae","18/12/2025","12","Oui","Oui","RNNCS-P03-181225-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 3","Certaine","",2025-12-18,12
+"Mycena galericulata (Scop.) Gray","Mycenaceae","18/12/2025","1","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 3","Probable","",2025-12-18,1
+"Panaeolus foenisecii (Pers.) Kühner","Galeropsidaceae","18/12/2025","4","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 3","Probable","",2025-12-18,4
+"Tubaria furfuracea (Pers.) Gillet","Tubariaceae","18/12/2025","2","Oui","Oui","RNNCS-P01-181225-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 1","Probable","",2025-12-18,2
+"Cuphophyllus virgineus (Wulfen) Kovalenko","Hygrophoraceae","18/12/2025","2","Oui","Oui","RNNCS-P01-181225-002","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 1","Probable","",2025-12-18,2
+"Tulostoma brumale Pers., nom. sanct.","Tulostomataceae","18/12/2025","2","Oui","Oui","RNNCS-P01-181225-003","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 1","Certaine","",2025-12-18,2
+"Hygrocybe calciphila Arnolds","Hygrophoraceae","18/12/2025","2","Oui","Oui","RNNCS-P01-181225-004","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 1","Probable","",2025-12-18,2
+"Hygrocybe insipida (J.E. Lange ex Lundell) Moser","Hygrophoraceae","18/12/2025","1","Oui","Oui","RNNCS-P01-181225-005","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 1","Probable","",2025-12-18,1
+"Conocybe tenera (Schaeff.) Fayod","Bolbitiaceae","18/12/2025","2","Oui","Oui","RNNCS-P02-181225-001","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 2","Probable","",2025-12-18,2
+"Cuphophyllus virgineus (Wulfen) Kovalenko","Hygrophoraceae","18/12/2025","4","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 2","Probable","Individus déjà très dégradés.",2025-12-18,4
+"Conocybe tenera (Schaeff.) Fayod","Bolbitiaceae","18/12/2025","2","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 4","Probable","",2025-12-18,2
+"Mycena galericulata (Scop.) Gray","Galeropsidaceae","18/12/2025","2","Non","Non","","Eddy Boite","Eddy Boite","Eddy Boite","Pelouse 4","Probable","",2025-12-18,2
 "Base de données mycologique (Portail national) : ","https://fongibase.fongifrance.fr/","","","","","","","","","","","",NA,NA
 "Base de données mycologique (Portail Ile-de-France) : ","https://https://idf.fongifrance.fr","","(support@fongifrance.fr)","","","","","","","","","",NA,NA
 "(Déclinaison régionale du portail national)","","","","","","","","","","","","",NA,NA

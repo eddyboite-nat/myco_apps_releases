@@ -1,46 +1,43 @@
 "Espèces","nb_observations","abondance_totale","nb_sites"
-"Cuphophyllus virgineus",11,71,8
-"Hygrocybe conica",9,26,5
-"Hygrocybe euroflavescens",6,6,5
-"Agaricus campestris",4,4,3
-"Cuphophyllus russocoriacea",4,4,3
-"Panaeolus foenisecii",2,9,2
-"Conocybe tenera",2,4,2
-"Agrocybe dura",2,3,2
-"Clitocybe dealbata (rivulosa)",2,3,2
-"Lepista sordida",2,3,1
-"Mycena galericulata",2,3,2
+"Cuphophyllus virgineus (Wulfen) Kovalenko",11,71,8
+"Hygrocybe conica (Schaeff.) Kumm.",9,26,5
+"Hygrocybe euroflavescens Kühner",6,6,5
+"Agaricus campestris L., nom. sanct.",5,7,4
+"Cuphophyllus russocoriaceus (Berk. & Miller) Bon",4,4,3
+"Melanoleuca sp.",4,4,4
+"Volvopluteus gloiocephalus (DC.) Vizzini, Contu & Justo",4,4,3
+"Tubaria furfuracea (Pers.) Gillet",3,7,3
+"Panaeolus foenisecii (Pers.) Kühner",2,9,2
+"Conocybe tenera (Schaeff.) Fayod",2,4,2
+"Clitocybe dealbata (Sowerby) Kumm.",2,3,2
+"Lepista sordida (Schumach.) Singer",2,3,1
+"Mycena galericulata (Scop.) Gray",2,3,2
+"Bolbitius titubans (Bull.) Fr.",2,2,2
 "Hebeloma sp",2,2,2
-"Mycena leptocephala",2,2,2
-"Volvopluteus gloiocephalus",2,2,1
-"Stereum hirsutum ",1,12,1
-"Trametes pubescens",1,12,1
-"Coprinellus micaceus",1,6,1
+"Mycena leptocephala (Pers.) Gillet",2,2,2
+"Stereum hirsutum (Willd.) Pers.",1,12,1
+"Trametes pubescens (Schumach.) Pilát",1,12,1
+"Coprinellus micaceus (Bull.) Vilgalys, Hopple & J. E. Johnson",1,6,1
 "Hymenopellis radicata (Relhan) R.H. Petersen",1,5,1
-"Tubaria sp",1,4,1
-"Agaricus campestris L., nom. sanct.",1,3,1
+"Galerina vittiformis (Fr.) Singer",1,4,1
 "Coprinopsis pseudonivea (Bender & Uljé) Redhead, Vilgalys & Moncalvo",1,3,1
-"Tapinella panuoides",1,3,1
-"Tubaria furfuracea (Pers.) Gillet",1,3,1
+"Tapinella panuoides (Fr.) E.-J. Gilbert",1,3,1
+"Agrocybe dura (Bolt.) Singer",1,2,1
 "Agrocybe pediades (Fr.) Fayod",1,2,1
 "Caloboletus radicans (Pers.) Vizzini",1,2,1
-"Galerina sp",1,2,1
-"Hygrocybe cf calciphila",1,2,1
-"Lycoperdon perlatum",1,2,1
-"Tubaria furfuracea",1,2,1
-"Tulostoma brumale",1,2,1
-"Agaricus cupreobrunneus",1,1,1
-"Bolbitius titubans",1,1,1
-"Bolbitius titubans (Bull.) Fr.",1,1,1
-"Clitocybe fragrans",1,1,1
-"Collybia sordida",1,1,1
-"Cuphophyllus berkeleyii",1,1,1
-"Cuphophyllus flavipes",1,1,1
-"Hygrocybe insipida ",1,1,1
+"Hygrocybe calciphila Arnolds",1,2,1
+"Lycoperdon perlatum Pers., nom. sanct.",1,2,1
+"Tulostoma brumale Pers., nom. sanct.",1,2,1
+"Agaricus cupreobrunneus (J. Schäffer & Steer ex F.H. Møller) Pilát",1,1,1
+"Agaricus sordidus Schumach.",1,1,1
+"Clitocybe fragrans (With.) Kumm.",1,1,1
+"Cuphophyllus berkeleyi (P.D. Orton & Watling) Bon",1,1,1
+"Cuphophyllus flavipes (Britzelm.) Bon",1,1,1
+"Hygrocybe insipida (J.E. Lange ex Lundell) Moser",1,1,1
 "Marasmius oreades (Bolt.) Fr.",1,1,1
-"Mycena stylobates",1,1,1
-"Russula foetens",1,1,1
-"Tubaria conspersa",1,1,1
+"Mycena stylobates (Pers.) Kumm.",1,1,1
+"Russula foetens (Pers.)",1,1,1
+"Tubaria conspersa (Pers.) Fayod",1,1,1
 "(Déclinaison régionale du portail national)",1,0,1
 "Base de données mycologique (Portail Ile-de-France) : ",1,0,1
 "Base de données mycologique (Portail national) : ",1,0,1

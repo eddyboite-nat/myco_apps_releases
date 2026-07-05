@@ -1,0 +1,100 @@
+──────────────────────────────────────────────────────────────────────────────── 
+  Évaluation du potentiel fongique, de l'intérêt patrimonial et du gradient CHEGD 
+──────────────────────────────────────────────────────────────────────────────── 
+Horodatage : 2026-07-05 20:21:00 
+Version du script : 1.0 
+Version de R : R version 4.5.2 (2025-10-31) 
+Répertoire de travail : /Users/eddyboite/GitHub 
+Configuration: Configuration intégrée (get_embedded_config) 
+Fichier d'entrée : /Users/eddyboite/GitHub/myco_apps_releases/data/données_récoltes_chegd_pelouses.csv 
+[20:21:00] Fichier d'entrée résolu : /Users/eddyboite/GitHub/myco_apps_releases/data/données_récoltes_chegd_pelouses.csv 
+[20:21:00] Répertoire de sortie : /Users/eddyboite/GitHub/myco_apps_releases/results/EPFIP_CHEGD 
+[20:21:00] Format CSV détecté, le paramètre de feuille est ignoré 
+──────────────────────────────────────────────────────────────────────────────── 
+  Lecture et traitement des données d'entrée 
+──────────────────────────────────────────────────────────────────────────────── 
+[20:21:00] Lecture du fichier : /Users/eddyboite/GitHub/myco_apps_releases/data/données_récoltes_chegd_pelouses.csv 
+[20:21:00] Séparateur détecté : délimiteur ';' 
+[20:21:00] Nombre de colonnes détectées : 13 
+[20:21:00] Noms des colonnes : Espèces | Famille | Date | Nombre d'espèce | Prélèvement | Fungarium | N° Exsiccata | Récolteur(s) | Déterminateur(s) | Légataire récolte | Site | Fiabilité détermination | Commentaire 
+[20:21:00] Vérification des colonnes requises... 
+[20:21:00] ✓ Toutes les colonnes requises sont présentes 
+──────────────────────────────────────────────────────────────────────────────── 
+  Résumé des données d'entrée 
+──────────────────────────────────────────────────────────────────────────────── 
+[20:21:00] Nombre total d'observations : 88 
+[20:21:00] Nombre d'espèces uniques : 42 
+[20:21:00] Nombre de sites uniques : 13 
+[20:21:00] Nombre de dates uniques : 5 
+[WARN] 3 observation(s) sans niveau de fiabilité (3.41 %) 
+──────────────────────────────────────────────────────────────────────────────── 
+  Construction des métriques par site 
+──────────────────────────────────────────────────────────────────────────────── 
+[20:21:00] Répertoire de sortie : /Users/eddyboite/GitHub/myco_apps_releases/results/EPFIP_CHEGD 
+──────────────────────────────────────────────────────────────────────────────── 
+  Calcul des résumés descriptifs 
+──────────────────────────────────────────────────────────────────────────────── 
+[20:21:00] Résumés descriptifs calculés 
+[20:21:00] Métriques par site calculées 
+[20:21:00] Contrôle fiabilité autonome: OK (20 sites, 0 écart) 
+──────────────────────────────────────────────────────────────────────────────── 
+  Génération des résultats graphiques et des figures 
+──────────────────────────────────────────────────────────────────────────────── 
+[20:21:02] Figure 1 : tableau de bord des sites terminé 
+[20:21:02] Figure 2 : positionnement écologique terminé 
+[20:21:03] Figure 3 : décomposition du potentiel terminée 
+[20:21:03] Figure 4 : CHEGD par visite terminé 
+[20:21:04] Figure 5 : carte thermique des classes terminée 
+[20:21:04] Figure 6 : distribution des niveaux de fiabilité terminée 
+[20:21:05] Figure 7 : indice de représentativité (IR) terminé 
+──────────────────────────────────────────────────────────────────────────────── 
+  Objectifs de fiabilité (1-4) 
+──────────────────────────────────────────────────────────────────────────────── 
+[20:21:07] Objectifs de fiabilité terminés - Meilleurs candidats : 
+[20:21:07]   - Objectif1_Descriptif: Descriptif 
+[20:21:07]   - Objectif2_Ponderation: S2 
+[20:21:07]   - Objectif3_Modeles: baseline_majority 
+[20:21:07]   - Objectif4_Inference: Fisher_simule 
+──────────────────────────────────────────────────────────────────────────────── 
+  Export des résultats finaux et des fichiers CSV 
+──────────────────────────────────────────────────────────────────────────────── 
+[20:21:07] Tous les fichiers CSV ont été exportés 
+──────────────────────────────────────────────────────────────────────────────── 
+  Récapitulatif des fichiers générés et des résultats 
+──────────────────────────────────────────────────────────────────────────────── 
+[20:21:07] Fichiers CSV : 
+[20:21:07]   - donnees_brutes_nettoyees.csv 
+[20:21:07]   - resume_global.csv 
+[20:21:07]   - resume_par_site.csv 
+[20:21:07]   - resume_par_famille.csv 
+[20:21:07]   - resume_par_espece.csv 
+[20:21:07]   - resume_par_date.csv 
+[20:21:07]   - resume_fiabilite_determination.csv 
+[20:21:07]   - niveaux_fiabilite_rencontres.csv 
+[20:21:07]   - potentiel_fongique_par_site.csv 
+[20:21:07]   - indice_patrimonial_par_site.csv 
+[20:21:07]   - gradient_chegd_par_site.csv 
+[20:21:07]   - indice_representativite_ir_par_site.csv 
+[20:21:07]   - synthese_evaluation_par_site.csv 
+[20:21:07]   - qa_controles_autonomes_detail.csv 
+[20:21:07]   - qa_controles_autonomes_resume.csv 
+[20:21:07] Figures : 
+[20:21:07]   - fig1_tableau_de_bord_pelouses.png / .pdf 
+[20:21:07]   - fig2_positionnement_ecologique.png / .pdf 
+[20:21:07]   - fig3_composition_potentiel.png / .pdf 
+[20:21:07]   - fig4_chegd_par_visite.png / .pdf 
+[20:21:07]   - fig5_heatmap_classes.png / .pdf 
+[20:21:07]   - fig6_niveaux_fiabilite.png / .pdf 
+[20:21:07]   - fig7_indice_representativite_ir.png / .pdf 
+[20:21:07] Objectifs de fiabilité : 
+[20:21:07]   - stat_obj1_reliability_distribution.csv + fig 
+[20:21:07]   - stat_obj2_weighting_candidates.csv + stat_obj2_best_weighting.csv + fig 
+[20:21:07]   - stat_obj3_model_metrics.csv + stat_confusion_matrix.csv + stat_coefficients.csv + figs 
+[20:21:07]   - stat_obj4_inference_tests.csv + fig 
+[20:21:07]   - stat_model_selection_summary.csv 
+──────────────────────────────────────────────────────────────────────────────── 
+  Exécution terminée 
+──────────────────────────────────────────────────────────────────────────────── 
+Durée totale d'exécution : 7.11 secondes 
+Heure de fin : 2026-07-05 20:21:07 
+Fichier log : /Users/eddyboite/GitHub/myco_apps_releases/logs/EPFIP_CHEGD_20260705_2021.log 

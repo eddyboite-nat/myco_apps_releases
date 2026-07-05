@@ -1,0 +1,21 @@
+"site_id","site_name","qa_gradient_non_negative","qa_gradient_equals_max_visit","qa_total_equals_sum_visits","qa_ir_bounds","delta_gradient_max","delta_total_sum","qa_overall"
+1,"Pelouse 1",TRUE,TRUE,TRUE,TRUE,0,0,TRUE
+2,"Pelouse 2",TRUE,TRUE,TRUE,TRUE,0,0,TRUE
+3,"Pelouse 3",TRUE,TRUE,TRUE,TRUE,0,0,TRUE
+4,"Pelouse 4",TRUE,TRUE,TRUE,TRUE,0,0,TRUE
+5,"Pelouse 5",TRUE,TRUE,TRUE,TRUE,0,0,TRUE
+6,"Pelouse 6",TRUE,TRUE,TRUE,TRUE,0,0,TRUE
+7,"Pelouse 7",TRUE,TRUE,TRUE,TRUE,0,0,TRUE
+8,"Pelouse 8",TRUE,TRUE,TRUE,TRUE,0,0,TRUE
+9,"Pelouse 9",TRUE,TRUE,TRUE,TRUE,0,0,TRUE
+10,"Pelouse 10",TRUE,TRUE,TRUE,TRUE,0,0,TRUE
+11,"Pelouse 11",TRUE,TRUE,TRUE,TRUE,0,0,TRUE
+12,"Pelouse 12",TRUE,TRUE,TRUE,TRUE,0,0,TRUE
+13,"Pelouse 13",TRUE,TRUE,TRUE,TRUE,0,0,TRUE
+14,"Pelouse 14",TRUE,TRUE,TRUE,TRUE,0,0,TRUE
+15,"Pelouse 15",TRUE,TRUE,TRUE,TRUE,0,0,TRUE
+16,"Pelouse 16",TRUE,TRUE,TRUE,TRUE,0,0,TRUE
+17,"Pelouse 17",TRUE,TRUE,TRUE,TRUE,0,0,TRUE
+18,"Pelouse 18",TRUE,TRUE,TRUE,TRUE,0,0,TRUE
+19,"Pelouse 19",TRUE,TRUE,TRUE,TRUE,0,0,TRUE
+20,"Pelouse 20",TRUE,TRUE,TRUE,TRUE,0,0,TRUE
