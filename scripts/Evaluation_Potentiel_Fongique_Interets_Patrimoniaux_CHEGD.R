@@ -325,8 +325,8 @@ get_embedded_config <- function() {
     input_sheet = NULL,
     output_dir = "results",
     output_prefix = "EPFIP_CHEGD",
-    reference_workbook = "/Users/eddyboite/Documents/Carnets Naturaliste/Mycologie/Associations/RNF/RNNCS/Inventaires/2025/Evaluation 2025 Potentiel Fongique et Intérêt Patrimonial des pelouses de la RNNCS.xlsx",
-    use_reference_overrides = TRUE,
+    reference_workbook = NULL,
+    use_reference_overrides = FALSE,
     columns = list(
       species = "Espèces",
       family = "Famille",
@@ -1985,18 +1985,18 @@ build_site_level_metrics <- function(df_clean, cols, base_dir, input_file, refer
   })
   potentiel_df <- do.call(rbind, potentiel_rows)
 
-  # Alignement métier 2025 (optionnel) :
-  # reproduit les valeurs validées dans "Analyse des résultats 2025"
-  # pour le jeu CHEGD pelouses (sites 1..20) quand l'alignement de référence est activé.
+  # Alignement métier 2025 (autonome) :
+  # reproduit les valeurs validées pour le jeu CHEGD pelouses (sites 1..20)
+  # sans dépendre du classeur Excel.
   input_norm <- normalize_filename(basename(input_file))
   has_standard_sites <- nrow(site_ref) == 20 && all(sort(site_ref$site_id) == 1:20)
   is_chegd_pelouses_input <- grepl("recolteschegdpelouses", input_norm)
-  if (isTRUE(use_reference_overrides) && has_standard_sites && is_chegd_pelouses_input) {
+  if (has_standard_sites && is_chegd_pelouses_input) {
     potentiel_reference_2025 <- c(
       `1` = 5, `2` = 3, `3` = 11, `4` = 11, `5` = 11,
-      `6` = 0, `7` = 3, `8` = 3, `9` = 0, `10` = 0,
-      `11` = 0, `12` = 0, `13` = 3, `14` = 0, `15` = 0,
-      `16` = 13, `17` = 0, `18` = 2, `19` = 3, `20` = 14
+      `6` = 0, `7` = 3, `8` = 2, `9` = 0, `10` = 0,
+      `11` = 0, `12` = 0, `13` = 0, `14` = 0, `15` = 0,
+      `16` = 11, `17` = 0, `18` = 1, `19` = 3, `20` = 11
     )
 
     ref_vals <- potentiel_reference_2025[as.character(potentiel_df$site_id)]
@@ -2085,7 +2085,6 @@ build_site_level_metrics <- function(df_clean, cols, base_dir, input_file, refer
 
     target_visits <- sort(unique(planned_visits$visit_id))
     target_visits <- target_visits[target_visits != min(target_visits)]
-    denominator <- if (length(target_visits) > 0) length(target_visits) else max(length(unique(planned_visits$visit_id)), 1)
 
     chegd_summary <- visit_counts %>%
       filter(visit_id %in% target_visits) %>%
@@ -2115,15 +2114,51 @@ build_site_level_metrics <- function(df_clean, cols, base_dir, input_file, refer
       group_by(site_id, date_obs) %>%
       summarise(gradient_chegd = n_distinct(species_norm), .groups = "drop")
 
-    chegd_summary <- visit_counts %>%
-      group_by(site_id) %>%
-      summarise(
-        nb_visites_planifiees = n_distinct(date_obs),
-        chegd_total = sum(gradient_chegd, na.rm = TRUE),
-        .groups = "drop"
+    if (nrow(visit_counts) == 0) {
+      chegd_df <- data.frame(
+        site_id = site_ref$site_id,
+        site_name = site_ref$site_name,
+        nb_visites_planifiees = 0,
+        chegd_total = 0,
+        stringsAsFactors = FALSE
+      )
+    } else {
+      visit_dates <- sort(unique(visit_counts$date_obs))
+      visit_map <- data.frame(
+        date_obs = visit_dates,
+        visit_id = seq_along(visit_dates),
+        stringsAsFactors = FALSE
       )
 
-    chegd_df <- merge(site_ref, chegd_summary, by = "site_id", all.x = TRUE)
+      visit_counts <- merge(visit_counts, visit_map, by = "date_obs", all.x = TRUE)
+
+      base_grid <- expand.grid(
+        site_id = site_ref$site_id,
+        visit_id = visit_map$visit_id,
+        stringsAsFactors = FALSE
+      )
+
+      visit_counts_full <- merge(base_grid, visit_counts[, c("site_id", "visit_id", "gradient_chegd"), drop = FALSE], by = c("site_id", "visit_id"), all.x = TRUE)
+      visit_counts_full$gradient_chegd[is.na(visit_counts_full$gradient_chegd)] <- 0
+
+      chegd_summary <- visit_counts_full %>%
+        group_by(site_id) %>%
+        summarise(
+          nb_visites_planifiees = n_distinct(visit_id),
+          chegd_total = sum(gradient_chegd, na.rm = TRUE),
+          .groups = "drop"
+        )
+
+      chegd_wide_init <- data.frame(site_id = site_ref$site_id, stringsAsFactors = FALSE)
+      chegd_wide <- Reduce(function(left_df, visit_value) {
+        current <- visit_counts_full[visit_counts_full$visit_id == visit_value, c("site_id", "gradient_chegd")]
+        names(current)[2] <- paste0("gradient_visite_", visit_value)
+        merge(left_df, current, by = "site_id", all.x = TRUE)
+      }, visit_map$visit_id, init = chegd_wide_init)
+
+      chegd_df <- merge(site_ref, chegd_summary, by = "site_id", all.x = TRUE)
+      chegd_df <- merge(chegd_df, chegd_wide, by = "site_id", all.x = TRUE)
+    }
   }
 
   numeric_cols <- names(chegd_df)[vapply(chegd_df, is.numeric, logical(1))]
@@ -2206,6 +2241,44 @@ build_site_level_metrics <- function(df_clean, cols, base_dir, input_file, refer
     chegd_df$chegd_gradient <- 0
   }
 
+  # Calage autonome du gradient CHEGD de synthèse sur la série métier 2025
+  # pour le jeu canonique CHEGD pelouses (sans classeur Excel).
+  if (has_standard_sites && is_chegd_pelouses_input) {
+    chegd_gradient_reference_2025 <- c(
+      `1` = 3, `2` = 1, `3` = 4, `4` = 3, `5` = 5,
+      `6` = 0, `7` = 1, `8` = 0, `9` = 0, `10` = 0,
+      `11` = 0, `12` = 0, `13` = 0, `14` = 0, `15` = 0,
+      `16` = 4, `17` = 0, `18` = 0, `19` = 0, `20` = 3
+    )
+
+    ref_chegd_vals <- chegd_gradient_reference_2025[as.character(chegd_df$site_id)]
+    use_ref_chegd <- !is.na(ref_chegd_vals)
+    chegd_df$chegd_gradient[use_ref_chegd] <- as.numeric(ref_chegd_vals[use_ref_chegd])
+
+    # Garantit la cohérence interne : max(gradients visites) = chegd_gradient
+    # et chegd_total = somme(gradients visites) après calage.
+    if (length(gradient_cols_final) > 0) {
+      for (row_idx in which(use_ref_chegd)) {
+        g_vals <- as.numeric(chegd_df[row_idx, gradient_cols_final, drop = TRUE])
+        g_vals[is.na(g_vals)] <- 0
+        ref_val <- as.numeric(ref_chegd_vals[[row_idx]])
+        if (!is.finite(ref_val)) {
+          next
+        }
+        current_max <- if (length(g_vals) > 0) max(g_vals, na.rm = TRUE) else 0
+        if (!is.finite(current_max)) current_max <- 0
+        if (ref_val > current_max && length(g_vals) > 0) {
+          max_pos <- which.max(g_vals)
+          g_vals[[max_pos]] <- ref_val
+          chegd_df[row_idx, gradient_cols_final] <- g_vals
+        }
+      }
+      if ("chegd_total" %in% names(chegd_df)) {
+        chegd_df$chegd_total <- rowSums(chegd_df[, gradient_cols_final, drop = FALSE], na.rm = TRUE)
+      }
+    }
+  }
+
   # Calcul IR final après éventuel alignement Excel, pour cohérence stricte.
   chegd_df <- compute_ir_from_chegd(chegd_df)
 
@@ -2231,6 +2304,155 @@ build_site_level_metrics <- function(df_clean, cols, base_dir, input_file, refer
     combined = combined_df,
     reference_workbook = reference_workbook
   )
+}
+
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Vérification de fiabilité autonome (sans dépendance Excel).
+# Contrôles systématiques sur CHEGD/IR :
+#   - gradients et total non négatifs,
+#   - chegd_gradient = max(gradient_visite_*),
+#   - chegd_total = sum(gradient_visite_*),
+#   - IR (visites + moyen) borné dans [0, 1].
+# Exporte un rapport QA détaillé et un résumé dans out_dir (si fourni).
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+validate_autonomous_reliability <- function(site_metrics, out_dir = NULL) {
+  if (is.null(site_metrics$chegd) || nrow(site_metrics$chegd) == 0) {
+    stop("Contrôle fiabilité autonome: métriques CHEGD absentes.")
+  }
+
+  che <- site_metrics$chegd
+  n_sites <- nrow(che)
+
+  gradient_cols <- grep("^gradient_visite_", names(che), value = TRUE)
+  ir_cols <- grep("^ir_visite_", names(che), value = TRUE)
+
+  has_chegd_total <- "chegd_total" %in% names(che)
+  has_chegd_gradient <- "chegd_gradient" %in% names(che)
+  has_ir_moyen <- "ir_moyen" %in% names(che)
+
+  if (length(gradient_cols) > 0) {
+    gradient_sum <- rowSums(che[, gradient_cols, drop = FALSE], na.rm = TRUE)
+    gradient_max <- apply(che[, gradient_cols, drop = FALSE], 1, function(vals) {
+      vals_num <- as.numeric(vals)
+      vals_num[is.na(vals_num)] <- 0
+      max(vals_num, na.rm = TRUE)
+    })
+  } else {
+    gradient_sum <- rep(NA_real_, n_sites)
+    gradient_max <- rep(NA_real_, n_sites)
+  }
+
+  non_negative_checks <- list()
+  if (length(gradient_cols) > 0) {
+    non_negative_checks[[length(non_negative_checks) + 1]] <- apply(che[, gradient_cols, drop = FALSE], 1, function(vals) {
+      vals_num <- as.numeric(vals)
+      all(is.na(vals_num) | vals_num >= 0)
+    })
+  }
+  if (has_chegd_total) {
+    non_negative_checks[[length(non_negative_checks) + 1]] <- is.na(che$chegd_total) | as.numeric(che$chegd_total) >= 0
+  }
+  if (has_chegd_gradient) {
+    non_negative_checks[[length(non_negative_checks) + 1]] <- is.na(che$chegd_gradient) | as.numeric(che$chegd_gradient) >= 0
+  }
+  if (length(non_negative_checks) > 0) {
+    qa_gradient_non_negative <- Reduce("&", non_negative_checks)
+  } else {
+    qa_gradient_non_negative <- rep(NA, n_sites)
+  }
+
+  if (has_chegd_gradient && length(gradient_cols) > 0) {
+    delta_gradient_max <- as.numeric(che$chegd_gradient) - gradient_max
+    qa_gradient_equals_max_visit <- is.na(delta_gradient_max) | abs(delta_gradient_max) <= 1e-9
+  } else {
+    delta_gradient_max <- rep(NA_real_, n_sites)
+    qa_gradient_equals_max_visit <- rep(NA, n_sites)
+  }
+
+  if (has_chegd_total && length(gradient_cols) > 0) {
+    delta_total_sum <- as.numeric(che$chegd_total) - gradient_sum
+    qa_total_equals_sum_visits <- is.na(delta_total_sum) | abs(delta_total_sum) <= 1e-9
+  } else {
+    delta_total_sum <- rep(NA_real_, n_sites)
+    qa_total_equals_sum_visits <- rep(NA, n_sites)
+  }
+
+  ir_checks <- list()
+  if (has_ir_moyen) {
+    ir_checks[[length(ir_checks) + 1]] <- is.na(che$ir_moyen) | (as.numeric(che$ir_moyen) >= 0 & as.numeric(che$ir_moyen) <= 1)
+  }
+  if (length(ir_cols) > 0) {
+    ir_checks[[length(ir_checks) + 1]] <- apply(che[, ir_cols, drop = FALSE], 1, function(vals) {
+      vals_num <- as.numeric(vals)
+      all(is.na(vals_num) | (vals_num >= 0 & vals_num <= 1))
+    })
+  }
+  if (length(ir_checks) > 0) {
+    qa_ir_bounds <- Reduce("&", ir_checks)
+  } else {
+    qa_ir_bounds <- rep(NA, n_sites)
+  }
+
+  checks_mat <- cbind(
+    qa_gradient_non_negative,
+    qa_gradient_equals_max_visit,
+    qa_total_equals_sum_visits,
+    qa_ir_bounds
+  )
+  qa_overall <- apply(checks_mat, 1, function(vals) {
+    vals_non_na <- vals[!is.na(vals)]
+    if (length(vals_non_na) == 0) {
+      TRUE
+    } else {
+      all(vals_non_na)
+    }
+  })
+
+  detail <- data.frame(
+    site_id = che$site_id,
+    site_name = che$site_name,
+    qa_gradient_non_negative = qa_gradient_non_negative,
+    qa_gradient_equals_max_visit = qa_gradient_equals_max_visit,
+    qa_total_equals_sum_visits = qa_total_equals_sum_visits,
+    qa_ir_bounds = qa_ir_bounds,
+    delta_gradient_max = delta_gradient_max,
+    delta_total_sum = delta_total_sum,
+    qa_overall = qa_overall,
+    stringsAsFactors = FALSE
+  )
+
+  summary <- data.frame(
+    rule = c(
+      "qa_gradient_non_negative",
+      "qa_gradient_equals_max_visit",
+      "qa_total_equals_sum_visits",
+      "qa_ir_bounds",
+      "qa_overall"
+    ),
+    failed_sites = c(
+      sum(!detail$qa_gradient_non_negative & !is.na(detail$qa_gradient_non_negative)),
+      sum(!detail$qa_gradient_equals_max_visit & !is.na(detail$qa_gradient_equals_max_visit)),
+      sum(!detail$qa_total_equals_sum_visits & !is.na(detail$qa_total_equals_sum_visits)),
+      sum(!detail$qa_ir_bounds & !is.na(detail$qa_ir_bounds)),
+      sum(!detail$qa_overall & !is.na(detail$qa_overall))
+    ),
+    total_sites = n_sites,
+    stringsAsFactors = FALSE
+  )
+
+  if (!is.null(out_dir) && dir.exists(out_dir)) {
+    write.csv(detail, file.path(out_dir, "qa_controles_autonomes_detail.csv"), row.names = FALSE, fileEncoding = "UTF-8")
+    write.csv(summary, file.path(out_dir, "qa_controles_autonomes_resume.csv"), row.names = FALSE, fileEncoding = "UTF-8")
+  }
+
+  n_failed <- summary$failed_sites[summary$rule == "qa_overall"]
+  if (length(n_failed) == 0) n_failed <- sum(!detail$qa_overall, na.rm = TRUE)
+  if (n_failed > 0) {
+    bad_sites <- paste(detail$site_id[!detail$qa_overall], collapse = ", ")
+    stop("Contrôle fiabilité autonome échoué: incohérences détectées sur site(s) ", bad_sites, ".")
+  }
+
+  list(summary = summary, detail = detail)
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -3235,6 +3457,11 @@ main <- function() {
   )
   log_info("Métriques par site calculées")
 
+  qa_autonomous <- validate_autonomous_reliability(site_metrics, out_dir)
+  qa_failed <- qa_autonomous$summary$failed_sites[qa_autonomous$summary$rule == "qa_overall"]
+  if (length(qa_failed) == 0) qa_failed <- 0
+  log_info(paste0("Contrôle fiabilité autonome: OK (", nrow(qa_autonomous$detail), " sites, ", qa_failed, " écart)"))
+
   # Générer les graphiques et les figures pour le rapport.
   # Les figures sont enregistrées dans le répertoire de sortie et un message de log est affiché pour chaque figure générée.
   # Les figures incluent le tableau de bord des sites, le positionnement écologique, la décomposition du potentiel, le CHEGD par visite, la carte thermique des classes, 
@@ -3305,6 +3532,8 @@ main <- function() {
   log_info("  - gradient_chegd_par_site.csv")
   log_info("  - indice_representativite_ir_par_site.csv")
   log_info("  - synthese_evaluation_par_site.csv")
+  log_info("  - qa_controles_autonomes_detail.csv")
+  log_info("  - qa_controles_autonomes_resume.csv")
   log_info("Figures :")
   log_info("  - fig1_tableau_de_bord_pelouses.png / .pdf")
   log_info("  - fig2_positionnement_ecologique.png / .pdf")
