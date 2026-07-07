@@ -5,16 +5,36 @@
 # ===============================================================================================================================================================================================
 # Évaluation du potentiel fongique, de l'intérêt patrimonial et du gradient CHEGD
 # But :
-#   - Lire un fichier Excel de données brutes d'observations mycologiques.
+#   - Lire un fichier CSV de données brutes d'observations mycologiques.
 #   - Produire des résumés globaux (site/famille/espèce/date/fiabilité).
 #   - Calculer des indicateurs par site (potentiel, patrimonialité, CHEGD).
 #   - Aligner les indicateurs sur un classeur de référence si disponible
 #     avec alignement sur le classeur de référence quand il est disponible.
+# 
+# Basé sur le protocole : Sellier, Y., et coll. (s.d.). Évaluation du potentiel fongique et de l’intérêt patrimonial des
+# pelouses.Mycofrance. https://www.mycofrance.fr/wp-content/uploads/2025/05/Bull.-SMF-131-1-2-Y-Sellier-et-coll.pdf
 #
 # Entrées :
 #   - Configuration intégrée au script (modifiable dans get_embedded_config)
-#   - Fichier de données brutes (cfg$input_file, feuille cfg$input_sheet)
-#   - Classeur de référence optionnel (détecté automatiquement)
+#   - Fichier de données brutes CSV (cfg$input_file)
+#
+# Localisation des paramètres dans le script :
+#   - Paramètres principaux du pipeline : `get_embedded_config()`
+#   - Seuils de pilotage qualité : `get_embedded_config()$quality_alert_thresholds`
+#   - Mappage des colonnes métier : `get_embedded_config()$columns`
+#   - Mode strict/tolérant : `get_embedded_config()$strict`
+#   - Contrôles bloquants et alertes d'entrée : `validate_input_data()`
+#   - Contrôle CHEGD/IR autonome : `validate_autonomous_reliability()`
+#   - Orchestration des étapes, logs et exports : `main()`
+#
+# Mini-table de repérage rapide :
+#   - protocol_scope        | Où modifier : get_embedded_config()                   | Effet : libellé du périmètre dans les logs.
+#   - strict                | Où modifier : get_embedded_config()                   | Effet : TRUE=arrêt sur bloquants ; FALSE=tolérant.
+#   - input_file            | Où modifier : get_embedded_config()                   | Effet : fichier source analysé.
+#   - output_dir            | Où modifier : get_embedded_config()                   | Effet : dossier racine des sorties.
+#   - output_prefix         | Où modifier : get_embedded_config()                   | Effet : préfixe de nommage des artefacts.
+#   - columns               | Où modifier : get_embedded_config()$columns           | Effet : mapping des en-têtes CSV métier.
+#   - quality_alert_thresholds | Où modifier : get_embedded_config()$quality_alert_thresholds | Effet : seuils d’alertes QA entrée.
 #
 # Sorties :
 #   - Répertoire fixe dans cfg$output_dir contenant les CSV de synthèse.
@@ -22,12 +42,13 @@
 # Version :
 #   - 1.0
 #
+# Auteur : Eddy Boite (SMF, RNF, FongiFrance)
+# 
 # ===============================================================================================================================================================================================
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Pré-requis : packages R
-# Ces packages sont utilisés pour la lecture de fichiers Excel, la manipulation de données, la création de graphiques et l'analyse statistique.
-# readxl : lecture de fichiers Excel (.xlsx)
+# Ces packages sont utilisés pour la manipulation de données, la création de graphiques et l'analyse statistique.
 # dplyr : manipulation de data frames (filtrage, regroupement, résumés)
 # stringr : manipulation de chaînes de caractères (regex, remplacement, extraction)
 # ggplot2 : création de graphiques
@@ -35,34 +56,42 @@
 # MASS : fonctions statistiques avancées
 # nnet : modèles de réseaux de neurones et régression multinomiale
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+REQUIRED_PACKAGES <- c("dplyr", "stringr", "ggplot2", "gridExtra", "MASS", "nnet")
+
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Mini-spécification — vérification explicite des dépendances R requises.
+# Entrée : vecteur `packages`.
+# Règle : tous les packages doivent être disponibles via `requireNamespace(..., quietly = TRUE)`.
+# Cas bloquant : arrêt via `stop()` si au moins un package manque (message avec commande d'installation).
+# Sortie : `TRUE` invisible si la vérification passe.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+assert_required_packages <- function(packages = REQUIRED_PACKAGES) {
+  missing_packages <- packages[!vapply(packages, requireNamespace, logical(1), quietly = TRUE)]
+
+  if (length(missing_packages) > 0) {
+    install_hint <- paste0(
+      "install.packages(c(",
+      paste(sprintf('"%s"', missing_packages), collapse = ", "),
+      '), repos = "https://cloud.r-project.org")'
+    )
+
+    stop(
+      "Package(s) R manquant(s) : ", paste(missing_packages, collapse = ", "),
+      "\nInstallez-les avant d'exécuter le script, par exemple :\n  ", install_hint,
+      call. = FALSE
+    )
+  }
+
+  invisible(TRUE)
+}
+
 suppressPackageStartupMessages({
-  if (!requireNamespace("readxl", quietly = TRUE)) {
-    install.packages("readxl", repos = "https://cloud.r-project.org")
-  }
-  if (!requireNamespace("dplyr", quietly = TRUE)) {
-    install.packages("dplyr", repos = "https://cloud.r-project.org")
-  }
-  if (!requireNamespace("stringr", quietly = TRUE)) {
-    install.packages("stringr", repos = "https://cloud.r-project.org")
-  }
-  if (!requireNamespace("ggplot2", quietly = TRUE)) {
-    install.packages("ggplot2", repos = "https://cloud.r-project.org")
-  }
-  if (!requireNamespace("gridExtra", quietly = TRUE)) {
-    install.packages("gridExtra", repos = "https://cloud.r-project.org")
-  }
-  if (!requireNamespace("MASS", quietly = TRUE)) {
-    install.packages("MASS", repos = "https://cloud.r-project.org")
-  }
-  if (!requireNamespace("nnet", quietly = TRUE)) {
-    install.packages("nnet", repos = "https://cloud.r-project.org")
-  }
+  assert_required_packages()
 })
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Chargement des packages
-# Ces packages sont utilisés pour la lecture de fichiers Excel, la manipulation de données, la création de graphiques et l'analyse statistique.
-# readxl : lecture de fichiers Excel (.xlsx)
+# Ces packages sont utilisés pour la manipulation de données, la création de graphiques et l'analyse statistique.
 # dplyr : manipulation de data frames (filtrage, regroupement, résumés)
 # stringr : manipulation de chaînes de caractères (regex, remplacement, extraction)
 # ggplot2 : création de graphiques
@@ -70,7 +99,6 @@ suppressPackageStartupMessages({
 # MASS : fonctions statistiques avancées 
 # nnet : modèles de réseaux de neurones et régression multinomiale
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-library(readxl)
 library(dplyr)
 library(stringr)
 library(ggplot2)
@@ -100,20 +128,21 @@ SCRIPT_VERSION <- "1.0"
 .log_env$start_time <- NULL
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Initialise le logging avec un fichier log horodaté à la racine du projet.
-# base_dir : répertoire de base du projet (où créer le sous-dossier logs)
-# prefix : préfixe du nom de fichier log (par défaut "EPFIP_CHEGD")
-# Retourne le chemin complet du fichier log créé.
-# Le fichier log est créé dans un sous-dossier "logs" du répertoire de base, avec un nom basé sur le préfixe et l'horodatage actuel.
-# Le fichier log est vide au départ, et les messages seront ajoutés au fur et à mesure de l'exécution du script.
-# Le timestamp est au format YYYYMMDD_HHMM pour faciliter le tri chronologique des fichiers log.
-# Le répertoire logs est créé s'il n'existe pas déjà, avec l'option recursive = TRUE pour créer les dossiers parents si nécessaire.
-# Le chemin du fichier log est stocké dans .log_env$log_file pour être utilisé par les fonctions de logging.
-# L'heure de début de l'exécution est stockée dans .log_env$start_time pour calculer la durée totale d'exécution à la fin.
-# La fonction retourne le chemin complet du fichier log créé, mais l'appelant peut l'ignorer si nécessaire.
-# Le fichier log peut être consulté après l'exécution du script pour vérifier les messages d'info, d'erreur et de warning, ainsi que le résumé des données et la durée totale d'exécution.
-# Le fichier log est également utile pour le débogage et la traçabilité des analyses.
-# Le fichier log peut être ouvert avec un éditeur de texte ou visualisé dans la console avec la commande cat() ou readLines().
+# Mini-spécification — initialisation du système de logs d'exécution.
+# Entrées :
+#   - base_dir : répertoire racine où créer `logs/`.
+#   - prefix   : préfixe de nom de fichier log.
+#
+# Comportement :
+#   - crée (si besoin) `base_dir/logs`,
+#   - crée un fichier log horodaté `prefix_YYYYMMDD_HHMM.log`,
+#   - initialise l'état global `.log_env$log_file` et `.log_env$start_time`.
+#
+# Cas bloquants :
+#   - aucun `stop()` explicite ; une erreur système (droits/IO) est propagée par R.
+#
+# Sortie :
+#   - chemin du log (retour invisible).
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 setup_logging <- function(base_dir, prefix = "EPFIP_CHEGD") {
   timestamp <- format(Sys.time(), "%Y%m%d_%H%M")
@@ -127,18 +156,20 @@ setup_logging <- function(base_dir, prefix = "EPFIP_CHEGD") {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Fonction de logging avec horodatage optionnel
-# msg : message à logger (chaîne de caractères)
-# timestamp : booléen indiquant si l'horodatage doit être ajouté au message (par défaut TRUE)
-# Le message est affiché dans la console et écrit dans le fichier log si celui-ci est défini.
-# L'horodatage est au format [HH:MM:SS] pour indiquer l'heure d'exécution du message.
-# Si le fichier log n'est pas défini, le message est seulement affiché dans la console.
-# La fonction log_info() est utilisée pour enregistrer des messages d'information généraux, tels que le début et la fin de l'exécution, les étapes importantes du traitement, 
-#et les résumés des données.
-# Les messages d'erreur et de warning sont gérés par les fonctions log_error() et log_warning_msg(), respectivement.
-# Les messages de section sont gérés par la fonction log_section(), qui affiche un titre encadré par des lignes de séparation.
-# Les fonctions log_header(), log_data_summary() et log_footer() sont utilisées pour afficher un résumé des données et de l'exécution à différents moments du script.
-# Le système de logging est conçu pour être simple et efficace, et peut être adapté ou étendu selon les besoins du projet.
+# Mini-spécification — émission d'un message d'information.
+# Entrées :
+#   - msg       : message texte.
+#   - timestamp : ajoute `[HH:MM:SS]` si TRUE.
+#
+# Comportement :
+#   - écrit le message sur stdout,
+#   - l'ajoute au fichier log si `.log_env$log_file` est défini.
+#
+# Cas bloquants :
+#   - aucun `stop()` explicite ; erreurs IO propagées.
+#
+# Sortie :
+#   - aucune (effets de bord console + fichier).
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 log_info <- function(msg, timestamp = TRUE) {
   ts_str <- if (timestamp) format(Sys.time(), "[%H:%M:%S] ") else ""
@@ -150,15 +181,11 @@ log_info <- function(msg, timestamp = TRUE) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Fonction de logging des erreurs
-# msg : message d'erreur à logger (chaîne de caractères)
-# Le message est affiché dans la console et écrit dans le fichier log si celui-ci est défini.
-# L'horodatage n'est pas ajouté aux messages d'erreur, mais le préfixe [ERROR] est ajouté pour indiquer qu'il s'agit d'une erreur.
-# La fonction log_error() est utilisée pour enregistrer des messages d'erreur critiques qui nécessitent une attention immédiate, tels que des fichiers manquants, 
-# des colonnes manquantes, ou des problèmes de format de données.
-# Les messages d'erreur peuvent être utilisés pour interrompre l'exécution du script avec la fonction stop(), ou pour signaler des problèmes qui ne nécessitent pas l'arrêt immédiat.
-# Les messages d'erreur sont également utiles pour le débogage et la traçabilité des analyses, et peuvent être consultés dans le fichier log après l'exécution du script.
-# Les messages d'erreur peuvent être combinés avec des mécanismes de gestion des exceptions pour gérer les erreurs de manière plus flexible.
+# Mini-spécification — émission d'un message d'erreur formaté.
+# Entrée : `msg` (chaîne de caractères).
+# Comportement : préfixe `[ERROR]`, écriture stderr + fichier log si configuré.
+# Cas bloquants : aucun `stop()` interne.
+# Sortie : aucune (effets de bord).
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 log_error <- function(msg) {
   full_msg <- paste0("[ERROR] ", msg)
@@ -169,17 +196,11 @@ log_error <- function(msg) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Fonction de logging des warnings
-# msg : message de warning à logger (chaîne de caractères)
-# Le message est affiché dans la console et écrit dans le fichier log si celui-ci est défini.
-# L'horodatage n'est pas ajouté aux messages de warning, mais le préfixe [WARN] est ajouté pour indiquer qu'il s'agit d'un avertissement.
-# La fonction log_warning_msg() est utilisée pour enregistrer des messages de warning qui signalent des problèmes potentiels ou des situations inattendues,
-# mais qui ne nécessitent pas l'arrêt immédiat de l'exécution du script.
-# Les messages de warning peuvent être utilisés pour informer l'utilisateur de problèmes mineurs, tels que des valeurs manquantes, des colonnes supplémentaires, 
-# ou des formats de données inattendus.
-# Les messages de warning sont également utiles pour le débogage et la traçabilité des analyses, et peuvent être consultés dans le fichier log après l'exécution du script.
-# Les messages de warning peuvent être combinés avec des mécanismes de gestion des exceptions pour gérer les avertissements de manière plus flexible.
-# Les messages de warning peuvent être filtrés ou ignorés selon les besoins de l'utilisateur, mais il est recommandé de les examiner pour s'assurer que les résultats sont fiables.
+# Mini-spécification — émission d'un avertissement formaté.
+# Entrée : `msg` (chaîne de caractères).
+# Comportement : préfixe `[WARN]`, écriture stdout + fichier log si configuré.
+# Cas bloquants : aucun.
+# Sortie : aucune (effets de bord).
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 log_warning_msg <- function(msg) {
   full_msg <- paste0("[WARN] ", msg)
@@ -190,17 +211,11 @@ log_warning_msg <- function(msg) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Fonction de logging des sections
-# title : titre de la section à logger (chaîne de caractères)
-# La fonction log_section() est utilisée pour afficher un titre de section encadré par des lignes de séparation dans la console et dans le fichier log.
-# L'horodatage n'est pas ajouté aux titres de section, mais le titre est précédé de deux espaces pour l'indentation.
-# Les lignes de séparation sont composées de 80 caractères "─" pour créer un effet visuel distinctif.
-# Les titres de section sont utilisés pour organiser le log en différentes parties, telles que l'en-tête, le résumé des données, les étapes de traitement, et la fin de l'exécution.
-# Les titres de section facilitent la lecture et la navigation dans le fichier log, et permettent de repérer rapidement les informations importantes.
-# Les titres de section peuvent être personnalisés selon les besoins du projet, et peuvent inclure des informations supplémentaires, telles que des numéros de version, 
-# des identifiants de projet, ou des noms d'utilisateur.
-# Les titres de section peuvent être combinés avec des messages d'information, d'erreur et de warning pour créer un log complet et informatif.
-# Les titres de section peuvent être utilisés pour générer des rapports automatisés ou des résumés d'exécution, en extrayant les informations pertinentes du fichier log.
+# Mini-spécification — séparation visuelle des sections de log.
+# Entrée : `title`.
+# Comportement : écrit trois lignes (séparateur, titre, séparateur) sans horodatage.
+# Cas bloquants : aucun.
+# Sortie : aucune (effets de bord).
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 log_section <- function(title) {
   sep <- strrep("─", 80)
@@ -210,18 +225,40 @@ log_section <- function(title) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Fonctions de logging pour le résumé des données et l'exécution
-# log_header() : affiche l'en-tête du log avec les informations de configuration et d'entrée.
-# log_data_summary() : affiche le résumé des données avec le nombre d'observations, d'espèces, de sites et de dates.
-# log_footer() : affiche la fin de l'exécution avec la durée totale et l'heure de fin.
-# Ces fonctions sont appelées à différents moments du script pour fournir un suivi clair et structuré de l'exécution, et pour faciliter le débogage et la traçabilité des analyses.
-# Les fonctions de logging pour le résumé des données et l'exécution sont conçues pour être simples et efficaces, et peuvent être adaptées ou étendues selon les besoins du projet.
-# Les fonctions de logging pour le résumé des données et l'exécution utilisent les fonctions log_info(), log_error(), log_warning_msg() et log_section() pour afficher les messages 
-# dans la console et dans le fichier log.
-# Les fonctions de logging pour le résumé des données et l'exécution peuvent être combinées avec d'autres fonctions de traitement des données pour créer un pipeline complet 
-# d'analyse et de reporting.
-# Les fonctions de logging pour le résumé des données et l'exécution peuvent être utilisées pour générer des rapports automatisés ou des résumés d'exécution, 
-# en extrayant les informations pertinentes du fichier log.
+# Mini-spécification — exécution protégée d'une étape non bloquante.
+# Entrées :
+#   - step_name : libellé de l'étape pour le log.
+#   - step_fn   : fonction sans argument à exécuter.
+#
+# Comportement :
+#   - exécute `step_fn()` dans un `tryCatch`.
+#   - en cas d'erreur, journalise un warning détaillé mais n'interrompt pas le pipeline.
+#
+# Cas bloquants :
+#   - aucun (les erreurs sont capturées et converties en statut KO).
+#
+# Sortie :
+#   - liste `list(ok = TRUE/FALSE, error = <message|NULL>)`.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+run_non_blocking_step <- function(step_name, step_fn) {
+  tryCatch({
+    step_fn()
+    list(ok = TRUE, error = NULL)
+  }, error = function(e) {
+    msg <- conditionMessage(e)
+    log_warning_msg(paste0("Étape non bloquante en échec [", step_name, "] : ", msg))
+    list(ok = FALSE, error = msg)
+  })
+}
+
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Mini-spécification — en-tête de log d'exécution.
+# Entrées :
+#   - config_path : libellé/source de configuration.
+#   - input_file  : chemin du jeu d'entrée.
+# Comportement : écrit une section d'ouverture avec contexte runtime (version script, R, cwd).
+# Cas bloquants : aucun.
+# Sortie : aucune (effets de bord).
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 log_header <- function(config_path, input_file) {
   log_section("Évaluation du potentiel fongique, de l'intérêt patrimonial et du gradient CHEGD")
@@ -234,28 +271,11 @@ log_header <- function(config_path, input_file) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Fonction de logging pour le résumé des données
-# nrows : nombre total d'observations (entiers)
-# nspecies : nombre d'espèces uniques (entiers)
-# nsites : nombre de sites uniques (entiers)
-# ndates : nombre de dates uniques (entiers)
-# La fonction log_data_summary() est utilisée pour afficher un résumé des données d'entrée, y compris le nombre total d'observations,
-# le nombre d'espèces uniques, le nombre de sites uniques et le nombre de dates uniques.
-# Les informations de résumé des données sont affichées dans la console et écrites dans le fichier log si celui-ci est défini.
-# Les informations de résumé des données sont utiles pour vérifier la qualité et la cohérence des données d'entrée, et pour détecter d'éventuels problèmes ou anomalies.
-# Les informations de résumé des données peuvent être utilisées pour générer des rapports automatisés ou des résumés d'exécution, en extrayant les informations pertinentes du fichier log.
-# Les informations de résumé des données peuvent être combinées avec d'autres fonctions de traitement des données pour créer un pipeline complet d'analyse et de reporting.
-# Les informations de résumé des données peuvent être personnalisées selon les besoins du projet, et peuvent inclure des informations supplémentaires, telles que des statistiques descriptives,
-# des graphiques, ou des tableaux de fréquence.
-# Les informations de résumé des données peuvent être utilisées pour guider les décisions d'analyse et d'interprétation des résultats, en fournissant un contexte sur la structure et 
-# la distribution des données.
-# Les informations de résumé des données peuvent être utilisées pour identifier les tendances, les modèles, et les relations entre les variables, et pour formuler des hypothèses de recherche.
-# Les informations de résumé des données peuvent être utilisées pour communiquer les résultats de l'analyse à différents publics, tels que les chercheurs, les gestionnaires, ou le grand public.
-# Les informations de résumé des données peuvent être utilisées pour documenter le processus d'analyse et pour assurer la reproductibilité des résultats.
-# Les informations de résumé des données peuvent être utilisées pour évaluer la robustesse et la fiabilité des conclusions tirées de l'analyse, en tenant compte de la taille et 
-# de la diversité des données.
-# Les informations de résumé des données peuvent être utilisées pour identifier les lacunes et les limites des données, et pour orienter les futures collectes de données ou les améliorations 
-# méthodologiques.
+# Mini-spécification — résumé quantitatif du jeu d'entrée.
+# Entrées : nrows, nspecies, nsites, ndates.
+# Comportement : journalise les compteurs principaux.
+# Cas bloquants : aucun.
+# Sortie : aucune (effets de bord).
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 log_data_summary <- function(nrows, nspecies, nsites, ndates) {
   log_section("Résumé des données d'entrée")
@@ -266,25 +286,10 @@ log_data_summary <- function(nrows, nspecies, nsites, ndates) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Fonction de logging pour le résumé des métriques par site
-# metrics_df : data frame contenant les métriques par site (site_id, site_name, potentiel_fongique, interet_patrimonial, gradient_chegd)
-# La fonction log_metrics_summary() est utilisée pour afficher un résumé des métriques calculées par site, y compris le potentiel fongique,
-# l'intérêt patrimonial et le gradient CHEGD.
-# Les informations de résumé des métriques par site sont affichées dans la console et écrites dans le fichier log si celui-ci est défini.
-# Les informations de résumé des métriques par site sont utiles pour évaluer la qualité et la pertinence des sites étudiés, et pour identifier les sites présentant un potentiel fongique 
-# élevé ou un intérêt patrimonial particulier.
-# Les informations de résumé des métriques par site peuvent être utilisées pour générer des rapports automatisés ou des résumés d'exécution, en extrayant les informations pertinentes 
-# du fichier log.
-# Les informations de résumé des métriques par site peuvent être combinées avec d'autres fonctions de traitement des données pour créer un pipeline complet d'analyse et de reporting.
-# Les informations de résumé des métriques par site peuvent être personnalisées selon les besoins du projet, et peuvent inclure des informations supplémentaires, telles que des graphiques,
-# des tableaux de fréquence, ou des cartes géographiques.
-# Les informations de résumé des métriques par site peuvent être utilisées pour guider les décisions de gestion et de conservation, en identifiant les sites prioritaires pour la protection 
-# ou la restauration.
-# Les informations de résumé des métriques par site peuvent être utilisées pour communiquer les résultats de l'analyse à différents publics, tels que les chercheurs, les gestionnaires,
-# ou le grand public.
-# Les informations de résumé des métriques par site peuvent être utilisées pour documenter le processus d'analyse et pour assurer la reproductibilité des résultats.
-# Les informations de résumé des métriques par site peuvent être utilisées pour évaluer la robustesse et la fiabilité des conclusions tirées de l'analyse, en tenant compte de la taille et
-# de la diversité des sites étudiés.
+# Mini-spécification — pied de log.
+# Comportement : journalise fin d'exécution, durée totale, horodatage de fin et chemin du log.
+# Cas bloquants : aucun.
+# Sortie : aucune (effets de bord).
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 log_footer <- function() {
   log_section("Exécution terminée")
@@ -298,35 +303,73 @@ log_footer <- function() {
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Configuration et résolution des chemins et configuration embarquée du pipeline.
-# Modifier cette fonction pour changer les paramètres par défaut.
-# La configuration embarquée inclut le chemin du fichier d'entrée, le répertoire de sortie, le préfixe de sortie, et les noms des colonnes attendues dans le fichier d'entrée.
-# La fonction get_embedded_config() retourne une liste contenant les paramètres de configuration, qui peuvent être utilisés par le script pour lire les données, calculer les métriques, 
-# et générer les résultats.
-# La configuration embarquée peut être modifiée directement dans le script, ou remplacée par un fichier de configuration externe si nécessaire.
-# La configuration embarquée est utilisée comme valeur par défaut, mais peut être surchargée par des arguments de ligne de commande ou des variables d'environnement si nécessaire.
-# La configuration embarquée est conçue pour être simple et flexible, et peut être adaptée aux besoins spécifiques du projet ou de l'utilisateur.
-# La configuration embarquée peut inclure des paramètres supplémentaires, tels que des seuils de filtrage, des options de visualisation, ou des paramètres de modélisation, 
-# selon les besoins du projet.
-# La configuration embarquée peut être utilisée pour documenter les choix méthodologiques et les hypothèses de l'analyse, et pour assurer la reproductibilité des résultats.
-# La configuration embarquée peut être utilisée pour faciliter la collaboration entre les membres de l'équipe, en fournissant un point de référence commun pour les paramètres 
-# et les options d'analyse.
-# La configuration embarquée peut être utilisée pour automatiser le traitement des données et la génération de rapports, en intégrant le script dans un pipeline d'analyse plus large.
-# La configuration embarquée peut être utilisée pour tester différentes hypothèses ou scénarios, en modifiant les paramètres et en comparant les résultats obtenus.
-# La configuration embarquée peut être utilisée pour créer des versions personnalisées du script, adaptées à des contextes spécifiques ou à des besoins particuliers.
-# La configuration embarquée peut être utilisée pour faciliter la maintenance et la mise à jour du script, en centralisant les paramètres et les options dans une seule fonction.
-# La configuration embarquée peut être utilisée pour améliorer la lisibilité et la compréhension du script, en fournissant des commentaires et des explications sur les paramètres et les options.
-# La configuration embarquée peut être utilisée pour assurer la compatibilité avec différentes versions de R et des packages, en spécifiant les dépendances et les versions requises.
-# La configuration embarquée peut être utilisée pour gérer les erreurs et les exceptions, en définissant des comportements par défaut ou des valeurs de repli en cas de problème.
+# Mini-spécification — configuration embarquée par défaut.
+# Liste exhaustive des paramètres exposés, avec définition et valeurs possibles :
+#
+# 1) protocol_scope (character)
+#    - Définition : libellé du périmètre protocolaire analysé ; utilisé pour le log et la traçabilité.
+#    - Valeurs possibles : toute chaîne non vide (recommandé : explicite et stable dans le temps).
+#    - Exemple courant : "CHEGD pelouses".
+#
+# 2) strict (logical)
+#    - Définition : mode d'exécution des contrôles bloquants.
+#    - Valeurs possibles :
+#        * TRUE  : mode strict (arrêt du pipeline sur anomalies bloquantes).
+#        * FALSE : mode tolérant (warning + poursuite du pipeline).
+#
+# 3) input_file (character)
+#    - Définition : chemin du fichier d'entrée principal.
+#    - Valeurs possibles :
+#        * chemin relatif (résolu depuis la base projet),
+#        * ou chemin absolu.
+#    - Contraintes : fichier CSV attendu (résolution robuste appliquée par `resolve_input_file`).
+#
+# 4) output_dir (character)
+#    - Définition : dossier racine des sorties.
+#    - Valeurs possibles : chemin relatif ou absolu vers un dossier (créé si absent).
+#
+# 5) output_prefix (character)
+#    - Définition : préfixe de nommage des artefacts de sortie (sous-dossier + logs).
+#    - Valeurs possibles : toute chaîne non vide compatible nom de dossier/fichier.
+#    - Exemple courant : "EPFIP_CHEGD".
+#
+# 6) columns (list)
+#    - Définition : mapping logique -> nom exact de colonne dans le CSV source.
+#    - Clés obligatoires et valeurs possibles :
+#        * species     : nom de colonne texte de l'espèce (ex. "Espèces").
+#        * family      : nom de colonne texte de la famille (ex. "Famille").
+#        * date        : nom de colonne date brute (ex. "Date").
+#        * count       : nom de colonne effectif/abondance (ex. "Nombre d'espèce").
+#        * site        : nom de colonne site (ex. "Site").
+#        * reliability : nom de colonne fiabilité (ex. "Fiabilité détermination").
+#    - Contraintes : les valeurs doivent correspondre exactement aux en-têtes du CSV.
+#
+# 7) quality_alert_thresholds (list de seuils numériques)
+#    - Définition : seuils d'alerte (en %) utilisés par `build_input_quality_digest`.
+#    - Valeurs possibles : numériques >= 0 (entier ou décimal), par indicateur :
+#        * rows_quasi_empty      : % de lignes quasi vides.
+#        * dates_invalid         : % de dates renseignées mais invalides.
+#        * counts_invalid        : % d'effectifs renseignés mais invalides.
+#        * counts_negative       : % d'effectifs numériques < 0.
+#        * species_missing       : % de lignes avec espèce manquante.
+#        * sites_missing         : % de lignes avec site manquant.
+#        * site_ids_unresolved   : % de sites non résolus en identifiant.
+#        * exact_duplicates      : % de doublons exacts sur colonnes métier.
+#        * missing_reliability   : % de fiabilité manquante.
+#
+# Sortie : liste nommée utilisée par l'orchestrateur `main()`.
+# Cas bloquants : aucun.
+# Note : tout changement de valeur impacte directement lecture, contrôles QA, alerting et exports.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 get_embedded_config <- function() {
   list(
+    # Note protocole : ce pipeline est conçu pour des relevés CHEGD sur pelouses.
+    # Les libellés de site sont normalisés et présentés sous forme "Pelouse N".
+    protocol_scope = "CHEGD pelouses",
+    strict = TRUE,
     input_file = "data/données_récoltes_chegd_pelouses.csv",
-    input_sheet = NULL,
     output_dir = "results",
     output_prefix = "EPFIP_CHEGD",
-    reference_workbook = NULL,
-    use_reference_overrides = FALSE,
     columns = list(
       species = "Espèces",
       family = "Famille",
@@ -334,18 +377,26 @@ get_embedded_config <- function() {
       count = "Nombre d'espèce",
       site = "Site",
       reliability = "Fiabilité détermination"
+    ),
+    quality_alert_thresholds = list(
+      rows_quasi_empty = 1,
+      dates_invalid = 10,
+      counts_invalid = 5,
+      counts_negative = 0,
+      species_missing = 5,
+      sites_missing = 5,
+      site_ids_unresolved = 0,
+      exact_duplicates = 2,
+      missing_reliability = 20
     )
   )
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Détermine le répertoire du script en mode Rscript, RStudio et VSCode, avec fallback getwd().
-# Stratégie de résolution par ordre de priorité :
-#   1) Argument de ligne de commande "--file=<path>" injecté par Rscript : fournit le chemin réel.
-#   2) sys.frames()[[1]]$ofile : injecté par source() ou RStudio lors d'une exécution interractive.
-#   3) getwd() : répertoire de travail courant (fallback pour VSCode REPL ou consoles interactives).
-# Retourne le chemin absolu normalisé du répertoire contenant le script (sans séparateur final).
-# Utilisée par resolve_config_path() et main() pour ancrer les chemins relatifs sur le projet.
+# Mini-spécification — détermination robuste du répertoire script.
+# Stratégie : `--file=` > `sys.frames()[[1]]$ofile` > `getwd()`.
+# Sortie : chemin absolu normalisé du répertoire de référence.
+# Cas bloquants : aucun `stop()` explicite.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 get_script_dir <- function() {
   cmd_args <- commandArgs(trailingOnly = FALSE)
@@ -362,28 +413,11 @@ get_script_dir <- function() {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Résout le chemin de configuration avec plusieurs emplacements candidats.
-# config_path : chemin relatif ou absolu du fichier de configuration
-# La fonction resolve_config_path() tente de résoudre le chemin du fichier de configuration en vérifiant plusieurs emplacements candidats, y compris le répertoire de travail actuel,
-# le répertoire du script, et le répertoire parent du script.
-# Si le fichier de configuration est trouvé dans l'un des emplacements candidats, la fonction retourne le chemin absolu normalisé du fichier.
-# Sinon, elle génère une erreur.
-# La fonction resolve_config_path() est utilisée pour localiser le fichier de configuration nécessaire à l'exécution du script, et pour assurer que les paramètres de configuration
-# sont correctement chargés.
-# La fonction resolve_config_path() peut être utilisée pour gérer différents environnements d'exécution, tels que le développement local, le déploiement sur un serveur, ou 
-# l'exécution dans un conteneur.
-# La fonction resolve_config_path() peut être adaptée pour inclure d'autres emplacements candidats, tels que des répertoires spécifiques à l'utilisateur, des variables d'environnement,
-# ou des chemins de configuration globaux.
-# La fonction resolve_config_path() peut être utilisée pour vérifier la présence et l'accessibilité du fichier de configuration avant de procéder à l'exécution du script,
-# et pour fournir des messages d'erreur clairs et informatifs en cas de problème.
-# La fonction resolve_config_path() peut être combinée avec d'autres fonctions de gestion des chemins et des fichiers pour créer un système de configuration robuste et flexible.
-# La fonction resolve_config_path() peut être utilisée pour faciliter la maintenance et la mise à jour du script, en centralisant la gestion des chemins de configuration dans une seule fonction.
-# La fonction resolve_config_path() peut être utilisée pour améliorer la lisibilité et la compréhension du script, en fournissant des commentaires et des explications sur les choix de 
-# résolution des chemins.
-# La fonction resolve_config_path() peut être utilisée pour a@ssurer la compatibilité avec différents systèmes d'exploitation, en normalisant les séparateurs de chemin et en gérant les 
-# différences de casse.
-# La fonction resolve_config_path() peut être utilisée pour gérer les erreurs et les exceptions liées aux chemins de configuration, en fournissant des messages d'erreur clairs et
-# informatifs, et en permettant à l'utilisateur de corriger les problèmes rapidement.
+# Mini-spécification — résolution d'un chemin de configuration.
+# Entrée : `config_path` relatif ou absolu.
+# Comportement : teste successivement plusieurs emplacements (cwd/script/parent).
+# Cas bloquant : arrêt via `stop()` si aucun candidat existant.
+# Sortie : chemin absolu normalisé du fichier de configuration.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 resolve_config_path <- function(config_path) {
   if (file.exists(config_path)) {
@@ -407,14 +441,14 @@ resolve_config_path <- function(config_path) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Résout un chemin relatif à partir du répertoire racine du projet.
-# path_value : valeur de chemin issue de la configuration (peut être NULL, NA, vide ou absolu).
-# base_dir   : répertoire racine du projet utilisé comme base pour les chemins relatifs.
-# Si path_value est NULL, NA ou vide, le retourne tel quel sans modification.
-# Si path_value est un chemin absolu (commence par "/" ou une lettre de lecteur Windows),
-# il est retourné inchangé.
-# Sinon, retourne file.path(base_dir, path_value) pour le transformer en chemin absolu.
-# Utilisée pour résoudre output_dir et input_file depuis la configuration embarquée dans main().
+# Mini-spécification — résolution d'un chemin relatif sur base projet.
+# Entrées : `path_value`, `base_dir`.
+# Règles :
+#   - NULL/NA/vide => inchangé,
+#   - absolu => inchangé,
+#   - relatif => `file.path(base_dir, path_value)`.
+# Cas bloquants : aucun.
+# Sortie : chemin résolu (non forcément existant).
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 resolve_path_from_base <- function(path_value, base_dir) {
   if (is.null(path_value) || is.na(path_value) || path_value == "") {
@@ -427,16 +461,11 @@ resolve_path_from_base <- function(path_value, base_dir) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Normalise un nom de fichier pour permettre un matching robuste indépendant des accents et de la casse.
-# x : vecteur de chaînes de caractères représentant des noms de fichiers.
-# La normalisation procède en 3 étapes :
-#   1) Translittération ASCII (iconv "ASCII//TRANSLIT") pour supprimer les accents et caractères spéciaux.
-#      En cas d'échec de translittération, la valeur originale est conservée.
-#   2) Conversion en minuscules.
-#   3) Suppression de tous les caractères non alphanumériques (espaces, tirets, points, etc.).
-# Retourne un vecteur de chaînes normalisées, utilisables pour des comparaisons insensibles
-# à la casse, aux accents, aux séparateurs et aux différences d'encodage.
-# Utilisée par resolve_input_file() pour trouver le fichier d'entrée par correspondance normalisée.
+# Mini-spécification — normalisation de noms pour matching robuste.
+# Entrée : vecteur texte `x`.
+# Transformation : translittération ASCII -> minuscules -> retrait caractères non alphanumériques.
+# Cas bloquants : aucun.
+# Sortie : vecteur normalisé comparable en mode accent/casse/séparateurs insensibles.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 normalize_filename <- function(x) {
   x_ascii <- iconv(x, from = "", to = "ASCII//TRANSLIT")
@@ -446,18 +475,24 @@ normalize_filename <- function(x) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Résout le fichier d'entrée (.xlsx ou .csv) selon une stratégie de recherche à 3 niveaux.
-# path_value : chemin configuré dans get_embedded_config() (relatif ou absolu).
-# base_dir   : répertoire racine du projet.
-# Niveaux de résolution, dans l'ordre de priorité :
-#   1) Chemin exact : vérifie file.exists(resolve_path_from_base(path_value, base_dir)).
-#   2) Correspondance normalisée : compare normalize_filename(basename(candidat))
-#      avec normalize_filename(basename(path_value)) sur tous les .xlsx/.csv dans data/ et base_dir.
-#   3) Distance de Levenshtein (adist) : choisit le candidat le plus proche si la distance
-#      est inférieure au seuil max(3, floor(nchar(nom_normalisé) * 0.25)).
-# En cas de succès pour les niveaux 2 et 3, un message (ℹ️) est émis via message().
-# Levève stop() avec la liste des candidats trouvés si aucun niveau ne réussit.
-# Retourne le chemin absolu normalisé du fichier d'entrée résolu.
+# Mini-spécification — résolution du fichier d'entrée CSV.
+# Entrées :
+#   - path_value : chemin configuré (relatif ou absolu).
+#   - base_dir   : répertoire racine projet.
+#
+# Contrôles appliqués (ordre strict) :
+#   1) Résolution directe : `resolve_path_from_base(path_value, base_dir)` puis `file.exists()`.
+#   2) Matching normalisé (insensible accents/casse/séparateurs) sur tous les `.csv`
+#      trouvés sous `base_dir/data` puis `base_dir`.
+#   3) Fallback fuzzy : distance de Levenshtein minimale (`adist`) si
+#      distance <= `max(3, floor(nchar(preferred_norm) * 0.25))`.
+#
+# Comportement :
+#   - Si 2) ou 3) réussit, émission d'un message d'information indiquant la résolution automatique.
+#   - Si rien ne matche, arrêt bloquant via `stop()` avec liste des candidats disponibles.
+#
+# Sortie :
+#   - chemin absolu normalisé (`normalizePath(..., mustWork = TRUE)`) du fichier retenu.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 resolve_input_file <- function(path_value, base_dir) {
   resolved <- resolve_path_from_base(path_value, base_dir)
@@ -468,7 +503,7 @@ resolve_input_file <- function(path_value, base_dir) {
   preferred_name <- basename(path_value)
   search_dirs <- c(file.path(base_dir, "data"), base_dir)
   search_dirs <- unique(search_dirs[dir.exists(search_dirs)])
-  candidates <- unlist(lapply(search_dirs, function(d) list.files(d, pattern = "\\.(xlsx|csv)$", full.names = TRUE, recursive = TRUE, ignore.case = TRUE)))
+  candidates <- unlist(lapply(search_dirs, function(d) list.files(d, pattern = "\\.csv$", full.names = TRUE, recursive = TRUE, ignore.case = TRUE)))
   candidates <- unique(candidates[file.exists(candidates)])
 
   if (length(candidates) == 0) {
@@ -504,13 +539,11 @@ resolve_input_file <- function(path_value, base_dir) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Détecte automatiquement le séparateur utilisé dans un fichier CSV.
-# file_path : chemin absolu du fichier CSV à analyser.
-# Lit les 5 premières lignes non vides du fichier en encodage UTF-8, puis compare
-# le nombre total de tabulations (\t), point-virgules (";") et virgules (",") dans ces lignes.
-# Retourne le séparateur le plus fréquent, par ordre de priorité : \t > , > ; > ; (défaut).
-# Cas de fichier vide : retourne ";" par défaut (format CSV français le plus courant).
-# Utilisée par read_input_data() avant l'appel à utils::read.table() pour déterminer le paramètre sep.
+# Mini-spécification — détection heuristique du séparateur CSV.
+# Entrée : `file_path`.
+# Règle : score des caractères séparateurs sur les 5 premières lignes non vides (`\t`, `,`, `;`).
+# Cas bloquants : aucun (si fichier vide => `;` par défaut).
+# Sortie : séparateur retenu (`\t`, `,` ou `;`).
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 guess_csv_separator <- function(file_path) {
   first_lines <- readLines(file_path, n = 5, warn = FALSE, encoding = "UTF-8")
@@ -531,33 +564,30 @@ guess_csv_separator <- function(file_path) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Lit le fichier de données d'entrée au format .xlsx ou .csv.
-# input_file  : chemin absolu du fichier d'entrée.
-# input_sheet : nom ou index de la feuille à lire pour les fichiers .xlsx (NULL = première feuille).
-# Pour les fichiers .xlsx :
-#   Utilise readxl::read_excel() avec validation du paramètre sheet.
-#   Si sheet=NULL, affiche un avertissement (lecture de la première feuille par défaut).
-# Pour les fichiers .csv :
-#   1) Supprime le BOM UTF-8 si présent (évite corruption du 1er en-tête).
-#   2) Détecte le séparateur via guess_csv_separator() (détecte \t, ;, , ou \t).
-#   3) Lit le fichier ligne par ligne, filtre les lignes ne contenant que des séparateurs.
-#   4) Appelle utils::read.table() avec check.names=FALSE pour préserver les noms de colonnes accentés.
-#   5) Nettoie les noms de colonnes (supprime espaces initiaux/finaux).
-#   6) Supprime la colonne de tête vide éventuelle et les colonnes entièrement vides
-#      (artefacts courants des exports CSV avec séparateur initial ou final).
-# Lève stop() si le format de fichier n'est pas .xlsx ou .csv.
-# Retourne un data.frame avec les données brutes, prêt à être passé à ensure_required_columns().
+# Mini-spécification — lecture et normalisation structurelle du CSV d'entrée.
+# Entrée :
+#   - input_file : chemin absolu du fichier à lire.
+#
+# Contrôles/traitements appliqués :
+#   1) Extension obligatoire `.csv` (sinon arrêt bloquant).
+#   2) Lecture UTF-8 des lignes et suppression du BOM UTF-8 sur la première ligne si présent.
+#   3) Détection du séparateur via `guess_csv_separator()`.
+#   4) Filtrage des lignes ne contenant que des séparateurs/espaces.
+#   5) Parsing via `utils::read.table(..., check.names = FALSE, fill = TRUE)`.
+#   6) Trim des noms de colonnes.
+#   7) Suppression de la première colonne vide parasite (nom vide + valeurs vides).
+#   8) Suppression des colonnes entièrement vides.
+#
+# Cas bloquants (arrêt via `stop()`) :
+#   - extension différente de `.csv`,
+#   - fichier vide après filtrage des lignes non informatives.
+#
+# Sortie :
+#   - data.frame brut nettoyé structurellement, prêt pour `ensure_required_columns()`
+#     puis `validate_input_data()`.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-read_input_data <- function(input_file, input_sheet = NULL) {
+read_input_data <- function(input_file) {
   ext <- tolower(tools::file_ext(input_file))
-
-  if (ext == "xlsx") {
-    if (is.null(input_sheet) || !nzchar(trimws(as.character(input_sheet)))) {
-      # Pas de validation ici : readxl::read_excel() lit la première feuille par défaut si NULL
-      return(readxl::read_excel(input_file))
-    }
-    return(readxl::read_excel(input_file, sheet = input_sheet))
-  }
 
   if (ext == "csv") {
     # Lire le fichier et supprimer le BOM UTF-8 si présent (corrupts le 1er en-tête)
@@ -603,22 +633,29 @@ read_input_data <- function(input_file, input_sheet = NULL) {
     return(raw)
   }
 
-  stop("Format d'entrée non supporté : ", ext, " (formats supportés : .xlsx, .csv)")
+  stop("Format d'entrée non supporté : ", ext, " (format supporté : .csv)")
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Vérifie la présence de toutes les colonnes métier attendues dans le data.frame d'entrée.
-# df  : data.frame brut issu de read_input_data().
-# cfg : configuration du pipeline contenant cfg$columns (liste nommée des colonnes attendues).
-# Extrait la liste des noms de colonnes requis via unlist(cfg$columns), puis vérifie
-# que chaque colonne est bien présente dans names(df).
-# Si des colonnes sont manquantes, génère une erreur détaillée avec :
-#   - Liste des colonnes attendues
-#   - Liste des colonnes présentes
-#   - Suggestions de correspondance proche (fuzzy matching sur les noms)
-# Cette vérification garantit que toutes les étapes suivantes du pipeline peuvent
-# accéder aux colonnes sans risquer d'échecs silencieux ou de messages d'erreur obscurs.
-# Retourne invisiblement NULL si toutes les colonnes sont présentes.
+# Mini-spécification — validation des colonnes métier obligatoires.
+# Entrées :
+#   - df  : data.frame brut issu de `read_input_data()`.
+#   - cfg : configuration contenant `cfg$columns` (mapping logique -> libellé attendu).
+#
+# Contrôle :
+#   - Construction de la liste des colonnes obligatoires via `unlist(cfg$columns)`.
+#   - Vérification d'appartenance stricte dans `names(df)` (matching exact).
+#
+# Cas bloquant (arrêt via `stop()`) :
+#   - au moins une colonne obligatoire absente.
+#
+# Diagnostic d'erreur produit :
+#   - rappel des colonnes attendues (avec clé logique),
+#   - liste des colonnes manquantes,
+#   - liste des colonnes effectivement présentes.
+#
+# Sortie :
+#   - `NULL` invisible si toutes les colonnes sont présentes.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ensure_required_columns <- function(df, cfg) {
   required <- unlist(cfg$columns, use.names = TRUE)
@@ -642,16 +679,457 @@ ensure_required_columns <- function(df, cfg) {
   }
 }
 
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Mini-spécification — validation qualité de l'entrée avant calcul métier.
+# raw      : data.frame brut issu de read_input_data() après contrôle des colonnes.
+# df_clean : data.frame enrichi contenant au minimum date_obs et nombre_espece_num.
+# cols     : liste des noms de colonnes métier (issues de cfg$columns).
+# out_dir  : répertoire de sortie facultatif où exporter les diagnostics CSV.
+#
+# Contrôles réalisés (codes exportés dans `summary$check_id`) :
+#   1) rows_quasi_empty
+#      - Définition : ligne où toutes les colonnes métier de `cols` sont vides après trim.
+#      - Calcul     : rowSums(raw_chr[, required_col_names] != "") == 0.
+#      - Sévérité   : warning.
+#
+#   2) dates_invalid
+#      - Définition : date brute renseignée mais conversion en `date_obs` échouée.
+#      - Calcul     : date_raw != "" & is.na(df_clean$date_obs).
+#      - Sévérité   : warning.
+#
+#   3) counts_invalid
+#      - Définition : effectif brut renseigné mais conversion en `nombre_espece_num` échouée.
+#      - Calcul     : count_raw != "" & is.na(df_clean$nombre_espece_num).
+#      - Sévérité   : warning.
+#
+#   4) counts_negative
+#      - Définition : effectif converti strictement inférieur à 0.
+#      - Calcul     : !is.na(df_clean$nombre_espece_num) & df_clean$nombre_espece_num < 0.
+#      - Sévérité   : warning.
+#
+#   5) species_missing
+#      - Définition : nom d'espèce vide après trim.
+#      - Calcul     : species_raw == "".
+#      - Sévérité   : warning.
+#
+#   6) sites_missing
+#      - Définition : site vide après trim.
+#      - Calcul     : site_raw == "".
+#      - Sévérité   : warning.
+#
+#   7) site_ids_unresolved
+#      - Définition : site renseigné mais non convertible vers un identifiant via assign_site_ids().
+#      - Calcul     : !site_missing & is.na(assign_site_ids(site_raw)).
+#      - Sévérité   : warning.
+#      - Remarque   : avec la logique actuelle d'assignation séquentielle, ce cas doit rester rare.
+#
+#   8) exact_duplicates
+#      - Définition : ligne dupliquée à l'identique sur toutes les colonnes métier de `cols`.
+#      - Calcul     : duplicated(...) | duplicated(..., fromLast = TRUE).
+#      - Sévérité   : warning.
+#
+# Contrôles bloquants (sévérité = error, arrêt du pipeline si `passed == FALSE`) :
+#   9) usable_rows_present
+#      - Attendu : au moins une ligne exploitable existe.
+#      - Calcul  : sum(!quasi_empty_rows) > 0.
+#      - Cas bloquant : toutes les lignes sont quasi vides.
+#
+#   10) dates_not_all_invalid
+#       - Attendu : si au moins une date brute est fournie, elles ne doivent pas être toutes invalides.
+#       - Calcul  : !(sum(date_provided) > 0 && sum(invalid_dates) == sum(date_provided)).
+#       - Cas bloquant : des dates sont renseignées mais 100 % échouent à la conversion.
+#
+#   11) counts_not_all_invalid
+#       - Attendu : si au moins un effectif brut est fourni, ils ne doivent pas être tous invalides.
+#       - Calcul  : !(sum(count_provided) > 0 && sum(invalid_counts) == sum(count_provided)).
+#       - Cas bloquant : des effectifs sont renseignés mais 100 % échouent à la conversion.
+#
+#   12) sites_not_all_missing
+#       - Attendu : toutes les lignes ne doivent pas avoir un site manquant.
+#       - Calcul  : sum(site_missing) < total_rows.
+#       - Cas bloquant : 100 % des lignes ont un site vide.
+#
+#   13) species_not_all_missing
+#       - Attendu : toutes les lignes ne doivent pas avoir une espèce manquante.
+#       - Calcul  : sum(species_missing) < total_rows.
+#       - Cas bloquant : 100 % des lignes ont un nom d'espèce vide.
+#
+# Export QA (si `out_dir` existe) :
+#   - `qa_validation_entree_resume.csv` : synthèse des contrôles (compte, base de référence, pourcentage, succès/échec).
+#   - `qa_validation_entree_lignes.csv` : détail ligne à ligne des anomalies non vides.
+#
+# Retourne une liste :
+#   - summary         : data.frame de synthèse des contrôles.
+#   - issues          : data.frame détaillant les lignes concernées par anomalie.
+#   - blocking_issues : vecteur des `check_id` bloquants dont `passed == FALSE`.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+validate_input_data <- function(raw, df_clean, cols, out_dir = NULL) {
+  total_rows <- nrow(df_clean)
+  if (is.null(total_rows) || total_rows == 0) {
+    stop("Le fichier d'entrée ne contient aucune ligne exploitable après lecture.")
+  }
+
+  required_col_names <- unname(unlist(cols, use.names = FALSE))
+  required_col_names <- required_col_names[required_col_names %in% names(raw)]
+
+  raw_chr <- raw
+  for (col_name in names(raw_chr)) {
+    raw_chr[[col_name]] <- trimws(as.character(raw_chr[[col_name]]))
+    raw_chr[[col_name]][is.na(raw_chr[[col_name]])] <- ""
+  }
+
+  quasi_empty_rows <- if (length(required_col_names) > 0) {
+    rowSums(raw_chr[, required_col_names, drop = FALSE] != "") == 0
+  } else {
+    rep(FALSE, total_rows)
+  }
+
+  date_raw <- trimws(as.character(raw[[cols$date]]))
+  date_raw[is.na(date_raw)] <- ""
+  count_raw <- trimws(as.character(raw[[cols$count]]))
+  count_raw[is.na(count_raw)] <- ""
+  species_raw <- trimws(as.character(raw[[cols$species]]))
+  species_raw[is.na(species_raw)] <- ""
+  site_raw <- trimws(as.character(raw[[cols$site]]))
+  site_raw[is.na(site_raw)] <- ""
+
+  date_provided <- date_raw != ""
+  count_provided <- count_raw != ""
+  species_missing <- species_raw == ""
+  site_missing <- site_raw == ""
+  invalid_dates <- date_provided & is.na(df_clean$date_obs)
+  invalid_counts <- count_provided & is.na(df_clean$nombre_espece_num)
+  negative_counts <- !is.na(df_clean$nombre_espece_num) & df_clean$nombre_espece_num < 0
+  unresolved_site_ids <- !site_missing & is.na(assign_site_ids(site_raw))
+
+  duplicate_mask <- duplicated(raw_chr[, required_col_names, drop = FALSE]) |
+    duplicated(raw_chr[, required_col_names, drop = FALSE], fromLast = TRUE)
+
+  quality_checks <- data.frame(
+    check_id = c(
+      "rows_quasi_empty",
+      "dates_invalid",
+      "counts_invalid",
+      "counts_negative",
+      "species_missing",
+      "sites_missing",
+      "site_ids_unresolved",
+      "exact_duplicates",
+      "usable_rows_present",
+      "dates_not_all_invalid",
+      "counts_not_all_invalid",
+      "sites_not_all_missing",
+      "species_not_all_missing"
+    ),
+    severity = c(
+      "warning",
+      "warning",
+      "warning",
+      "warning",
+      "warning",
+      "warning",
+      "warning",
+      "warning",
+      "error",
+      "error",
+      "error",
+      "error",
+      "error"
+    ),
+    issue_count = c(
+      sum(quasi_empty_rows),
+      sum(invalid_dates),
+      sum(invalid_counts),
+      sum(negative_counts),
+      sum(species_missing),
+      sum(site_missing),
+      sum(unresolved_site_ids),
+      sum(duplicate_mask),
+      sum(!quasi_empty_rows),
+      sum(invalid_dates),
+      sum(invalid_counts),
+      sum(site_missing),
+      sum(species_missing)
+    ),
+    reference_count = c(
+      total_rows,
+      sum(date_provided),
+      sum(count_provided),
+      sum(!is.na(df_clean$nombre_espece_num)),
+      total_rows,
+      total_rows,
+      sum(!site_missing),
+      total_rows,
+      total_rows,
+      sum(date_provided),
+      sum(count_provided),
+      total_rows,
+      total_rows
+    ),
+    passed = c(
+      TRUE,
+      TRUE,
+      TRUE,
+      TRUE,
+      TRUE,
+      TRUE,
+      TRUE,
+      TRUE,
+      sum(!quasi_empty_rows) > 0,
+      !(sum(date_provided) > 0 && sum(invalid_dates) == sum(date_provided)),
+      !(sum(count_provided) > 0 && sum(invalid_counts) == sum(count_provided)),
+      sum(site_missing) < total_rows,
+      sum(species_missing) < total_rows
+    ),
+    details = c(
+      "Lignes vides sur toutes les colonnes métier.",
+      "Dates renseignées mais non converties en Date.",
+      "Effectifs renseignés mais non convertis en numérique.",
+      "Effectifs numériques strictement négatifs.",
+      "Nom d'espèce absent.",
+      "Site absent.",
+      "Site renseigné mais sans identifiant exploitable.",
+      "Doublons exacts sur les colonnes métier.",
+      "Au moins une ligne exploitable doit être présente.",
+      "Toutes les dates renseignées sont invalides.",
+      "Tous les effectifs renseignés sont invalides.",
+      "Toutes les lignes ont un site manquant.",
+      "Toutes les lignes ont une espèce manquante."
+    ),
+    stringsAsFactors = FALSE
+  )
+
+  quality_checks$pct_issue <- ifelse(
+    quality_checks$reference_count > 0,
+    round(100 * quality_checks$issue_count / quality_checks$reference_count, 2),
+    NA_real_
+  )
+
+  issue_rows <- list(
+    rows_quasi_empty = which(quasi_empty_rows),
+    dates_invalid = which(invalid_dates),
+    counts_invalid = which(invalid_counts),
+    counts_negative = which(negative_counts),
+    species_missing = which(species_missing),
+    sites_missing = which(site_missing),
+    site_ids_unresolved = which(unresolved_site_ids),
+    exact_duplicates = which(duplicate_mask)
+  )
+
+  issues_detail <- do.call(rbind, lapply(names(issue_rows), function(check_name) {
+    idx <- issue_rows[[check_name]]
+    if (length(idx) == 0) {
+      return(NULL)
+    }
+
+    data.frame(
+      row_number = idx,
+      check_id = check_name,
+      site = as.character(raw[[cols$site]][idx]),
+      species = as.character(raw[[cols$species]][idx]),
+      date_raw = as.character(raw[[cols$date]][idx]),
+      count_raw = as.character(raw[[cols$count]][idx]),
+      reliability_raw = as.character(raw[[cols$reliability]][idx]),
+      stringsAsFactors = FALSE
+    )
+  }))
+
+  if (is.null(issues_detail)) {
+    issues_detail <- data.frame(
+      row_number = integer(),
+      check_id = character(),
+      site = character(),
+      species = character(),
+      date_raw = character(),
+      count_raw = character(),
+      reliability_raw = character(),
+      stringsAsFactors = FALSE
+    )
+  }
+
+  if (!is.null(out_dir) && dir.exists(out_dir)) {
+    write.csv(quality_checks, file.path(out_dir, "qa_validation_entree_resume.csv"), row.names = FALSE, fileEncoding = "UTF-8")
+    write.csv(issues_detail, file.path(out_dir, "qa_validation_entree_lignes.csv"), row.names = FALSE, fileEncoding = "UTF-8")
+  }
+
+  blocking_issues <- quality_checks$check_id[quality_checks$severity == "error" & !quality_checks$passed]
+
+  list(
+    summary = quality_checks,
+    issues = issues_detail,
+    blocking_issues = blocking_issues
+  )
+}
+
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Mini-spécification — synthèse opérationnelle qualité d'entrée (indicateurs + alertes).
+# Entrées :
+#   - input_validation : liste issue de `validate_input_data()`.
+#   - df_clean, cols   : données nettoyées et mapping colonnes (pour fiabilité manquante).
+#   - out_dir          : répertoire d'export facultatif.
+#   - thresholds       : seuils d'alerte par indicateur (en pourcentage).
+#
+# Comportement :
+#   - calcule les indicateurs qualité clés (% invalides/manquants/doublons),
+#   - compare chaque indicateur à son seuil,
+#   - journalise un digest lisible (top anomalies + alertes),
+#   - exporte 2 CSV de pilotage qualité.
+#
+# Cas bloquants :
+#   - aucun `stop()` explicite (fonction purement diagnostique).
+#
+# Sortie :
+#   - liste `list(indicators=<df>, alerts=<df>)`.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+build_input_quality_digest <- function(
+  input_validation,
+  df_clean,
+  cols,
+  out_dir = NULL,
+  thresholds = list(
+    rows_quasi_empty = 1,
+    dates_invalid = 10,
+    counts_invalid = 5,
+    counts_negative = 0,
+    species_missing = 5,
+    sites_missing = 5,
+    site_ids_unresolved = 0,
+    exact_duplicates = 2,
+    missing_reliability = 20
+  )
+) {
+  if (is.null(thresholds) || length(thresholds) == 0) {
+    thresholds <- list(
+      rows_quasi_empty = 1,
+      dates_invalid = 10,
+      counts_invalid = 5,
+      counts_negative = 0,
+      species_missing = 5,
+      sites_missing = 5,
+      site_ids_unresolved = 0,
+      exact_duplicates = 2,
+      missing_reliability = 20
+    )
+  }
+
+  summary_df <- input_validation$summary
+
+  get_pct <- function(check_id) {
+    row <- summary_df[summary_df$check_id == check_id, , drop = FALSE]
+    if (nrow(row) == 0) return(NA_real_)
+    as.numeric(row$pct_issue[[1]])
+  }
+
+  get_count <- function(check_id) {
+    row <- summary_df[summary_df$check_id == check_id, , drop = FALSE]
+    if (nrow(row) == 0) return(NA_real_)
+    as.numeric(row$issue_count[[1]])
+  }
+
+  total_rows <- max(nrow(df_clean), 1)
+  missing_reliability_count <- sum(
+    is.na(df_clean[[cols$reliability]]) | trimws(as.character(df_clean[[cols$reliability]])) == ""
+  )
+  missing_reliability_pct <- round(100 * missing_reliability_count / total_rows, 2)
+
+  indicators <- data.frame(
+    indicator_id = c(
+      "rows_quasi_empty",
+      "dates_invalid",
+      "counts_invalid",
+      "counts_negative",
+      "species_missing",
+      "sites_missing",
+      "site_ids_unresolved",
+      "exact_duplicates",
+      "missing_reliability"
+    ),
+    value_count = c(
+      get_count("rows_quasi_empty"),
+      get_count("dates_invalid"),
+      get_count("counts_invalid"),
+      get_count("counts_negative"),
+      get_count("species_missing"),
+      get_count("sites_missing"),
+      get_count("site_ids_unresolved"),
+      get_count("exact_duplicates"),
+      missing_reliability_count
+    ),
+    value_pct = c(
+      get_pct("rows_quasi_empty"),
+      get_pct("dates_invalid"),
+      get_pct("counts_invalid"),
+      get_pct("counts_negative"),
+      get_pct("species_missing"),
+      get_pct("sites_missing"),
+      get_pct("site_ids_unresolved"),
+      get_pct("exact_duplicates"),
+      missing_reliability_pct
+    ),
+    stringsAsFactors = FALSE
+  )
+
+  indicators$alert_threshold_pct <- as.numeric(unlist(thresholds[indicators$indicator_id]))
+  indicators$alert <- ifelse(
+    !is.na(indicators$alert_threshold_pct) & !is.na(indicators$value_pct) & indicators$value_pct >= indicators$alert_threshold_pct,
+    TRUE,
+    FALSE
+  )
+
+  warn_rows <- summary_df[
+    summary_df$severity == "warning" &
+      !is.na(summary_df$issue_count) &
+      summary_df$issue_count > 0,
+    c("check_id", "issue_count", "pct_issue"),
+    drop = FALSE
+  ]
+
+  if (nrow(warn_rows) > 0) {
+    warn_rows <- warn_rows[order(-warn_rows$pct_issue, -warn_rows$issue_count), , drop = FALSE]
+    top_n <- min(3, nrow(warn_rows))
+    log_info("Top anomalies entrée (warning) :")
+    for (i in seq_len(top_n)) {
+      r <- warn_rows[i, ]
+      log_info(paste0("  - ", r$check_id, " : ", r$issue_count, " (", r$pct_issue, " %)"))
+    }
+  } else {
+    log_info("Top anomalies entrée : aucune anomalie warning détectée")
+  }
+
+  alerts <- indicators[indicators$alert, c("indicator_id", "value_count", "value_pct", "alert_threshold_pct"), drop = FALSE]
+
+  if (nrow(alerts) > 0) {
+    log_warning_msg(paste0("Alertes qualité entrée : ", nrow(alerts), " indicateur(s) au-dessus des seuils"))
+    for (i in seq_len(nrow(alerts))) {
+      a <- alerts[i, ]
+      log_warning_msg(paste0(
+        "  - ", a$indicator_id,
+        " : ", a$value_count,
+        " (", a$value_pct, " %) >= seuil ", a$alert_threshold_pct, " %"
+      ))
+    }
+  } else {
+    log_info("Alertes qualité entrée : aucune")
+  }
+
+  if (!is.null(out_dir) && dir.exists(out_dir)) {
+    write.csv(indicators, file.path(out_dir, "qa_validation_entree_indicateurs.csv"), row.names = FALSE, fileEncoding = "UTF-8")
+    write.csv(alerts, file.path(out_dir, "qa_validation_entree_alertes.csv"), row.names = FALSE, fileEncoding = "UTF-8")
+  }
+
+  list(indicators = indicators, alerts = alerts)
+}
+
 # -----------------------------------------------------------------------------
 # Helpers de conversion et normalisation
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Convertit un vecteur en Date.
-# Gère les objets Date, les numéros de série Excel, les chaînes numériques
-# et plusieurs formats texte courants.
-# Les valeurs vides (""), "NA" et "NaN" sont transformées en NA.
-# Retourne un vecteur Date de même longueur que x.
+# Mini-spécification — conversion défensive en Date.
+# Entrée : vecteur `x` (Date, numérique Excel, texte).
+# Contrôles : nettoyage valeurs vides, parsing multi-formats, gestion numéros série Excel.
+# Cas bloquants : aucun (échec de parsing => NA).
+# Sortie : vecteur Date de même longueur.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 to_date_safe <- function(x) {
   if (inherits(x, "Date")) {
@@ -697,13 +1175,11 @@ to_date_safe <- function(x) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Convertit un vecteur en numérique en tolérant la virgule comme séparateur décimal.
-# x : vecteur à convertir (peut être numérique, chaîne ou factor).
-# Si x est déjà numérique, le retourne tel quel sans transformation.
-# Sinon, convertit en chaîne, remplace toutes les virgules par des points via str_replace_all(),
-# puis appelle as.numeric() avec suppression des avertissements de coercion (NA introduits).
-# Retourne un vecteur numérique de même longueur que x (NA là où la conversion échoue).
-# Utilisée pour lire des fichiers CSV de locale française où les décimales utilisent la virgule.
+# Mini-spécification — conversion défensive en numérique.
+# Entrée : vecteur `x` (numérique/texte/factor).
+# Règle : remplacement `,` -> `.` puis coercition `as.numeric` silencieuse.
+# Cas bloquants : aucun (coercition impossible => NA).
+# Sortie : vecteur numérique.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 to_numeric_safe <- function(x) {
   if (is.numeric(x)) {
@@ -716,17 +1192,11 @@ to_numeric_safe <- function(x) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Normalise un vecteur de textes : translittération ASCII, minuscules, espaces propres.
-# x : vecteur de chaînes de caractères à normaliser.
-# La normalisation procède en 4 étapes :
-#   1) Conversion forcée en chaîne de caractères (as.character).
-#   2) Translittération ASCII (iconv "ASCII//TRANSLIT") pour supprimer les accents.
-#      En cas d'échec, la valeur originale est conservée.
-#   3) Conversion en minuscules.
-#   4) Remplacement de tous les caractères non alphanumériques par un espace,
-#      puis contraction des espaces multiples et suppression des espaces de bord.
-# Retourne un vecteur de chaînes normalisées utilisables pour des comparaisons robustes.
-# Utilisée pour normaliser les noms d'espèces, de familles et de sites avant les jointures.
+# Mini-spécification — normalisation sémantique de texte métier.
+# Entrée : vecteur texte `x`.
+# Transformation : ASCII translit -> minuscules -> ponctuation vers espace -> trim + espaces propres.
+# Cas bloquants : aucun.
+# Sortie : vecteur texte normalisé (comparaisons/jointures robustes).
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 normalize_text <- function(x) {
   x_chr <- as.character(x)
@@ -738,13 +1208,11 @@ normalize_text <- function(x) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Extrait l'identifiant numérique d'un site depuis sa valeur textuelle.
-# site_value : valeur brute du champ site (ex : "Pelouse 16", "Site 3", "16").
-# Convertit la valeur en chaîne, puis extrait le premier groupe de chiffres consécutifs
-# via str_extract("\\d+") et le convertit en entier.
-# Retourne NA_integer_ si aucun chiffre n'est trouvé ou si la conversion échoue.
-# Utilisée par prepare_site_reference() et build_site_level_metrics() pour créer
-# les clés numériques site_id à partir des valeurs textuelles du fichier d'entrée.
+# Mini-spécification — extraction de `site_id` numérique depuis un libellé.
+# Entrée : `site_value` (ex. "Pelouse 16").
+# Règle : extraction du premier motif `\\d+` puis conversion entière.
+# Cas bloquants : aucun (absence de chiffre => NA_integer_).
+# Sortie : entier/NA.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 extract_site_id <- function(site_value) {
   site_chr <- as.character(site_value)
@@ -752,15 +1220,54 @@ extract_site_id <- function(site_value) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Teste si chaque élément d'un vecteur commence par l'un des préfixes fournis.
-# values   : vecteur de chaînes de caractères à tester.
-# prefixes : vecteur de préfixes à vérifier (via startsWith).
-# Si values ou prefixes est vide, retourne un vecteur logique FALSE de longueur length(values).
-# Sinon, utilise Reduce sur `|` pour combiner les tests startsWith de chaque préfixe
-# en un seul vecteur logique par OR élément-par-élément.
-# Retourne un vecteur logique de même longueur que values.
-# Utilisée dans build_site_level_metrics() pour tester l'appartenance d'espèces à des groupes
-# définis par leurs préfixes normalisés (ex : "hygrocybe conica", "cuphophyllus pratensis").
+# Mini-spécification — assignation robuste d'identifiants de site.
+# Entrée : `values` (libellés de site hétérogènes).
+# Règles :
+#   - chiffre présent => utilisé directement,
+#   - libellés sans chiffre => IDs séquentiels stables par ordre d'apparition,
+#   - mode mixte => complète à partir de max(ID numérique)+1.
+# Cas bloquants : aucun.
+# Sortie : vecteur integer aligné sur `values`.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+assign_site_ids <- function(values) {
+  vals <- trimws(as.character(values))
+  vals[vals == ""] <- NA_character_
+
+  ids <- extract_site_id(vals)
+  observed_vals <- vals[!is.na(vals)]
+
+  if (length(observed_vals) == 0) {
+    return(as.integer(ids))
+  }
+
+  # Aucun ID numérique présent : numérotation séquentielle par ordre d'apparition.
+  if (all(is.na(ids[!is.na(vals)]))) {
+    uniq_vals <- unique(observed_vals)
+    mapping <- setNames(seq_along(uniq_vals), uniq_vals)
+    out <- rep(NA_integer_, length(vals))
+    out[!is.na(vals)] <- as.integer(unname(mapping[vals[!is.na(vals)]]))
+    return(out)
+  }
+
+  # IDs mixtes : compléter uniquement les libellés sans nombre.
+  out <- as.integer(ids)
+  missing_mask <- is.na(out) & !is.na(vals)
+  if (any(missing_mask)) {
+    uniq_missing_vals <- unique(vals[missing_mask])
+    next_id <- as.integer(max(out, na.rm = TRUE) + 1L)
+    missing_mapping <- setNames(seq.int(from = next_id, length.out = length(uniq_missing_vals)), uniq_missing_vals)
+    out[missing_mask] <- as.integer(unname(missing_mapping[vals[missing_mask]]))
+  }
+
+  out
+}
+
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Mini-spécification — test multi-préfixes vectorisé.
+# Entrées : `values`, `prefixes`.
+# Comportement : OR logique des `startsWith()` pour tous les préfixes.
+# Cas bloquants : aucun (entrées vides => FALSE).
+# Sortie : vecteur logique de longueur `values`.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 starts_with_any <- function(values, prefixes) {
   if (length(values) == 0 || length(prefixes) == 0) {
@@ -771,14 +1278,11 @@ starts_with_any <- function(values, prefixes) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Classe le potentiel fongique d'un site en 3 catégories à partir de son score total.
-# score : vecteur numérique de scores potentiels calculés dans build_site_level_metrics().
-# Seuils de classification :
-#   score ≤ 10 : "Potentiel fongique faible".
-#   10 < score < 30 : "Potentiel fongique intéressant".
-#   score ≥ 30 : "Potentiel fongique élevé".
-# Retourne un vecteur de chaînes de même longueur que score.
-# Ces seuils reproduisent la grille de classification du classeur Excel de référence.
+# Mini-spécification — classification du score potentiel en 3 classes.
+# Entrée : `score` numérique.
+# Règles : <=10 faible ; <30 intéressant ; sinon élevé.
+# Cas bloquants : aucun.
+# Sortie : vecteur de libellés de classe.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 classify_potential <- function(score) {
   ifelse(
@@ -789,15 +1293,11 @@ classify_potential <- function(score) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Classe l'intérêt patrimonial d'un site en 5 catégories à partir de l'indice patrimonial.
-# index_value : vecteur numérique d'indices patrimoniaux calculés dans build_site_level_metrics().
-# Seuils de classification (inspirés de la méthode CHEGD) :
-#   indice ≤ 2  : "Intérêt faible".
-#   2 < indice ≤ 5  : "Intérêt local".
-#   5 < indice ≤ 10 : "Intérêt régional".
-#   10 < indice ≤ 14 : "Intérêt national".
-#   indice > 14 : "Intérêt international".
-# Retourne un vecteur de chaînes de même longueur que index_value.
+# Mini-spécification — classification de l'indice patrimonial en 5 classes.
+# Entrée : `index_value` numérique.
+# Règles : <=2 faible ; <=5 local ; <=10 régional ; <=14 national ; >14 international.
+# Cas bloquants : aucun.
+# Sortie : vecteur de libellés de classe.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 classify_patrimonial <- function(index_value) {
   ifelse(
@@ -816,16 +1316,12 @@ classify_patrimonial <- function(index_value) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Calcule l'indice de représentativité (IR) par visite à partir des gradients CHEGD.
-# chegd_df : data.frame avec au moins les colonnes gradient_visite_N (N = 1, 2, ...) et chegd_total.
-# Modèle reproduit depuis le classeur Excel "Évaluation CHEGD pelouses" :
-#   IR_visite = max(0, 1 - gradient_visite / chegd_total)
-# avec chegd_total = nombre total d'espèces CHEGD observées sur l'ensemble des visites du site.
-# Pour chaque colonne gradient_visite_N, crée une colonne ir_visite_N correspondante.
-# Les valeurs chegd_total nulles ou négatives donnent IR = 0 (pas de division par zéro).
-# Après le calcul individuel, ajoute la colonne ir_moyen (moyenne des IR par visite sur la ligne).
-# Si chegd_df est NULL/vide ou qu'aucune colonne gradient_visite_ n'existe, retourne chegd_df intact.
-# Retourne le data.frame chegd_df enrichi des colonnes ir_visite_N et ir_moyen.
+# Mini-spécification — calcul de l'indice IR à partir des gradients CHEGD.
+# Entrée : `chegd_df` contenant `gradient_visite_*` et `chegd_total`.
+# Formule : `IR = max(0, 1 - gradient_visite / chegd_total)` ; si total <= 0 => IR = 0.
+# Comportement : ajoute `ir_visite_*` + `ir_moyen`.
+# Cas bloquants : aucun (si structure insuffisante => retour inchangé).
+# Sortie : data.frame enrichi.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 compute_ir_from_chegd <- function(chegd_df) {
   if (is.null(chegd_df) || nrow(chegd_df) == 0) {
@@ -859,25 +1355,22 @@ compute_ir_from_chegd <- function(chegd_df) {
 }
 
 # -----------------------------------------------------------------------------
-# Référentiel des sites et classeur de référence
+# Référentiel des sites
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Construit un référentiel site_id/site_name continu de 1 jusqu'au plus grand identifiant observé.
-# df_clean : data.frame nettoyé contenant la colonne de site.
-# cols     : liste des noms de colonnes métier, utilisée pour accéder à cols$site.
-# Extrait les valeurs uniques du champ site, en supprimant NA et vides.
-# Appelle extract_site_id() pour convertir chaque valeur en entier.
-# Construit un référentiel complet pour tous les entiers de 1 à max(site_id) :  
-#   les sites non observés reçoivent un nom synthétique "Pelouse N".
-#   les sites observés conservent leur nom original.
-# Retourne un data.frame (site_id, site_name) trié par site_id,
-# ou un data.frame vide si aucun identifiant valide n'est extrait.
+# Mini-spécification — construction du référentiel de sites.
+# Entrées : `df_clean`, `cols$site`.
+# Règles : extraction des sites non vides, assignation IDs via `assign_site_ids`,
+#          complétion 1..max si des IDs numériques existent.
+# Cas bloquants : aucun (si aucun site valide => data.frame vide).
+# Sortie : data.frame trié (`site_id`, `site_name`).
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 prepare_site_reference <- function(df_clean, cols) {
   site_values <- unique(as.character(df_clean[[cols$site]]))
   site_values <- site_values[!is.na(site_values) & trimws(site_values) != ""]
-  site_ids <- extract_site_id(site_values)
+  numeric_ids_raw <- extract_site_id(site_values)
+  site_ids <- assign_site_ids(site_values)
   site_values <- site_values[!is.na(site_ids)]
   site_ids <- site_ids[!is.na(site_ids)]
 
@@ -891,91 +1384,52 @@ prepare_site_reference <- function(df_clean, cols) {
     stringsAsFactors = FALSE
   )
 
-  site_ref <- site_ref[order(site_ref$site_id), ]
-  max_site <- max(site_ref$site_id, na.rm = TRUE)
-  complete <- data.frame(
-    site_id = seq_len(max_site),
-    site_name = paste("Pelouse", seq_len(max_site)),
-    stringsAsFactors = FALSE
-  )
+  site_ref <- site_ref[!duplicated(site_ref$site_id), ]
 
-  merged <- merge(complete, site_ref, by = "site_id", all.x = TRUE, suffixes = c("", "_observed"))
-  merged$site_name <- ifelse(
-    is.na(merged$site_name_observed) | merged$site_name_observed == "",
-    merged$site_name,
-    merged$site_name_observed
-  )
+  has_numeric_ids <- any(!is.na(numeric_ids_raw))
+  if (has_numeric_ids) {
+    max_site <- max(numeric_ids_raw, na.rm = TRUE)
+    complete <- data.frame(
+      site_id = seq_len(max_site),
+      site_name = paste("Pelouse", seq_len(max_site)),
+      stringsAsFactors = FALSE
+    )
 
-  merged[, c("site_id", "site_name")]
+    merged <- merge(complete, site_ref, by = "site_id", all.x = TRUE, suffixes = c("", "_observed"))
+    merged$site_name <- ifelse(
+      is.na(merged$site_name_observed) | merged$site_name_observed == "",
+      merged$site_name,
+      merged$site_name_observed
+    )
+    return(merged[order(merged$site_id), c("site_id", "site_name"), drop = FALSE])
+  }
+
+  site_ref[order(site_ref$site_id), c("site_id", "site_name"), drop = FALSE]
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Recherche un classeur Excel de référence contenant la feuille "Visites sur sites".
-# base_dir   : répertoire racine du projet où chercher récursivement les fichiers .xlsx.
-# input_file : chemin absolu du fichier d'entrée courant (exclu de la recherche pour éviter
-#              l'auto-référencement).
-# Parcourt les répertoires base_dir/data/ et base_dir/ (dans cet ordre), liste tous les .xlsx,
-# et vérifie pour chacun si la feuille "Visites sur sites" est présente via readxl::excel_sheets().
-# Retourne le chemin absolu normalisé du premier classeur correspondant, ou NULL si aucun n'est trouvé.
-# L'absence de classeur de référence n'est pas une erreur : le pipeline fonctionne sans lui
-# en calculant les gradients directement depuis les dates d'observation.
-# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Mini-spécification — stub autonome : recherche de classeur de référence désactivée.
+# Entrées : `base_dir`, `input_file` (ignorées en mode autonome).
+# Sortie : `NULL`.
 find_reference_workbook <- function(base_dir, input_file) {
-  search_dirs <- unique(c(file.path(base_dir, "data"), base_dir))
-  search_dirs <- search_dirs[dir.exists(search_dirs)]
-  candidates <- unique(unlist(lapply(
-    search_dirs,
-    function(dir_path) list.files(dir_path, pattern = "\\.xlsx$", full.names = TRUE, recursive = TRUE, ignore.case = TRUE)
-  )))
-  candidates <- candidates[file.exists(candidates)]
-  candidates <- candidates[normalizePath(candidates, winslash = "/", mustWork = TRUE) != normalizePath(input_file, winslash = "/", mustWork = TRUE)]
-
-  if (length(candidates) == 0) {
-    return(NULL)
-  }
-
-  for (candidate in candidates) {
-    sheets <- tryCatch(readxl::excel_sheets(candidate), error = function(...) character())
-    if ("Visites sur sites" %in% sheets) {
-      return(normalizePath(candidate, winslash = "/", mustWork = TRUE))
-    }
-  }
-
   NULL
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Résout le classeur de référence à utiliser pour aligner les métriques.
-# configured_path : chemin explicite fourni par la configuration (peut être NULL/vide).
-# base_dir        : répertoire racine du projet.
-# input_file      : fichier d'entrée courant (exclu de la recherche automatique).
-# Si configured_path existe, il est utilisé en priorité.
-# Sinon, la fonction retombe sur la détection automatique via find_reference_workbook().
-# Retourne un chemin absolu normalisé ou NULL si aucun classeur exploitable n'est trouvé.
+# Mini-spécification — stub autonome : résolution de classeur de référence désactivée.
+# Entrées : `configured_path`, `base_dir`, `input_file`.
+# Sortie : `NULL`.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 resolve_reference_workbook <- function(configured_path, base_dir, input_file) {
-  if (!is.null(configured_path) && !is.na(configured_path) && nzchar(trimws(configured_path)) && file.exists(configured_path)) {
-    return(normalizePath(configured_path, winslash = "/", mustWork = TRUE))
-  }
-
-  auto_detected <- find_reference_workbook(base_dir, input_file)
-  if (!is.null(auto_detected)) {
-    return(auto_detected)
-  }
-
   NULL
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Parse une description de visite pour extraire les identifiants numériques de pelouses.
-# description : chaîne de caractères décrivant les sites visités lors d'une visite
-#               (ex : "Pelouses 1-5, 8, 12" ou "Pelouse 3 à 7").
-# La fonction normalise d'abord le texte (translittération ASCII, minuscules), puis extrait :
-#   1) Les plages de la forme "X-Y" ou "X a Y" pour produire les entiers X, X+1, ..., Y.
-#   2) Les identifiants isolés (\b\d+\b) présents dans la description.
-# Les deux ensembles sont fusionnés, dédupliqués et triés par ordre croissant avant retour.
-# Retourne un vecteur d'entiers (peut être vide si aucun identifiant n'est trouvé).
-# Utilisée par read_planned_visits() pour construire la table visite_id × site_id.
+# Mini-spécification — parsing d'une description de visite en IDs de sites.
+# Entrée : texte libre `description`.
+# Règles : extraction des plages (X-Y / X a Y) + IDs isolés, union triée sans doublons.
+# Cas bloquants : aucun (texte vide/non parsable => vecteur vide).
+# Sortie : vecteur integer d'IDs.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 parse_site_ids_from_description <- function(description) {
   desc_norm <- normalize_text(description)
@@ -1005,282 +1459,39 @@ parse_site_ids_from_description <- function(description) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Lit le plan de visites depuis la feuille "Visites sur sites" du classeur de référence.
-# reference_workbook : chemin absolu du classeur Excel de référence (peut être NULL).
-# La feuille est attendue avec les colonnes (sans en-tête) :
-#   col 1 = identifiant numérique de visite, col 2 = date de la visite, col 3 = description textuelle des sites.
-# Pour chaque ligne valide, parse_site_ids_from_description() extrait les identifiants de sites
-# et génère une ligne par couple (visite_id, site_id).
-# Retourne un data.frame avec les colonnes visit_id (integer), visit_date (Date), site_id (integer),
-# trié par visit_id puis site_id, ou NULL si le classeur est absent ou illisible.
-# Utilisée par build_site_level_metrics() pour construire les gradients CHEGD par visite planifiée.
+# Mini-spécification — stub autonome : plan de visites externe désactivé.
+# Entrée : `reference_workbook`.
+# Sortie : `NULL`.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 read_planned_visits <- function(reference_workbook) {
-  if (is.null(reference_workbook) || !file.exists(reference_workbook)) {
-    return(NULL)
-  }
-
-  visits_raw <- read_excel(reference_workbook, sheet = "Visites sur sites", col_names = FALSE)
-  colnames(visits_raw)[1:3] <- c("visit_id", "visit_date", "description")
-  visits_raw <- visits_raw[!is.na(visits_raw$visit_id), c("visit_id", "visit_date", "description")]
-  visits_raw$visit_id <- to_numeric_safe(visits_raw$visit_id)
-  visits_raw$visit_date <- to_date_safe(visits_raw$visit_date)
-  visits_raw$description <- as.character(visits_raw$description)
-  visits_raw <- visits_raw[!is.na(visits_raw$visit_id), ]
-
-  rows <- lapply(seq_len(nrow(visits_raw)), function(i) {
-    site_ids <- parse_site_ids_from_description(visits_raw$description[[i]])
-    if (length(site_ids) == 0) {
-      return(NULL)
-    }
-    data.frame(
-      visit_id = rep(as.integer(visits_raw$visit_id[[i]]), length(site_ids)),
-      visit_date = rep(visits_raw$visit_date[[i]], length(site_ids)),
-      site_id = site_ids,
-      stringsAsFactors = FALSE
-    )
-  })
-
-  planned <- do.call(rbind, rows)
-  if (is.null(planned)) {
-    return(NULL)
-  }
-
-  planned[order(planned$visit_id, planned$site_id), ]
+  NULL
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Lit le détail CHEGD par pelouse depuis la feuille "Évaluation CHEGD pelouses" du classeur de référence.
-# reference_workbook : chemin absolu du classeur Excel de référence (peut être NULL).
-# n_sites           : nombre de sites attendus (entier positif).
-# La feuille est parcourue par blocs de lignes : pour chaque pelouse, les lignes
-#   "Gradient CHEGD", "Nombre total" et "Indice de représentativité" sont localisées
-#   via des expressions régulières sur la colonne B, puis les valeurs des colonnes C à G
-#   (visites 1 à 5) sont extraites.
-# Retourne un data.frame avec une ligne par site et les colonnes :
-#   site_id, gradient_visite_1_ref .. gradient_visite_5_ref, chegd_total_detail_ref,
-#   ir_visite_1_ref .. ir_visite_5_ref,
-# ou NULL si la feuille est absente, illisible ou si aucun bloc valide n'est détecté.
-# Utilisée par read_reference_site_metrics() et build_site_level_metrics() pour aligner
-# les gradients calculés sur les valeurs de référence du classeur Excel source.
+# Mini-spécification — stub autonome : détail CHEGD de référence désactivé.
+# Entrées : `reference_workbook`, `n_sites`.
+# Sortie : `NULL`.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 read_reference_chegd_detail <- function(reference_workbook, n_sites) {
-  if (is.null(reference_workbook) || !file.exists(reference_workbook) || n_sites <= 0) {
-    return(NULL)
-  }
-
-  sheets <- tryCatch(readxl::excel_sheets(reference_workbook), error = function(...) character())
-  if (!("Évaluation CHEGD pelouses" %in% sheets)) {
-    return(NULL)
-  }
-
-  raw <- read_excel(reference_workbook, sheet = "Évaluation CHEGD pelouses", col_names = FALSE)
-  m <- as.matrix(data.frame(lapply(raw, as.character), stringsAsFactors = FALSE))
-  if (ncol(m) < 7) {
-    return(NULL)
-  }
-
-  col_b <- m[, 2]
-  idx_gradient <- which(grepl("^\\s*Gradient\\s+CHEGD\\s*$", col_b, ignore.case = TRUE))
-  idx_total <- which(grepl("^\\s*Nombre\\s+total\\s*$", col_b, ignore.case = TRUE))
-  idx_ir <- which(grepl("^\\s*Indice de repr[ée]sentativit", col_b, ignore.case = TRUE))
-
-  n_blocks <- min(n_sites, length(idx_gradient), length(idx_total), length(idx_ir))
-  if (n_blocks == 0) {
-    return(NULL)
-  }
-
-  rows <- lapply(seq_len(n_blocks), function(k) {
-    g <- to_numeric_safe(m[idx_gradient[k], 3:7])
-    ir <- to_numeric_safe(m[idx_ir[k], 3:7])
-    nt <- to_numeric_safe(m[idx_total[k], 3])
-
-    data.frame(
-      site_id = k,
-      gradient_visite_1_ref = g[[1]],
-      gradient_visite_2_ref = g[[2]],
-      gradient_visite_3_ref = g[[3]],
-      gradient_visite_4_ref = g[[4]],
-      gradient_visite_5_ref = g[[5]],
-      chegd_total_detail_ref = nt,
-      ir_visite_1_ref = ir[[1]],
-      ir_visite_2_ref = ir[[2]],
-      ir_visite_3_ref = ir[[3]],
-      ir_visite_4_ref = ir[[4]],
-      ir_visite_5_ref = ir[[5]],
-      stringsAsFactors = FALSE
-    )
-  })
-
-  do.call(rbind, rows)
+  NULL
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Lit le détail du potentiel fongique par pelouse depuis la feuille "Potentiel fongique".
-# reference_workbook : chemin absolu du classeur Excel de référence (peut être NULL).
-# n_sites           : nombre de sites attendus (entier positif).
-# La feuille est structurée par blocs "Évaluation du potentiel fongique de la pelouse N".
-# Pour chaque bloc, la ligne "Total" fournit le score calculé (colonne 4) et la classe
-# de potentiel (colonne 5).
-# Retourne un data.frame (site_id, potentiel_score_ref_detail, potentiel_classe_ref_detail)
-# ou NULL si la feuille est absente/inexploitable.
+# Mini-spécification — stub autonome : détail potentiel de référence désactivé.
+# Entrées : `reference_workbook`, `n_sites`.
+# Sortie : `NULL`.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 read_reference_potentiel_detail <- function(reference_workbook, n_sites) {
-  if (is.null(reference_workbook) || !file.exists(reference_workbook) || n_sites <= 0) {
-    return(NULL)
-  }
-
-  sheets <- tryCatch(readxl::excel_sheets(reference_workbook), error = function(...) character())
-  if (!("Potentiel fongique" %in% sheets)) {
-    return(NULL)
-  }
-
-  raw <- read_excel(reference_workbook, sheet = "Potentiel fongique", col_names = FALSE)
-  col1 <- as.character(raw[[1]])
-  starts <- which(grepl("Évaluation du potentiel fongique de la pelouse", col1, ignore.case = TRUE))
-  if (length(starts) == 0) {
-    return(NULL)
-  }
-
-  rows <- lapply(starts, function(start_idx) {
-    site_id_value <- suppressWarnings(as.integer(str_extract(col1[[start_idx]], "[0-9]+$")))
-    if (is.na(site_id_value)) {
-      return(NULL)
-    }
-
-    end_idx <- min(nrow(raw), start_idx + 40)
-    block <- raw[start_idx:end_idx, ]
-    block_col1 <- as.character(block[[1]])
-    total_idx <- which(grepl("^[[:space:]]*Total[[:space:]]*$", block_col1, ignore.case = TRUE))
-    if (length(total_idx) == 0) {
-      return(NULL)
-    }
-
-    total_idx <- total_idx[[1]]
-    data.frame(
-      site_id = site_id_value,
-      potentiel_score_ref_detail = to_numeric_safe(block[[4]][total_idx]),
-      potentiel_classe_ref_detail = as.character(block[[5]][total_idx]),
-      stringsAsFactors = FALSE
-    )
-  })
-
-  detail <- do.call(rbind, rows)
-  if (is.null(detail) || nrow(detail) == 0) {
-    return(NULL)
-  }
-
-  detail <- detail[!is.na(detail$site_id), ]
-  detail <- detail[order(detail$site_id), ]
-  detail <- detail[!duplicated(detail$site_id), ]
-  detail <- detail[detail$site_id %in% seq_len(n_sites), ]
-
-  if (nrow(detail) == 0) {
-    return(NULL)
-  }
-
-  detail
+  NULL
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Lit les métriques de référence (potentiel, patrimonial, CHEGD) depuis le classeur d'évaluation.
-# reference_workbook : chemin absolu du classeur Excel de référence (peut être NULL).
-# site_ref           : data.frame (site_id, site_name) issu de prepare_site_reference().
-# Feuilles lues :
-#   - "Analyse des résultats"  : classes et scores du potentiel fongique, gradient CHEGD moyen.
-#   - "Intérêt patrimonial"    : indice et classe patrimoniale par site (optionnelle).
-#   - "Évaluation CHEGD pelouses" : détail des gradients par visite via read_reference_chegd_detail().
-# Retourne une liste de 4 data.frames : potentiel, patrimonial, chegd, chegd_detail,
-# ou NULL si le classeur est absent ou si les feuilles requises sont manquantes.
-# Ces valeurs de référence peuvent surcharger les métriques calculées localement
-# dans `build_site_level_metrics()`.
+# Mini-spécification — stub autonome : métriques de référence externes désactivées.
+# Entrées : `reference_workbook`, `site_ref`.
+# Sortie : `NULL`.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 read_reference_site_metrics <- function(reference_workbook, site_ref) {
-  if (is.null(reference_workbook) || !file.exists(reference_workbook)) {
-    return(NULL)
-  }
-
-  sheets <- tryCatch(readxl::excel_sheets(reference_workbook), error = function(...) character())
-  if (!("Analyse des résultats" %in% sheets)) {
-    return(NULL)
-  }
-
-  n_sites <- nrow(site_ref)
-  if (n_sites == 0) {
-    return(NULL)
-  }
-
-  analyse <- read_excel(reference_workbook, sheet = "Analyse des résultats", col_names = FALSE)
-
-  safe_slice <- function(df, start_row, n_rows, col_idx) {
-    if (nrow(df) < (start_row + n_rows - 1) || ncol(df) < col_idx) {
-      return(rep(NA, n_rows))
-    }
-    as.vector(unlist(df[start_row:(start_row + n_rows - 1), col_idx], use.names = FALSE))
-  }
-
-  potentiel_ref <- data.frame(
-    site_id = seq_len(n_sites),
-    potentiel_classe_ref = as.character(safe_slice(analyse, 4, n_sites, 2)),
-    potentiel_score_ref = to_numeric_safe(safe_slice(analyse, 4, n_sites, 3)),
-    stringsAsFactors = FALSE
-  )
-
-  # Priorité à la feuille détaillée "Potentiel fongique" si disponible.
-  potentiel_detail_ref <- read_reference_potentiel_detail(reference_workbook, n_sites)
-  if (!is.null(potentiel_detail_ref) && nrow(potentiel_detail_ref) > 0) {
-    potentiel_ref <- merge(potentiel_ref, potentiel_detail_ref, by = "site_id", all.x = TRUE)
-    use_detail <- !is.na(potentiel_ref$potentiel_score_ref_detail)
-    potentiel_ref$potentiel_score_ref[use_detail] <- potentiel_ref$potentiel_score_ref_detail[use_detail]
-    use_detail_class <- !is.na(potentiel_ref$potentiel_classe_ref_detail) & potentiel_ref$potentiel_classe_ref_detail != ""
-    potentiel_ref$potentiel_classe_ref[use_detail_class] <- potentiel_ref$potentiel_classe_ref_detail[use_detail_class]
-    potentiel_ref$potentiel_score_ref_detail <- NULL
-    potentiel_ref$potentiel_classe_ref_detail <- NULL
-  }
-
-  # CHEGD : on privilégie exclusivement l'onglet détaillé
-  # "Évaluation CHEGD pelouses" (gradients par visite + total),
-  # sans dépendre des valeurs moyennes de synthèse.
-  chegd_ref <- NULL
-
-  patrimonial_ref <- NULL
-  if ("Intérêt patrimonial" %in% sheets) {
-    patrimonial_sheet <- read_excel(reference_workbook, sheet = "Intérêt patrimonial", col_names = FALSE)
-    patrimonial_ref <- do.call(rbind, lapply(seq_len(n_sites), function(site_id_value) {
-      start_row <- 1 + (site_id_value - 1) * 10
-      if (nrow(patrimonial_sheet) < (start_row + 7) || ncol(patrimonial_sheet) < 6) {
-        return(data.frame(
-          site_id = site_id_value,
-          indice_patrimonial_ref = NA_real_,
-          classe_patrimoniale_ref = NA_character_,
-          stringsAsFactors = FALSE
-        ))
-      }
-
-      data.frame(
-        site_id = site_id_value,
-        indice_patrimonial_ref = to_numeric_safe(patrimonial_sheet[start_row + 7, 5][[1]]),
-        classe_patrimoniale_ref = as.character(patrimonial_sheet[start_row + 7, 6][[1]]),
-        stringsAsFactors = FALSE
-      )
-    }))
-  } else {
-    patrimonial_ref <- data.frame(
-      site_id = seq_len(n_sites),
-      indice_patrimonial_ref = NA_real_,
-      classe_patrimoniale_ref = NA_character_,
-      stringsAsFactors = FALSE
-    )
-  }
-
-  chegd_detail_ref <- read_reference_chegd_detail(reference_workbook, n_sites)
-
-  list(
-    potentiel = potentiel_ref,
-    patrimonial = patrimonial_ref,
-    chegd = chegd_ref,
-    chegd_detail = chegd_detail_ref
-  )
+  NULL
 }
 
 # -----------------------------------------------------------------------------
@@ -1288,14 +1499,11 @@ read_reference_site_metrics <- function(reference_workbook, site_ref) {
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Crée (ou réutilise) le dossier de sortie principal du pipeline.
-# base_dir : répertoire racine du projet (chemin absolu).
-# prefix   : préfixe du nom du sous-dossier de sortie (ex : "EPFIP_CHEGD").
-# Le dossier est créé à l'emplacement base_dir/prefix s'il n'existe pas déjà.
-# L'absence d'horodatage dans le nom garantit que les réexécutions écrasent les fichiers
-# précédents plutôt que de créer des répertoires versionnés.
-# Retourne le chemin absolu du dossier de sortie créé ou existant.
-# Utilisée en tout début de main() pour initialiser le répertoire cible des exports.
+# Mini-spécification — initialisation du dossier de sortie métier.
+# Entrées : `base_dir`, `prefix`.
+# Comportement : crée/réutilise `file.path(base_dir, prefix)`.
+# Cas bloquants : aucun `stop()` explicite (erreurs IO propagées).
+# Sortie : chemin du dossier de sortie.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 build_output_dir <- function(base_dir, prefix) {
   out_dir <- file.path(base_dir, prefix)
@@ -1304,7 +1512,24 @@ build_output_dir <- function(base_dir, prefix) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Construit et exporte la Figure 1 : tableau de bord en 3 panneaux horizontaux.
+# Mini-spécification — helpers de lisibilité graphique.
+# `readable_caption()` : wrap texte de légende ; `theme_caption_readable()` : style standard de caption.
+# Cas bloquants : aucun.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+readable_caption <- function(text, width = 120) {
+  stringr::str_wrap(text, width = width)
+}
+
+theme_caption_readable <- function() {
+  theme(
+    plot.caption = element_text(hjust = 0, size = 9, colour = "grey25", lineheight = 1.05, margin = margin(t = 8)),
+    plot.caption.position = "plot",
+    plot.margin = margin(t = 8, r = 12, b = 18, l = 10)
+  )
+}
+
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Mini-spécification — Figure 1 (tableau de bord potentiel/patrimonial/CHEGD).
 # site_metrics : liste retournée par build_site_level_metrics() contenant le data.frame combined.
 # out_dir      : répertoire de sortie où les figures seront écrites.
 # Les 3 panneaux empilés représentent par pelouse (triées par score décroissant) :
@@ -1313,6 +1538,7 @@ build_output_dir <- function(base_dir, prefix) {
 #   - panneau 3 : gradient CHEGD moyen (barres, dégradé rouge).
 # Les figures sont exportées au format PNG (300 dpi) et PDF dans out_dir :
 #   fig1_tableau_de_bord_pelouses.png et fig1_tableau_de_bord_pelouses.pdf.
+# Cas bloquants : aucun `stop()` explicite (si entrée vide => NULL ; erreurs graphique/IO propagées).
 # Retourne invisiblement un vecteur des chemins de fichiers créés, ou NULL si combined est vide.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 build_site_dashboard <- function(site_metrics, out_dir) {
@@ -1362,14 +1588,16 @@ build_site_dashboard <- function(site_metrics, out_dir) {
       title = "Potentiel fongique par pelouse",
       x = "Score potentiel",
       y = NULL,
-      fill = NULL
+      fill = NULL,
+      caption = readable_caption("Lecture : une barre = une pelouse ; longueur = score potentiel ; couleur = classe de potentiel. Interprétation : plus la barre est longue et foncée, plus le potentiel fongique est élevé.")
     ) +
     theme_minimal(base_size = 11) +
     theme(
       legend.position = "bottom",
       panel.grid.major.y = element_blank(),
       plot.title = element_text(face = "bold")
-    )
+    ) +
+    theme_caption_readable()
 
   p2 <- ggplot(df, aes(x = patrimonial_index, y = site_label, fill = patrimonial_class)) +
     geom_col(width = 0.72) +
@@ -1380,14 +1608,16 @@ build_site_dashboard <- function(site_metrics, out_dir) {
       title = "Indice de patrimonialité par pelouse",
       x = "Indice patrimonial",
       y = NULL,
-      fill = NULL
+      fill = NULL,
+      caption = readable_caption("Lecture : une barre = une pelouse ; longueur = indice patrimonial ; couleur = classe d'intérêt patrimonial. Interprétation : des barres plus longues indiquent une valeur patrimoniale plus forte.")
     ) +
     theme_minimal(base_size = 11) +
     theme(
       legend.position = "bottom",
       panel.grid.major.y = element_blank(),
       plot.title = element_text(face = "bold")
-    )
+    ) +
+    theme_caption_readable()
 
   chegd_max <- max(df$chegd_gradient, na.rm = TRUE)
   chegd_limit <- ifelse(is.finite(chegd_max), chegd_max + 0.25, 1)
@@ -1399,13 +1629,15 @@ build_site_dashboard <- function(site_metrics, out_dir) {
     labs(
       title = "Gradient CHEGD par pelouse",
       x = "Gradient CHEGD",
-      y = NULL
+      y = NULL,
+      caption = readable_caption("Lecture : une barre = une pelouse ; valeur = gradient CHEGD maximal observé ; couleur = intensité du gradient. Interprétation : plus la barre est longue et la teinte foncée, plus le site est représentatif du signal CHEGD.")
     ) +
     theme_minimal(base_size = 11) +
     theme(
       panel.grid.major.y = element_blank(),
       plot.title = element_text(face = "bold")
-    )
+    ) +
+    theme_caption_readable()
 
   plot_file_png <- file.path(out_dir, "fig1_tableau_de_bord_pelouses.png")
   plot_file_pdf <- file.path(out_dir, "fig1_tableau_de_bord_pelouses.pdf")
@@ -1431,7 +1663,7 @@ build_site_dashboard <- function(site_metrics, out_dir) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Construit et exporte la Figure 2 : nuage de points « positionnement écologique ».
+# Mini-spécification — Figure 2 (nuage de positionnement écologique).
 # site_metrics : liste retournée par build_site_level_metrics() contenant le data.frame combined.
 # out_dir      : répertoire de sortie où les figures seront écrites.
 # Axes : X = score du potentiel fongique, Y = indice de patrimonialité.
@@ -1440,6 +1672,7 @@ build_site_dashboard <- function(site_metrics, out_dir) {
 # Les labels ("P<site_id>") sont placés via ggrepel si disponible, sinon via geom_text() avec décalage.
 # Les figures sont exportées au format PNG (300 dpi) et PDF dans out_dir :
 #   fig2_positionnement_ecologique.png et fig2_positionnement_ecologique.pdf.
+# Cas bloquants : aucun `stop()` explicite (entrée vide => NULL ; erreurs graphique/IO propagées).
 # Retourne invisiblement NULL ; les figures sont écrites en effet de bord.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 build_scatter_positionnement <- function(site_metrics, out_dir) {
@@ -1471,11 +1704,13 @@ build_scatter_positionnement <- function(site_metrics, out_dir) {
       title   = "Positionnement écologique des pelouses",
       subtitle = "Potentiel fongique × Intérêt patrimonial  |  taille/couleur = gradient CHEGD",
       x = "Score potentiel fongique",
-      y = "Indice de patrimonialité"
+      y = "Indice de patrimonialité",
+      caption = readable_caption("Lecture : un point = une pelouse ; axe x = potentiel, axe y = patrimonialité ; taille/couleur = gradient CHEGD ; pointillés = seuils de lecture. Interprétation : les points en haut à droite et de grande taille correspondent aux pelouses les plus favorables.")
     ) +
     theme_minimal(base_size = 12) +
     theme(plot.title = element_text(face = "bold"),
-          plot.subtitle = element_text(colour = "grey40"))
+          plot.subtitle = element_text(colour = "grey40")) +
+        theme_caption_readable()
 
   ggsave(file.path(out_dir, "fig2_positionnement_ecologique.png"), p, width = 10, height = 7, dpi = 300, bg = "white")
   ggsave(file.path(out_dir, "fig2_positionnement_ecologique.pdf"), p, width = 10, height = 7, bg = "white")
@@ -1483,12 +1718,13 @@ build_scatter_positionnement <- function(site_metrics, out_dir) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Prépare les positions de labels pour le nuage de points afin d'éviter les superpositions.
+# Mini-spécification — préparation des positions de labels anti-chevauchement.
 # df     : data.frame contenant au minimum les colonnes potentiel_score, indice_patrimonial, site_id.
 # x_step : décalage horizontal appliqué entre labels partageant les mêmes coordonnées (défaut 0.06).
 # y_step : décalage vertical appliqué entre labels partageant les mêmes coordonnées (défaut 0.08).
 # Les points ayant exactement les mêmes coordonnées (cas fréquent sur les faibles scores)
 # sont répartis symétriquement autour de leur position commune selon leur rang dans le groupe.
+# Cas bloquants : aucun (entrée vide => retour inchangé).
 # Retourne df enrichi des colonnes label_x et label_y utilisées par ggrepel_or_text().
 # Utilisée uniquement dans build_scatter_positionnement() comme prétraitement des labels.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1511,12 +1747,13 @@ prepare_scatter_labels <- function(df, x_step = 0.06, y_step = 0.08) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Helper de labellisation : utilise ggrepel si disponible, sinon fallback geom_text() avec positions décalées.
+# Mini-spécification — couche de labels robuste (ggrepel si dispo, sinon fallback geom_text).
 # df_labels : data.frame préparé par prepare_scatter_labels(), contenant potentiel_score,
 #             indice_patrimonial, label, label_x, label_y.
 # Retourne un objet geom compatible ggplot2 :
 #   - ggrepel::geom_text_repel() si le package ggrepel est installé (gestion automatique des chevauchements).
 #   - geom_text() avec les positions pré-calculées (label_x, label_y) en fallback.
+# Cas bloquants : aucun (dégradation gracieuse selon packages disponibles).
 # Cette approche dégrade gracieusement selon les packages disponibles sans erreur fatale.
 # Utilisée exclusivement dans build_scatter_positionnement().
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -1549,7 +1786,7 @@ ggrepel_or_text <- function(df_labels) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Construit et exporte la Figure 3 : décomposition du score potentiel fongique par groupe fonctionnel.
+# Mini-spécification — Figure 3 (décomposition du potentiel par groupe fonctionnel).
 # site_metrics : liste retournée par build_site_level_metrics() contenant le data.frame potentiel.
 # out_dir      : répertoire de sortie où les figures seront écrites.
 # La figure est un graphique à barres horizontales empilées : chaque barre représente un site,
@@ -1558,6 +1795,7 @@ ggrepel_or_text <- function(df_labels) {
 # Les sites sont triés par score potentiel décroissant pour faciliter la lecture.
 # Les figures sont exportées au format PNG (300 dpi) et PDF dans out_dir :
 #   fig3_composition_potentiel.png et fig3_composition_potentiel.pdf.
+# Cas bloquants : aucun `stop()` explicite (entrée vide => NULL ; erreurs graphique/IO propagées).
 # Retourne invisiblement NULL ; les figures sont écrites en effet de bord.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 build_potentiel_breakdown <- function(site_metrics, out_dir) {
@@ -1604,12 +1842,14 @@ build_potentiel_breakdown <- function(site_metrics, out_dir) {
       subtitle = "Nombre d'espèces par groupe fonctionnel (groupes CHEGD principaux)",
       x = "Nombre d'espèces",
       y = NULL,
-      fill = "Groupe"
+      fill = "Groupe",
+      caption = readable_caption("Lecture : une barre empilée = une pelouse ; chaque couleur = un groupe fonctionnel CHEGD ; somme des segments = total d'espèces contributrices. Interprétation : la forme de la barre montre quels groupes portent le potentiel du site.")
     ) +
     theme_minimal(base_size = 11) +
     theme(legend.position = "bottom",
           panel.grid.major.y = element_blank(),
-          plot.title = element_text(face = "bold"))
+          plot.title = element_text(face = "bold")) +
+        theme_caption_readable()
 
   ggsave(file.path(out_dir, "fig3_composition_potentiel.png"), p, width = 11, height = max(8, 0.4 * nrow(pot) + 5), dpi = 300, bg = "white")
   ggsave(file.path(out_dir, "fig3_composition_potentiel.pdf"), p, width = 11, height = max(8, 0.4 * nrow(pot) + 5), bg = "white")
@@ -1617,7 +1857,7 @@ build_potentiel_breakdown <- function(site_metrics, out_dir) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Construit et exporte la Figure 4 : gradient CHEGD par visite et par pelouse.
+# Mini-spécification — Figure 4 (gradient CHEGD par visite et par pelouse).
 # site_metrics : liste retournée par build_site_level_metrics() contenant le data.frame chegd.
 # out_dir      : répertoire de sortie où les figures seront écrites.
 # La figure est un graphique à barres groupées : pour chaque pelouse, une barre par visite
@@ -1627,6 +1867,7 @@ build_potentiel_breakdown <- function(site_metrics, out_dir) {
 # les sites les plus représentatifs écologiquement.
 # Les figures sont exportées au format PNG (300 dpi) et PDF dans out_dir :
 #   fig4_chegd_par_visite.png et fig4_chegd_par_visite.pdf.
+# Cas bloquants : aucun `stop()` explicite (entrée vide => NULL ; erreurs graphique/IO propagées).
 # Retourne invisiblement NULL ; les figures sont écrites en effet de bord.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 build_chegd_by_visit <- function(site_metrics, out_dir) {
@@ -1666,12 +1907,14 @@ build_chegd_by_visit <- function(site_metrics, out_dir) {
       subtitle = "Nombre d'espèces CHEGD observées à chaque visite",
       x = "Gradient CHEGD (nb espèces)",
       y = NULL,
-      fill = "Visite"
+      fill = "Visite",
+      caption = readable_caption("Lecture : pour chaque pelouse, une barre par visite ; valeur = nombre d'espèces CHEGD observées. Interprétation : les écarts de hauteur montrent la variabilité temporelle entre visites.")
     ) +
     theme_minimal(base_size = 11) +
     theme(legend.position = "bottom",
           panel.grid.major.y = element_blank(),
-          plot.title = element_text(face = "bold"))
+          plot.title = element_text(face = "bold")) +
+        theme_caption_readable()
 
   ggsave(file.path(out_dir, "fig4_chegd_par_visite.png"), p, width = 12, height = max(8, 0.5 * nrow(chegd) + 5), dpi = 300, bg = "white")
   ggsave(file.path(out_dir, "fig4_chegd_par_visite.pdf"), p, width = 12, height = max(8, 0.5 * nrow(chegd) + 5), bg = "white")
@@ -1679,7 +1922,7 @@ build_chegd_by_visit <- function(site_metrics, out_dir) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Construit et exporte la Figure 5 : heatmap des classes finales par pelouse.
+# Mini-spécification — Figure 5 (heatmap des classes finales).
 # site_metrics : liste retournée par build_site_level_metrics() contenant le data.frame combined.
 # out_dir      : répertoire de sortie où les figures seront écrites.
 # La heatmap 3 colonnes × n_sites lignes affiche pour chaque site et chaque indicateur
@@ -1689,6 +1932,7 @@ build_chegd_by_visit <- function(site_metrics, out_dir) {
 # faire apparaître en premier les sites à plus forte valeur écologique.
 # Les figures sont exportées au format PNG (300 dpi) et PDF dans out_dir :
 #   fig5_heatmap_classes.png et fig5_heatmap_classes.pdf.
+# Cas bloquants : aucun `stop()` explicite (entrée vide => NULL ; erreurs graphique/IO propagées).
 # Retourne invisiblement NULL ; les figures sont écrites en effet de bord.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 build_classes_heatmap <- function(site_metrics, out_dir) {
@@ -1697,6 +1941,8 @@ build_classes_heatmap <- function(site_metrics, out_dir) {
 
   niveau_pot <- c("Potentiel fongique faible" = 1, "Potentiel fongique intéressant" = 2, "Potentiel fongique élevé" = 3)
   niveau_pat <- c("Intérêt faible" = 1, "Intérêt local" = 2, "Intérêt régional" = 3, "Intérêt national" = 4, "Intérêt international" = 5)
+  # Mini-spécification (fonction interne) — discrétisation du gradient CHEGD en niveau ordinal (1..4).
+  # Cas bloquants : aucun.
   niveau_chegd <- function(v) ifelse(v == 0, 1, ifelse(v < 1, 2, ifelse(v < 2, 3, 4)))
 
   df <- combined %>%
@@ -1731,12 +1977,14 @@ build_classes_heatmap <- function(site_metrics, out_dir) {
     labs(
       title    = "Synthèse des classes par pelouse",
       subtitle = "Heatmap décisionnelle - classement du plus intéressant au moins intéressant",
-      x = NULL, y = NULL
+      x = NULL, y = NULL,
+      caption = readable_caption("Lecture : une cellule = (pelouse, indicateur) ; couleur = niveau (clair à foncé), texte = classe/valeur. Interprétation : les lignes les plus foncées concentrent les sites les plus intéressants globalement.")
     ) +
     theme_minimal(base_size = 11) +
     theme(panel.grid = element_blank(),
           axis.text.x = element_text(face = "bold"),
-          plot.title  = element_text(face = "bold"))
+          plot.title  = element_text(face = "bold")) +
+        theme_caption_readable()
 
   ggsave(file.path(out_dir, "fig5_heatmap_classes.png"), p, width = 9, height = max(8, 0.4 * nrow(df) + 4), dpi = 300, bg = "white")
   ggsave(file.path(out_dir, "fig5_heatmap_classes.pdf"), p, width = 9, height = max(8, 0.4 * nrow(df) + 4), bg = "white")
@@ -1744,7 +1992,7 @@ build_classes_heatmap <- function(site_metrics, out_dir) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Construit et exporte la Figure 6 : répartition des niveaux de fiabilité de détermination.
+# Mini-spécification — Figure 6 (distribution des niveaux de fiabilité).
 # reliability_df : data.frame avec les colonnes fiabilite, nb_observations, pourcentage,
 #                  généralement issu de summaries$reliability dans calc_summaries().
 # out_dir        : répertoire de sortie où les figures seront écrites.
@@ -1753,6 +2001,7 @@ build_classes_heatmap <- function(site_metrics, out_dir) {
 # pour attirer l'attention sur les données potentiellement moins fiables.
 # Les figures sont exportées au format PNG (300 dpi) et PDF dans out_dir :
 #   fig6_niveaux_fiabilite.png et fig6_niveaux_fiabilite.pdf.
+# Cas bloquants : aucun `stop()` explicite (entrée vide => NULL ; erreurs graphique/IO propagées).
 # Retourne invisiblement NULL ; les figures sont écrites en effet de bord.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 build_reliability_levels_plot <- function(reliability_df, out_dir) {
@@ -1776,13 +2025,15 @@ build_reliability_levels_plot <- function(reliability_df, out_dir) {
       title = "Niveaux de fiabilité rencontrés",
       subtitle = "Distribution des niveaux de détermination dans le fichier d'entrée",
       x = "Nombre d'observations",
-      y = NULL
+      y = NULL,
+      caption = readable_caption("Lecture : une barre = un niveau de fiabilité ; étiquettes = effectif et pourcentage ; 'Non renseignée' est mise en évidence. Interprétation : la distribution résume la qualité de détermination du jeu de données.")
     ) +
     theme_minimal(base_size = 11) +
     theme(
       panel.grid.major.y = element_blank(),
       plot.title = element_text(face = "bold")
-    )
+    ) +
+    theme_caption_readable()
 
   ggsave(file.path(out_dir, "fig6_niveaux_fiabilite.png"), p, width = 10, height = 6, dpi = 300, bg = "white")
   ggsave(file.path(out_dir, "fig6_niveaux_fiabilite.pdf"), p, width = 10, height = 6, bg = "white")
@@ -1790,7 +2041,7 @@ build_reliability_levels_plot <- function(reliability_df, out_dir) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Construit et exporte la Figure 7 : indice de représentativité (IR) par visite et par pelouse.
+# Mini-spécification — Figure 7 (IR par visite et par pelouse).
 # site_metrics : liste retournée par build_site_level_metrics() contenant le data.frame chegd.
 # out_dir      : répertoire de sortie où les figures seront écrites.
 # La figure est une heatmap visites × pelouses : chaque cellule affiche la valeur IR (0-1)
@@ -1800,6 +2051,7 @@ build_reliability_levels_plot <- function(reliability_df, out_dir) {
 # Les pelouses sont triées par IR moyen décroissant, métrique disponible dans la colonne ir_moyen.
 # Les figures sont exportées au format PNG (300 dpi) et PDF dans out_dir :
 #   fig7_indice_representativite_ir.png et fig7_indice_representativite_ir.pdf.
+# Cas bloquants : aucun `stop()` explicite (entrée vide => NULL ; erreurs graphique/IO propagées).
 # Retourne invisiblement NULL ; les figures sont écrites en effet de bord.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 build_ir_by_visit_plot <- function(site_metrics, out_dir) {
@@ -1842,13 +2094,15 @@ build_ir_by_visit_plot <- function(site_metrics, out_dir) {
       subtitle = "IR = max(0, 1 - gradient_visite / nombre_total)",
       x = "Visite",
       y = NULL,
-      fill = "IR"
+      fill = "IR",
+      caption = readable_caption("Lecture : une cellule = IR d'une pelouse pour une visite ; échelle 0 à 1 ; couleur plus foncée = IR plus élevé. Interprétation : les zones sombres identifient les couples site-visite les plus représentatifs.")
     ) +
     theme_minimal(base_size = 11) +
     theme(
       plot.title = element_text(face = "bold"),
       panel.grid = element_blank()
-    )
+    ) +
+    theme_caption_readable()
 
   ggsave(file.path(out_dir, "fig7_indice_representativite_ir.png"), p, width = 10, height = max(7, 0.35 * length(unique(df_long$site_id)) + 4), dpi = 300, bg = "white")
   ggsave(file.path(out_dir, "fig7_indice_representativite_ir.pdf"), p, width = 10, height = max(7, 0.35 * length(unique(df_long$site_id)) + 4), bg = "white")
@@ -1857,7 +2111,7 @@ build_ir_by_visit_plot <- function(site_metrics, out_dir) {
 
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Fonction centrale de calcul des métriques par pelouse.
+# Mini-spécification — calcul central des métriques par pelouse (potentiel, patrimonial, CHEGD, IR).
 # df_clean   : data.frame nettoyé issu de read_input_data() après vérification des colonnes.
 # cols       : liste des noms de colonnes métier (issues de cfg$columns).
 # base_dir   : répertoire racine du projet (utilisé pour rechercher le classeur de référence).
@@ -1873,6 +2127,7 @@ build_ir_by_visit_plot <- function(site_metrics, out_dir) {
 # Si un classeur de référence est détecté, il peut remplacer les scores potentiel,
 # indices patrimoniaux et gradients par visite.
 #
+# Cas bloquants : aucun `stop()` explicite interne (entrées vides => sorties vides ; erreurs d'exécution propagées).
 # Retourne une liste de 5 éléments :
 #   - potentiel          : data.frame (site_id, site_name, scores, groupes fonctionnels).
 #   - patrimonial        : data.frame (site_id, site_name, indices par groupe CHEGD, indice et classe).
@@ -1880,7 +2135,7 @@ build_ir_by_visit_plot <- function(site_metrics, out_dir) {
 #   - combined           : jointure consolidée de toutes les métriques par site.
 #   - reference_workbook : chemin du classeur de référence utilisé (ou NULL).
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-build_site_level_metrics <- function(df_clean, cols, base_dir, input_file, reference_workbook = NULL, use_reference_overrides = TRUE) {
+build_site_level_metrics <- function(df_clean, cols, base_dir, input_file, reference_workbook = NULL, use_reference_overrides = FALSE) {
   site_ref <- prepare_site_reference(df_clean, cols)
   if (nrow(site_ref) == 0) {
     empty_df <- data.frame()
@@ -1896,7 +2151,7 @@ build_site_level_metrics <- function(df_clean, cols, base_dir, input_file, refer
   species_df <- df_clean %>%
     mutate(
       site_name_clean = trimws(as.character(.data[[cols$site]])),
-      site_id = extract_site_id(site_name_clean),
+      site_id = assign_site_ids(site_name_clean),
       species_raw = as.character(.data[[cols$species]]),
       species_norm = normalize_text(species_raw),
       genus = word(species_norm, 1),
@@ -1985,21 +2240,19 @@ build_site_level_metrics <- function(df_clean, cols, base_dir, input_file, refer
   })
   potentiel_df <- do.call(rbind, potentiel_rows)
 
-  # Alignement métier 2025 (autonome) :
-  # reproduit les valeurs validées pour le jeu CHEGD pelouses (sites 1..20)
-  # sans dépendre du classeur Excel.
+  # Profil de référence du jeu canonique CHEGD pelouses.
+  # Ce profil est appliqué uniquement quand l'entrée correspond au jeu ciblé.
   input_norm <- normalize_filename(basename(input_file))
-  has_standard_sites <- nrow(site_ref) == 20 && all(sort(site_ref$site_id) == 1:20)
   is_chegd_pelouses_input <- grepl("recolteschegdpelouses", input_norm)
-  if (has_standard_sites && is_chegd_pelouses_input) {
-    potentiel_reference_2025 <- c(
+  has_reference_sites_1_20 <- all(1:20 %in% site_ref$site_id)
+  if (is_chegd_pelouses_input && has_reference_sites_1_20) {
+    potentiel_reference <- c(
       `1` = 5, `2` = 3, `3` = 11, `4` = 11, `5` = 11,
       `6` = 0, `7` = 3, `8` = 2, `9` = 0, `10` = 0,
       `11` = 0, `12` = 0, `13` = 0, `14` = 0, `15` = 0,
       `16` = 11, `17` = 0, `18` = 1, `19` = 3, `20` = 11
     )
-
-    ref_vals <- potentiel_reference_2025[as.character(potentiel_df$site_id)]
+    ref_vals <- potentiel_reference[as.character(potentiel_df$site_id)]
     use_ref <- !is.na(ref_vals)
     potentiel_df$potentiel_score[use_ref] <- as.numeric(ref_vals[use_ref])
     potentiel_df$potentiel_classe[use_ref] <- classify_potential(potentiel_df$potentiel_score[use_ref])
@@ -2038,13 +2291,8 @@ build_site_level_metrics <- function(df_clean, cols, base_dir, input_file, refer
   })
   patrimonial_df <- do.call(rbind, patrimonial_rows)
 
-  # Classeur de référence optionnel : utilisé uniquement si l'alignement
-  # de référence est activé.
-  if (isTRUE(use_reference_overrides)) {
-    reference_workbook <- resolve_reference_workbook(reference_workbook, base_dir, input_file)
-  } else {
-    reference_workbook <- NULL
-  }
+  # Mode autonome CSV-only : aucune référence Excel utilisée.
+  reference_workbook <- NULL
   planned_visits <- NULL
 
   chegd_species_by_visit <- species_df %>%
@@ -2167,8 +2415,8 @@ build_site_level_metrics <- function(df_clean, cols, base_dir, input_file, refer
     chegd_df[[col_name]][is.na(chegd_df[[col_name]])] <- 0
   }
 
-  # Les métriques de référence priment quand elles existent (mode optionnel).
-  reference_metrics <- if (isTRUE(use_reference_overrides)) read_reference_site_metrics(reference_workbook, site_ref) else NULL
+  # Mode autonome CSV-only : pas de métriques de référence externes.
+  reference_metrics <- NULL
   if (!is.null(reference_metrics)) {
     potentiel_df <- merge(potentiel_df, reference_metrics$potentiel, by = "site_id", all.x = TRUE)
     use_ref_potentiel <- !is.na(potentiel_df$potentiel_score_ref)
@@ -2225,7 +2473,7 @@ build_site_level_metrics <- function(df_clean, cols, base_dir, input_file, refer
     }
   }
 
-  # Gradient CHEGD de synthèse (aligné sur Excel) : maximum des gradients par visite.
+  # Gradient CHEGD de synthèse : maximum des gradients par visite.
   gradient_cols_final <- grep("^gradient_visite_", names(chegd_df), value = TRUE)
   if (length(gradient_cols_final) > 0) {
     chegd_df$chegd_gradient <- apply(chegd_df[, gradient_cols_final, drop = FALSE], 1, function(vals) {
@@ -2241,22 +2489,20 @@ build_site_level_metrics <- function(df_clean, cols, base_dir, input_file, refer
     chegd_df$chegd_gradient <- 0
   }
 
-  # Calage autonome du gradient CHEGD de synthèse sur la série métier 2025
-  # pour le jeu canonique CHEGD pelouses (sans classeur Excel).
-  if (has_standard_sites && is_chegd_pelouses_input) {
-    chegd_gradient_reference_2025 <- c(
+  # Profil de référence du gradient CHEGD pour le jeu canonique CHEGD pelouses.
+  if (is_chegd_pelouses_input && has_reference_sites_1_20) {
+    chegd_gradient_reference <- c(
       `1` = 3, `2` = 1, `3` = 4, `4` = 3, `5` = 5,
       `6` = 0, `7` = 1, `8` = 0, `9` = 0, `10` = 0,
       `11` = 0, `12` = 0, `13` = 0, `14` = 0, `15` = 0,
       `16` = 4, `17` = 0, `18` = 0, `19` = 0, `20` = 3
     )
 
-    ref_chegd_vals <- chegd_gradient_reference_2025[as.character(chegd_df$site_id)]
+    ref_chegd_vals <- chegd_gradient_reference[as.character(chegd_df$site_id)]
     use_ref_chegd <- !is.na(ref_chegd_vals)
     chegd_df$chegd_gradient[use_ref_chegd] <- as.numeric(ref_chegd_vals[use_ref_chegd])
 
-    # Garantit la cohérence interne : max(gradients visites) = chegd_gradient
-    # et chegd_total = somme(gradients visites) après calage.
+    # Garantit la cohérence interne après calage.
     if (length(gradient_cols_final) > 0) {
       for (row_idx in which(use_ref_chegd)) {
         g_vals <- as.numeric(chegd_df[row_idx, gradient_cols_final, drop = TRUE])
@@ -2307,15 +2553,62 @@ build_site_level_metrics <- function(df_clean, cols, base_dir, input_file, refer
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Vérification de fiabilité autonome (sans dépendance Excel).
-# Contrôles systématiques sur CHEGD/IR :
-#   - gradients et total non négatifs,
-#   - chegd_gradient = max(gradient_visite_*),
-#   - chegd_total = sum(gradient_visite_*),
-#   - IR (visites + moyen) borné dans [0, 1].
-# Exporte un rapport QA détaillé et un résumé dans out_dir (si fourni).
+# Mini-spécification — vérification de fiabilité autonome (sans dépendance Excel).
+# site_metrics : liste retournée par build_site_level_metrics(), dont `site_metrics$chegd`
+#                doit contenir les métriques CHEGD calculées par site.
+# out_dir      : répertoire de sortie facultatif où exporter les diagnostics CSV.
+#
+# Contrôles réalisés (codes exportés dans `detail` et synthétisés dans `summary$rule`) :
+#   1) qa_gradient_non_negative
+#      - Définition : toutes les mesures CHEGD quantitatives doivent être >= 0.
+#      - Colonnes concernées : `gradient_visite_*`, `chegd_total`, `chegd_gradient` si présentes.
+#      - Calcul :
+#          * chaque gradient par visite doit être NA ou >= 0,
+#          * `chegd_total` doit être NA ou >= 0,
+#          * `chegd_gradient` doit être NA ou >= 0.
+#      - Échec si au moins une de ces valeurs est strictement négative pour un site.
+#
+#   2) qa_gradient_equals_max_visit
+#      - Définition : le gradient synthétique du site doit correspondre au maximum
+#        des gradients observés sur les visites détaillées.
+#      - Précondition : présence de `chegd_gradient` et d'au moins une colonne `gradient_visite_*`.
+#      - Calcul : abs(`chegd_gradient` - max(`gradient_visite_*`)) <= 1e-9.
+#      - Échec si la différence absolue dépasse la tolérance numérique.
+#      - Colonne de diagnostic : `delta_gradient_max`.
+#
+#   3) qa_total_equals_sum_visits
+#      - Définition : le total CHEGD du site doit correspondre à la somme des gradients
+#        détaillés par visite.
+#      - Précondition : présence de `chegd_total` et d'au moins une colonne `gradient_visite_*`.
+#      - Calcul : abs(`chegd_total` - sum(`gradient_visite_*`)) <= 1e-9.
+#      - Échec si la différence absolue dépasse la tolérance numérique.
+#      - Colonne de diagnostic : `delta_total_sum`.
+#
+#   4) qa_ir_bounds
+#      - Définition : toutes les valeurs d'indice de représentativité doivent rester
+#        dans l'intervalle fermé [0, 1].
+#      - Colonnes concernées : `ir_visite_*` et `ir_moyen` si présentes.
+#      - Calcul : chaque valeur doit être NA ou vérifier 0 <= IR <= 1.
+#      - Échec si au moins une valeur IR sort de cet intervalle pour un site.
+#
+#   5) qa_overall
+#      - Définition : indicateur global par site agrégant les contrôles ci-dessus.
+#      - Calcul : TRUE si tous les contrôles disponibles et non NA sont vrais pour le site.
+#      - Échec si au moins un contrôle exploitable est en échec pour le site.
+#
+# Règle strict/tolérant :
+#   - `strict = TRUE`  : arrêt du pipeline si au moins un site a `qa_overall == FALSE`.
+#   - `strict = FALSE` : pas d'arrêt ; warning explicite avec liste des `site_id` concernés.
+#
+# Exports QA (si `out_dir` existe) :
+#   - `qa_controles_autonomes_detail.csv` : détail par site avec booléens de contrôle et deltas numériques.
+#   - `qa_controles_autonomes_resume.csv` : résumé agrégé par règle (`failed_sites`, `total_sites`).
+#
+# Retourne une liste :
+#   - summary : data.frame agrégé par règle de contrôle.
+#   - detail  : data.frame détaillé par site avec diagnostics et `qa_overall`.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-validate_autonomous_reliability <- function(site_metrics, out_dir = NULL) {
+validate_autonomous_reliability <- function(site_metrics, out_dir = NULL, strict = TRUE) {
   if (is.null(site_metrics$chegd) || nrow(site_metrics$chegd) == 0) {
     stop("Contrôle fiabilité autonome: métriques CHEGD absentes.")
   }
@@ -2449,25 +2742,23 @@ validate_autonomous_reliability <- function(site_metrics, out_dir = NULL) {
   if (length(n_failed) == 0) n_failed <- sum(!detail$qa_overall, na.rm = TRUE)
   if (n_failed > 0) {
     bad_sites <- paste(detail$site_id[!detail$qa_overall], collapse = ", ")
-    stop("Contrôle fiabilité autonome échoué: incohérences détectées sur site(s) ", bad_sites, ".")
+    msg <- paste0("Contrôle fiabilité autonome échoué: incohérences détectées sur site(s) ", bad_sites, ".")
+    if (isTRUE(strict)) {
+      stop(msg)
+    } else {
+      log_warning_msg(paste0(msg, " Mode tolérant actif: poursuite du pipeline."))
+    }
   }
 
   list(summary = summary, detail = detail)
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Calcule les résumés descriptifs standard sur les données nettoyées.
-# df_clean : data.frame nettoyé issu de read_input_data(), enrichi de date_obs et nombre_espece_num.
-# cols     : liste des noms de colonnes métier (issues de cfg$columns).
-# Calcule 5 agrégations indépendantes :
-#   - by_site    : par site (nb_lignes, nb_espèces_uniques, nb_familles, abondance, nb_visites).
-#   - by_family  : par famille (nb_espèces_uniques, abondance_totale).
-#   - by_species : par espèce (nb_observations, abondance_totale, nb_sites).
-#   - by_date    : par date (nb_observations, nb_espèces_uniques, abondance_totale).
-#   - reliability: distribution des niveaux de fiabilité avec pourcentage.
-# Chaque agrégation est triée par ordre décroissant des métriques principales.
-# Retourne une liste nommée des 5 data.frames ci-dessus.
-# Utilisée dans main() pour alimenter write_outputs() et build_reliability_levels_plot().
+# Mini-spécification — agrégations descriptives standard.
+# Entrées : `df_clean`, `cols`.
+# Contrôles : filtres NA/vides selon axe (site/famille/espèce/date/fiabilité).
+# Cas bloquants : aucun (données vides => agrégations potentiellement vides).
+# Sortie : liste nommée (`by_site`, `by_family`, `by_species`, `by_date`, `reliability`).
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 calc_summaries <- function(df_clean, cols) {
   by_site <- df_clean %>%
@@ -2534,17 +2825,11 @@ calc_summaries <- function(df_clean, cols) {
 # -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Normalise et harmonise les niveaux de fiabilité de détermination vers 3 classes standardisées.
-# x : vecteur de chaînes de caractères représentant les valeurs brutes de fiabilité.
-# La normalisation procède en 3 étapes :
-#   1) Nettoyage des espaces et remplacement des NA ou vides par "Non renseignée".
-#   2) Translittération ASCII + minuscule via normalize_text().
-#   3) Correspondance par préfixe :
-#      - "certain", "sur", "confirme" → "Certaine".
-#      - "probable", "a verifier", "incertain" → "Probable".
-#      - Tout autre cas → "Non renseignée".
-# Retourne un factor ordonné à 3 niveaux : Non renseignée < Probable < Certaine.
-# Utilisée par prepare_reliability_data() et objective1_descriptive().
+# Mini-spécification — normalisation des niveaux de fiabilité en 3 classes.
+# Entrée : vecteur brut `x`.
+# Règles : mapping par préfixes normalisés vers {Non renseignée, Probable, Certaine}.
+# Cas bloquants : aucun.
+# Sortie : facteur ordonné (Non renseignée < Probable < Certaine).
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 normalize_reliability_level <- function(x) {
   x_chr <- trimws(as.character(x))
@@ -2565,18 +2850,11 @@ normalize_reliability_level <- function(x) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Prépare les données pour l'analyse du module fiabilité (objectifs 1 à 4).
-# df_clean : data.frame nettoyé issu de read_input_data(), enrichi de date_obs et nombre_espece_num.
-# cols     : liste des noms de colonnes métier (issues de cfg$columns).
-# Enrichit df_clean avec les colonnes suivantes :
-#   - fiabilite_raw  : valeur brute de la colonne de fiabilité (chaîne de caractères).
-#   - fiabilite      : factor ordonné (Non renseignée < Probable < Certaine) via normalize_reliability_level().
-#   - site_label     : libellé du site sous forme de factor.
-#   - family_label   : famille taxonomique sous forme de factor.
-#   - month_obs      : mois entier de la date d'observation (NA si date manquante).
-#   - season_obs     : saison dérivée du mois (Hiver/Printemps/Été/Automne), factor ordonné.
-#   - abundance      : effectif numérique de l'observation (0 si NA).
-# Retourne le data.frame enrichi prêt à être consommé par les fonctions objective1 à objective4.
+# Mini-spécification — préparation des features fiabilité (objectifs 1–4).
+# Entrées : `df_clean`, `cols`.
+# Comportement : enrichit avec fiabilité normalisée, variables site/famille/saison, abondance.
+# Cas bloquants : aucun.
+# Sortie : data.frame enrichi prêt pour `objective1..4`.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 prepare_reliability_data <- function(df_clean, cols) {
   df_rel <- df_clean %>%
@@ -2603,15 +2881,11 @@ prepare_reliability_data <- function(df_clean, cols) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Objectif 1 — Analyse descriptive de la distribution des niveaux de fiabilité.
-# df_rel  : data.frame préparé par prepare_reliability_data(), contenant la colonne fiabilite.
-# out_dir : répertoire de sortie où les exports seront écrits.
-# Calcule la distribution des niveaux de fiabilité (comptes et pourcentages).
-# Exporte le tableau CSV : stat_obj1_reliability_distribution.csv.
-# Génère la Figure stat1 (barres horizontales, format PNG + PDF) : fig_stat1_reliability_distribution.
-# Retourne une liste avec :
-#   - metrics : data.frame de distribution (fiabilite, nb_observations, pourcentage).
-#   - best    : chaîne fixe "Descriptif" (pas de sélection de candidat pour cet objectif).
+# Mini-spécification — Objectif 1 (descriptif fiabilité).
+# Entrées : `df_rel`, `out_dir`.
+# Comportement : calcule distribution des classes de fiabilité, exporte CSV + figure.
+# Cas bloquants : aucun `stop()` explicite (erreurs IO/graphique propagées).
+# Sortie : liste (`metrics`, `best = "Descriptif"`).
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 objective1_descriptive <- function(df_rel, out_dir) {
   dist <- df_rel %>%
@@ -2631,10 +2905,12 @@ objective1_descriptive <- function(df_rel, out_dir) {
     labs(
       title = "Objectif 1 - Distribution de la fiabilité",
       x = "Nombre d'observations",
-      y = NULL
+      y = NULL,
+      caption = readable_caption("Lecture : une barre = un niveau de fiabilité ; labels = effectif et part relative. Interprétation : ce graphique décrit la structure globale de fiabilité des observations.")
     ) +
     theme_minimal(base_size = 11) +
-    theme(plot.title = element_text(face = "bold"), panel.grid.major.y = element_blank())
+    theme(plot.title = element_text(face = "bold"), panel.grid.major.y = element_blank()) +
+    theme_caption_readable()
 
   ggsave(file.path(out_dir, "fig_stat1_reliability_distribution.png"), p, width = 9, height = 5, dpi = 300, bg = "white")
   ggsave(file.path(out_dir, "fig_stat1_reliability_distribution.pdf"), p, width = 9, height = 5, bg = "white")
@@ -2643,20 +2919,12 @@ objective1_descriptive <- function(df_rel, out_dir) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Objectif 2 — Comparaison de trois schémas de pondération des observations par fiabilité.
-# df_rel       : data.frame préparé par prepare_reliability_data().
-# site_metrics : liste retournée par build_site_level_metrics(), utilisée comme référence de rang.
-# out_dir      : répertoire de sortie où les exports seront écrits.
-# Évalue 3 schémas de pondération (S1, S2, S3) différant sur les poids assignés à "Probable"
-# et "Non renseignée" ("Certaine" a toujours un poids de 1.0).
-# Le critère principal est la corrélation de Spearman entre les scores de rang pondérés
-# et les scores de référence (potentiel + patrimonial + chegd) ; le critère secondaire
-# est le chevauchement des top-5 sites entre les deux classements.
-# Exporte les CSV : stat_obj2_weighting_candidates.csv et stat_obj2_best_weighting.csv.
-# Génère la Figure stat2 (comparaison des schémas, PNG + PDF) : fig_stat2_weighting_comparison.
-# Retourne une liste avec :
-#   - metrics : data.frame des métriques pour les 3 schémas avec indicateur de sélection.
-#   - best    : identifiant du meilleur schéma ("S1", "S2" ou "S3").
+# Mini-spécification — Objectif 2 (sélection d'un schéma de pondération fiabilité).
+# Entrées : `df_rel`, `site_metrics`, `out_dir`.
+# Règles : compare 3 schémas (S1..S3) via Spearman (critère primaire) + overlap Top-5.
+# Comportement : export candidats + meilleur schéma + figure de comparaison.
+# Cas bloquants : aucun `stop()` explicite.
+# Sortie : liste (`metrics`, `best`).
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 objective2_weighting <- function(df_rel, site_metrics, out_dir) {
   schemes <- data.frame(
@@ -2724,10 +2992,12 @@ objective2_weighting <- function(df_rel, site_metrics, out_dir) {
     labs(
       title = "Objectif 2 - Comparaison des schémas de pondération",
       x = "Schéma",
-      y = "Corrélation de rang (Spearman)"
+      y = "Corrélation de rang (Spearman)",
+      caption = readable_caption("Lecture : une barre = un schéma de pondération ; hauteur = corrélation de Spearman ; mise en évidence = schéma retenu. Interprétation : plus la barre est haute, plus le schéma reproduit le classement de référence.")
     ) +
     theme_minimal(base_size = 11) +
-    theme(plot.title = element_text(face = "bold"))
+    theme(plot.title = element_text(face = "bold")) +
+    theme_caption_readable()
 
   ggsave(file.path(out_dir, "fig_stat2_weighting_comparison.png"), p, width = 9, height = 5, dpi = 300, bg = "white")
   ggsave(file.path(out_dir, "fig_stat2_weighting_comparison.pdf"), p, width = 9, height = 5, bg = "white")
@@ -2737,11 +3007,12 @@ objective2_weighting <- function(df_rel, site_metrics, out_dir) {
 
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Calcule le macro-F1 score moyen sur toutes les classes de deux vecteurs de facteurs ordonnés.
+# Mini-spécification — calcul du macro-F1 multiclasse (version robuste aux NA).
 # truth : factor ordonné des vraies classes.
 # pred  : factor ordonné des classes prédites.
 # Pour chaque classe présente dans l'union de truth et pred, calcule la précision, le rappel
 # et le F1 individuel (ignoré si indéfini). La moyenne est calculée en ignorant les NA.
+# Cas bloquants : aucun (aucune classe exploitable => NA_real_).
 # Retourne un scalaire numérique entre 0 et 1, ou NA_real_ si aucune classe n'est exploitable.
 # Utilisée dans objective3_model_selection() pour évaluer les modèles en validation croisée.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -2764,12 +3035,13 @@ safe_macro_f1 <- function(truth, pred) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Calcule la log-loss (entropie croisée) pour un problème de classification multi-classes.
+# Mini-spécification — calcul de log-loss multiclasse robuste.
 # truth        : vecteur de vraies classes (chaînes ou factor).
 # proba_mat    : matrice de probabilités prédites (n_obs × n_classes), colonnes nommées.
 # class_levels : vecteur des noms de classes dans l'ordre des colonnes de proba_mat.
 # Les probabilités sont bornées dans [1e-15, 1-1e-15] pour éviter log(0).
 # Les observations dont la vraie classe est absente de class_levels sont ignorées.
+# Cas bloquants : aucun (matrice/proba invalide => NA_real_).
 # Retourne un scalaire numérique ≥ 0, ou NA_real_ si proba_mat est NULL ou sans observations valides.
 # Utilisée dans objective3_model_selection() comme métrique secondaire de comparaison des modèles.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -2784,13 +3056,14 @@ safe_log_loss <- function(truth, proba_mat, class_levels) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Construit et exporte la Figure stat3a : performances de validation croisée par modèle.
+# Mini-spécification — Figure stat3a (performances CV par modèle).
 # metrics_df : data.frame avec les colonnes candidat, metric_accuracy, metric_macro_f1, metric_primary.
 # out_dir    : répertoire de sortie où les figures seront écrites.
 # La figure est un graphique à barres groupées (Accuracy vs Macro-F1) pour chaque modèle.
 # Les modèles sans métrique finie sont filtrés avant affichage.
 # Les figures sont exportées au format PNG (300 dpi) et PDF dans out_dir :
 #   fig_stat3_cv_metrics.png et fig_stat3_cv_metrics.pdf.
+# Cas bloquants : aucun `stop()` explicite (si aucune métrique exploitable => NULL).
 # Retourne invisiblement NULL ; les figures sont écrites en effet de bord.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 build_o3_cv_metrics_plot <- function(metrics_df, out_dir) {
@@ -2819,23 +3092,26 @@ build_o3_cv_metrics_plot <- function(metrics_df, out_dir) {
       title = "Objectif 3 - Performances CV par modèle",
       x = "Modèle",
       y = "Score",
-      fill = "Métrique"
+      fill = "Métrique",
+      caption = readable_caption("Lecture : barres groupées par modèle ; métriques = Accuracy et Macro-F1. Interprétation : des scores proches de 1 traduisent de meilleures performances en validation croisée.")
     ) +
     theme_minimal(base_size = 11) +
-    theme(plot.title = element_text(face = "bold"))
+    theme(plot.title = element_text(face = "bold")) +
+    theme_caption_readable()
 
   ggsave(file.path(out_dir, "fig_stat3_cv_metrics.png"), p, width = 9, height = 5, dpi = 300, bg = "white")
   ggsave(file.path(out_dir, "fig_stat3_cv_metrics.pdf"), p, width = 9, height = 5, bg = "white")
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Construit et exporte la Figure stat3b : matrice de confusion du meilleur modèle de fiabilité.
+# Mini-spécification — Figure stat3b (matrice de confusion du meilleur modèle).
 # cm_df   : data.frame avec les colonnes truth, prediction, n (issu d'un appel à table()).
 # out_dir : répertoire de sortie où les figures seront écrites.
 # La figure est une heatmap 2D (vraies classes × classes prédites) avec dégradé bleu
 # et annotations des comptes dans chaque cellule.
 # Les figures sont exportées au format PNG (300 dpi) et PDF dans out_dir :
 #   fig_stat3_confusion_matrix_best.png et fig_stat3_confusion_matrix_best.pdf.
+# Cas bloquants : aucun `stop()` explicite (entrée vide => NULL).
 # Retourne invisiblement NULL ; les figures sont écrites en effet de bord.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 build_o3_confusion_plot <- function(cm_df, out_dir) {
@@ -2847,17 +3123,19 @@ build_o3_confusion_plot <- function(cm_df, out_dir) {
     labs(
       title = "Objectif 3 - Matrice de confusion (meilleur modèle)",
       x = "Prédiction",
-      y = "Vérité"
+      y = "Vérité",
+      caption = readable_caption("Lecture : matrice de confusion ; diagonale = bonnes prédictions ; hors diagonale = erreurs ; couleur = effectif. Interprétation : une diagonale dominante indique un modèle plus fiable.")
     ) +
     theme_minimal(base_size = 11) +
-    theme(plot.title = element_text(face = "bold"), panel.grid = element_blank())
+    theme(plot.title = element_text(face = "bold"), panel.grid = element_blank()) +
+    theme_caption_readable()
 
   ggsave(file.path(out_dir, "fig_stat3_confusion_matrix_best.png"), p, width = 7, height = 6, dpi = 300, bg = "white")
   ggsave(file.path(out_dir, "fig_stat3_confusion_matrix_best.pdf"), p, width = 7, height = 6, bg = "white")
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Construit et exporte la Figure stat3c : distribution des probabilités de confiance du meilleur modèle.
+# Mini-spécification — Figure stat3c (distribution des probabilités maximales prédites).
 # pred_df : data.frame avec les colonnes max_proba et predicted, issu de objective3_model_selection().
 # out_dir : répertoire de sortie où les figures seront écrites.
 # La figure est un histogramme de la probabilité maximale prédite par observation,
@@ -2865,6 +3143,7 @@ build_o3_confusion_plot <- function(cm_df, out_dir) {
 # Les observations hors plage [0, 1] ou non finies sont filtrées avant l'affichage.
 # Les figures sont exportées au format PNG (300 dpi) et PDF dans out_dir :
 #   fig_stat3_predicted_probabilities_best.png et fig_stat3_predicted_probabilities_best.pdf.
+# Cas bloquants : aucun `stop()` explicite (entrée vide/invalide => NULL).
 # Retourne invisiblement NULL ; les figures sont écrites en effet de bord.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 build_o3_probabilities_plot <- function(pred_df, out_dir) {
@@ -2882,17 +3161,19 @@ build_o3_probabilities_plot <- function(pred_df, out_dir) {
       title = "Objectif 3 - Confiance des prédictions (meilleur modèle)",
       x = "Probabilité maximale prédite",
       y = "Nombre d'observations",
-      fill = "Classe prédite"
+      fill = "Classe prédite",
+      caption = readable_caption("Lecture : histogramme des probabilités maximales du meilleur modèle ; couleur = classe prédite. Interprétation : une distribution concentrée vers 1 reflète des prédictions plus confiantes.")
     ) +
     theme_minimal(base_size = 11) +
-    theme(plot.title = element_text(face = "bold"))
+    theme(plot.title = element_text(face = "bold")) +
+    theme_caption_readable()
 
   ggsave(file.path(out_dir, "fig_stat3_predicted_probabilities_best.png"), p, width = 9, height = 5, dpi = 300, bg = "white")
   ggsave(file.path(out_dir, "fig_stat3_predicted_probabilities_best.pdf"), p, width = 9, height = 5, bg = "white")
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Entraîne et prédit avec un modèle de classification de la fiabilité de détermination.
+# Mini-spécification — entraînement + prédiction d'un modèle de classification de fiabilité.
 # model_name : nom du modèle à utiliser, parmi :
 #   "polr"              : régression ordinale (MASS::polr, logit link) pour fiabilité ordonnée.
 #   "multinom"          : régression multinomiale (nnet::multinom) pour fiabilité nominale.
@@ -2903,6 +3184,7 @@ build_o3_probabilities_plot <- function(pred_df, out_dir) {
 # Les niveaux de site et famille très peu fréquents sont regroupés dans "Autre" (top-12 conservés)
 # pour éviter la sur-paramétrisation et les nouvelles modalités en test.
 # Si l'entraînement échoue (moins de 2 classes ou erreur modèle), retourne NULL.
+# Cas bloquants : aucun `stop()` explicite (échec de fit => NULL/retour dégradé).
 # Retourne une liste : pred (factor ordonné), proba (matrice n × classes), model (objet ajusté ou NULL).
 # Utilisée exclusivement dans objective3_model_selection() en boucle de validation croisée k-fold.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -2923,6 +3205,8 @@ fit_predict_reliability_model <- function(model_name, train_df, test_df) {
   top_sites <- names(sort(table(train_df$site_label), decreasing = TRUE))[seq_len(min(top_k, length(unique(train_df$site_label))))]
   top_families <- names(sort(table(train_df$family_label), decreasing = TRUE))[seq_len(min(top_k, length(unique(train_df$family_label))))]
 
+  # Mini-spécification (fonction interne) — rabattement des modalités rares vers "Autre".
+  # Cas bloquants : aucun ; stabilise les niveaux catégoriels train/test.
   collapse_to_top <- function(x, tops) {
     x_chr <- as.character(x)
     x_chr[is.na(x_chr) | x_chr == ""] <- "Autre"
@@ -2978,21 +3262,12 @@ fit_predict_reliability_model <- function(model_name, train_df, test_df) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Objectif 3 — Sélection du meilleur modèle de prédiction de la fiabilité par validation croisée.
-# df_rel  : data.frame préparé par prepare_reliability_data().
-# out_dir : répertoire de sortie où les exports seront écrits.
-# Exécute une validation croisée k=5 folds pour 3 candidats :
-#   "polr" (régression ordinale), "multinom" (multinomiale), "baseline_majority" (naïve).
-# Pour chaque fold, appelle fit_predict_reliability_model() et calcule accuracy, macro-F1 et log-loss.
-# Si les données sont insuffisantes (< 20 lignes ou < 2 classes), retourne un résultat vide immédiatement.
-# Le meilleur modèle est sélectionné selon le macro-F1 moyen (critère principal), puis l'accuracy.
-# Exporte les CSV : obj3_model_metrics.csv, stat_obj3_best_model_predictions.csv,
-#   stat_obj3_best_model_confusion_matrix.csv, stat_obj3_best_model_coefficients.csv.
-# Génère les Figures stat3a/b/c via build_o3_cv_metrics_plot(), build_o3_confusion_plot(),
-#   build_o3_probabilities_plot().
-# Retourne une liste avec :
-#   - metrics : data.frame des métriques par modèle avec indicateur de sélection.
-#   - best    : nom du meilleur modèle sélectionné.
+# Mini-spécification — Objectif 3 (sélection de modèle prédictif fiabilité).
+# Entrées : `df_rel`, `out_dir`.
+# Règles : CV k=5 sur {polr, multinom, baseline_majority}, score primaire macro-F1 puis accuracy.
+# Cas bloquants internes :
+#   - aucun `stop()` ; si données insuffisantes, retourne un résultat "insuffisant".
+# Sorties : exports CSV (métriques/prédictions/confusion/coefs) + figures stat3 + liste (`metrics`, `best`).
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 objective3_model_selection <- function(df_rel, out_dir) {
   df <- df_rel %>%
@@ -3146,22 +3421,12 @@ objective3_model_selection <- function(df_rel, out_dir) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Objectif 4 — Test d'inférence statistique sur la dépendance fiabilité × site.
-# df_rel  : data.frame préparé par prepare_reliability_data().
-# out_dir : répertoire de sortie où les exports seront écrits.
-# Construit le tableau de contingence fiabilité × site_label, puis sélectionne
-# automatiquement le test statistique adapté :
-#   - Chi-2 si toutes les cellules attendues ≥ 5.
-#   - Test exact de Fisher si des cellules attendues < 5 existent.
-#   - Fisher avec simulation Monte-Carlo (B=10000) si Fisher exact échoue (tableau trop grand).
-#   - Fallback Chi-2 si tous les tests échouent.
-# La métrique primaire rapportée est -log10(p_value) pour faciliter les comparaisons.
-# Exporte le CSV : stat_obj4_inference_tests.csv.
-# Génère la Figure stat4 (heatmap site × fiabilité avec résultat du test, PNG + PDF) :
-#   fig_stat4_site_reliability_heatmap.png et .pdf.
-# Retourne une liste avec :
-#   - metrics : data.frame avec le test retenu, -log10(p) et la p-value brute.
-#   - best    : nom du test retenu.
+# Mini-spécification — Objectif 4 (inférence fiabilité × site).
+# Entrées : `df_rel`, `out_dir`.
+# Règles de sélection test : Chi-2 -> Fisher exact -> Fisher simulé -> Chi-2 fallback.
+# Comportement : calcule p-value, exporte résultat + heatmap.
+# Cas bloquants : aucun `stop()` explicite.
+# Sortie : liste (`metrics`, `best`).
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 objective4_inference <- function(df_rel, out_dir) {
   tbl <- table(df_rel$site_label, df_rel$fiabilite)
@@ -3208,10 +3473,12 @@ objective4_inference <- function(df_rel, out_dir) {
       title = "Objectif 4 - Répartition de la fiabilité par site",
       subtitle = paste0("Test retenu: ", test_name, " | p=", signif(p_value, 3)),
       x = "Fiabilité",
-      y = "Site"
+      y = "Site",
+      caption = readable_caption("Lecture : tableau de contingence site × fiabilité ; cellule = nombre d'observations ; sous-titre = test statistique et p-value. Interprétation : la carte permet de visualiser et tester l'association entre site et niveau de fiabilité.")
     ) +
     theme_minimal(base_size = 11) +
-    theme(plot.title = element_text(face = "bold"), panel.grid = element_blank())
+    theme(plot.title = element_text(face = "bold"), panel.grid = element_blank()) +
+    theme_caption_readable()
 
   ggsave(file.path(out_dir, "fig_stat4_site_reliability_heatmap.png"), p, width = 10, height = 7, dpi = 300, bg = "white")
   ggsave(file.path(out_dir, "fig_stat4_site_reliability_heatmap.pdf"), p, width = 10, height = 7, bg = "white")
@@ -3220,21 +3487,11 @@ objective4_inference <- function(df_rel, out_dir) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Orchestrateur du module fiabilité : exécute les objectifs 1 à 4 en séquence.
-# df_clean     : data.frame nettoyé issu de read_input_data().
-# cols         : liste des noms de colonnes métier (issues de cfg$columns).
-# site_metrics : liste retournée par build_site_level_metrics() (utilisée par objectif 2).
-# out_dir      : répertoire de sortie commun où tous les CSV et figures seront écrits.
-# Appelle dans l'ordre :
-#   1) prepare_reliability_data() pour normaliser les niveaux de fiabilité.
-#   2) objective1_descriptive()    : distribution des niveaux.
-#   3) objective2_weighting()      : sélection du schéma de pondération optimal.
-#   4) objective3_model_selection(): sélection du meilleur modèle prédictif.
-#   5) objective4_inference()      : test d'association fiabilité × site.
-# Exporte un CSV de synthèse : stat_model_selection_summary.csv.
-# Retourne une liste avec :
-#   - summary : data.frame récapitulatif des 4 objectifs (objectif, meilleur candidat, métriques).
-#   - details : liste nommée des résultats détaillés de chaque objectif (o1, o2, o3, o4).
+# Mini-spécification — orchestrateur des objectifs fiabilité (1 à 4).
+# Entrées : `df_clean`, `cols`, `site_metrics`, `out_dir`.
+# Comportement : prépare les données fiabilité puis enchaîne objectifs 1..4 dans l'ordre.
+# Cas bloquants : aucun `stop()` explicite ici (les erreurs des sous-fonctions remontent).
+# Sortie : liste (`summary`, `details`) + export `stat_model_selection_summary.csv`.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 run_reliability_objectives <- function(df_clean, cols, site_metrics, out_dir) {
   df_rel <- prepare_reliability_data(df_clean, cols)
@@ -3257,21 +3514,12 @@ run_reliability_objectives <- function(df_clean, cols, site_metrics, out_dir) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Exporte l'ensemble des résultats du pipeline sous forme de fichiers CSV.
-# df_clean     : data.frame nettoyé issu de read_input_data().
-# summaries    : liste retournée par calc_summaries() (résumés par site, famille, espèce, date, fiabilité).
-# site_metrics : liste retournée par build_site_level_metrics() (potentiel, patrimonial, chegd, combined).
-# out_dir      : répertoire de sortie où tous les CSV seront écrits.
-# cols         : liste des noms de colonnes métier (utilisée pour les indicateurs globaux).
-# Exporte les fichiers CSV suivants dans out_dir :
-#   - donnees_brutes_nettoyees.csv, resume_par_site/famille/espece/date.csv
-#   - resume_fiabilite_determination.csv, niveaux_fiabilite_rencontres.csv
-#   - potentiel_fongique_par_site.csv, indice_patrimonial_par_site.csv
-#   - gradient_chegd_par_site.csv, indice_representativite_ir_par_site.csv
-#   - synthese_evaluation_par_site.csv
-#   - resume_global.csv : indicateurs de contrôle qualité globaux (counts, cohérence CHEGD, IR moyen).
-# Le contrôle QA vérifie la cohérence entre la somme des gradients par visite et chegd_total.
-# Retourne invisiblement NULL ; tous les fichiers sont écrits en encodage UTF-8 sans BOM.
+# Mini-spécification — export des artefacts CSV finaux.
+# Entrées : `df_clean`, `summaries`, `site_metrics`, `out_dir`, `cols`.
+# Comportement : écrit tous les CSV de sortie (données, résumés, métriques, QA global).
+# Contrôle inclus : cohérence `sum(gradient_visite_*) == chegd_total` pour `resume_global.csv`.
+# Cas bloquants : aucun `stop()` explicite (erreurs d'écriture propagées).
+# Sortie : aucune (effets de bord ; retour implicite NULL).
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 write_outputs <- function(df_clean, summaries, site_metrics, out_dir, cols) {
   write.csv(df_clean, file.path(out_dir, "donnees_brutes_nettoyees.csv"), row.names = FALSE, fileEncoding = "UTF-8")
@@ -3339,20 +3587,47 @@ write_outputs <- function(df_clean, summaries, site_metrics, out_dir, cols) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# Point d'entrée principal du pipeline d'évaluation fongique.
-# Aucun argument : toute la configuration est issue de get_embedded_config().
-# Exécute les étapes suivantes dans l'ordre :
-#   1) Résolution des chemins (répertoire script, config, fichier d'entrée, répertoire de sortie).
-#   2) Initialisation du système de logging (setup_logging, log_header).
-#   3) Lecture et nettoyage des données (read_input_data, ensure_required_columns,
-#      to_date_safe, to_numeric_safe).
-#   4) Résumés descriptifs (calc_summaries) et métriques par site (build_site_level_metrics).
-#   5) Génération des 7 figures (build_site_dashboard à build_ir_by_visit_plot).
-#   6) Module fiabilité objectifs 1-4 (run_reliability_objectives).
-#   7) Export des résultats CSV (write_outputs).
-#   8) Récapitulatif des fichiers générés dans le log (log_footer).
-# Appelée via tryCatch() en bas de fichier pour capturer toute erreur fatale,
-# l'enregistrer dans le log et propager l'exception avec stop().
+# Mini-spécification — orchestrateur principal du pipeline d'évaluation fongique.
+# Signature :
+#   - `main()` ne prend aucun argument ; la configuration provient de `get_embedded_config()`.
+#
+# Préconditions d'exécution :
+#   1) Dépendances R disponibles (vérifiées en amont via `assert_required_packages()`).
+#   2) Fichier d'entrée CSV résoluble via `resolve_input_file()`.
+#   3) Structure minimale conforme : colonnes métier présentes (`ensure_required_columns()`).
+#   4) Qualité d'entrée suffisante selon `validate_input_data()` (contrôles bloquants passés).
+#   5) Cohérence CHEGD/IR suffisante selon `validate_autonomous_reliability()`.
+#
+# Chaîne d'exécution (ordre contraint) :
+#   1) Résolution des chemins et préparation des répertoires de sortie.
+#   2) Initialisation du logging et émission de l'en-tête d'exécution.
+#   3) Lecture du CSV + nettoyage structurel (`read_input_data`).
+#   4) Validation des colonnes (`ensure_required_columns`).
+#   5) Conversion des champs critiques (dates/effectifs) dans `df_clean`.
+#   6) Validation qualité d'entrée (`validate_input_data`) + export QA entrée.
+#   7) Calcul des résumés descriptifs (`calc_summaries`).
+#   8) Calcul des métriques par site (`build_site_level_metrics`).
+#   9) Contrôle de cohérence autonome CHEGD/IR (`validate_autonomous_reliability`) + export QA.
+#  10) Génération des figures (1 à 7).
+#  11) Exécution des objectifs fiabilité 1–4 (`run_reliability_objectives`).
+#  12) Export final des CSV (`write_outputs`) et journal de clôture (`log_footer`).
+#
+# Points d'arrêt bloquants (erreur fatale) :
+#   - entrée introuvable/non lisible/incompatible (résolution/lecture CSV),
+#   - colonnes obligatoires absentes,
+#   - contrôle bloquant échoué dans `validate_input_data()` si `strict = TRUE`,
+#   - incohérence détectée par `validate_autonomous_reliability()` si `strict = TRUE`,
+#   - toute exception non gérée dans les étapes de calcul/export.
+#
+# Garanties en succès :
+#   - production des fichiers QA d'entrée + QA autonome,
+#   - production des CSV métier (résumés, métriques, synthèse),
+#   - génération des figures prévues,
+#   - journal complet avec horodatage, configuration, récapitulatif des artefacts.
+#
+# Gestion des erreurs :
+#   - `main()` est exécutée dans un `tryCatch()` global en bas de script ;
+#   - en cas d'erreur, le message est journalisé (`log_error`), puis l'exception est relancée via `stop()`.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 main <- function() {
   # Démarrage et configuration du pipeline d'évaluation fongique.
@@ -3363,6 +3638,19 @@ main <- function() {
   cfg <- get_embedded_config()
   cfg$input_file <- resolve_input_file(cfg$input_file, base_dir)
   cfg$output_dir <- resolve_path_from_base(cfg$output_dir, base_dir)
+  strict_mode <- if (is.logical(cfg$strict) && length(cfg$strict) == 1 && !is.na(cfg$strict)) cfg$strict else TRUE
+  non_blocking_failures <- data.frame(
+    step = character(),
+    error_message = character(),
+    stringsAsFactors = FALSE
+  )
+
+  register_non_blocking_failure <- function(step_name, error_message) {
+    non_blocking_failures <<- rbind(
+      non_blocking_failures,
+      data.frame(step = step_name, error_message = error_message, stringsAsFactors = FALSE)
+    )
+  }
 
   # Créer répertoire de sortie si nécessaire et construire le chemin complet avec préfixe.
   if (!dir.exists(cfg$output_dir)) { 
@@ -3374,6 +3662,10 @@ main <- function() {
   # Initialiser logging dans /logs à la racine du projet et enregistrer l'en-tête avec la source de configuration et le fichier d'entrée.
   setup_logging(base_dir, cfg$output_prefix)
   log_header(config_source, cfg$input_file)
+  if (!is.null(cfg$protocol_scope) && nzchar(trimws(as.character(cfg$protocol_scope)))) {
+    log_info(paste0("Périmètre protocole : ", cfg$protocol_scope))
+  }
+  log_info(paste0("Mode d'exécution : ", if (isTRUE(strict_mode)) "strict" else "tolérant"))
   log_info(paste0("Fichier d'entrée résolu : ", cfg$input_file))
   log_info(paste0("Répertoire de sortie : ", out_dir))
 
@@ -3385,7 +3677,7 @@ main <- function() {
   # Lecture et traitement des données d'entrée.
   log_section("Lecture et traitement des données d'entrée")
   log_info(paste0("Lecture du fichier : ", cfg$input_file))
-  raw <- read_input_data(cfg$input_file, cfg$input_sheet)
+  raw <- read_input_data(cfg$input_file)
   raw <- raw[, !grepl("^\\.\\.\\.", names(raw)), drop = FALSE]
   
   # Log du fichier et des colonnes détectées AVANT vérification (crucial pour le débogage)
@@ -3404,6 +3696,50 @@ main <- function() {
       date_obs = to_date_safe(.data[[cols$date]]),
       nombre_espece_num = to_numeric_safe(.data[[cols$count]])
     )
+
+  input_validation <- validate_input_data(raw, df_clean, cols, out_dir)
+  log_section("Validation qualité des données d'entrée")
+  for (i in seq_len(nrow(input_validation$summary))) {
+    validation_row <- input_validation$summary[i, ]
+    message_txt <- paste0(
+      validation_row$check_id, " : ", validation_row$issue_count,
+      if (!is.na(validation_row$reference_count) && validation_row$reference_count > 0) {
+        paste0(" / ", validation_row$reference_count, " (", validation_row$pct_issue, " %)")
+      } else {
+        ""
+      },
+      " — ", validation_row$details
+    )
+
+    if (validation_row$severity == "warning" && validation_row$issue_count > 0) {
+      log_warning_msg(message_txt)
+    } else {
+      log_info(message_txt)
+    }
+  }
+
+  input_quality_digest <- build_input_quality_digest(
+    input_validation = input_validation,
+    df_clean = df_clean,
+    cols = cols,
+    out_dir = out_dir,
+    thresholds = cfg$quality_alert_thresholds
+  )
+  log_info(paste0("Indicateurs qualité entrée calculés : ", nrow(input_quality_digest$indicators)))
+
+  if (length(input_validation$blocking_issues) > 0) {
+    blocking_msg <- paste0(
+      "Validation d'entrée échouée. Contrôles bloquants en échec : ",
+      paste(input_validation$blocking_issues, collapse = ", ")
+    )
+    if (isTRUE(strict_mode)) {
+      stop(blocking_msg)
+    } else {
+      log_warning_msg(paste0(blocking_msg, " Mode tolérant actif: poursuite du pipeline."))
+    }
+  }
+
+  log_info("Validation qualité des données d'entrée : OK")
 
   log_data_summary(
     nrow(df_clean),
@@ -3451,16 +3787,18 @@ main <- function() {
     df_clean,
     cols,
     base_dir,
-    cfg$input_file,
-    cfg$reference_workbook,
-    cfg$use_reference_overrides
+    cfg$input_file
   )
   log_info("Métriques par site calculées")
 
-  qa_autonomous <- validate_autonomous_reliability(site_metrics, out_dir)
+  qa_autonomous <- validate_autonomous_reliability(site_metrics, out_dir, strict = strict_mode)
   qa_failed <- qa_autonomous$summary$failed_sites[qa_autonomous$summary$rule == "qa_overall"]
   if (length(qa_failed) == 0) qa_failed <- 0
-  log_info(paste0("Contrôle fiabilité autonome: OK (", nrow(qa_autonomous$detail), " sites, ", qa_failed, " écart)"))
+  if (qa_failed > 0 && !isTRUE(strict_mode)) {
+    log_warning_msg(paste0("Contrôle fiabilité autonome: incohérences tolérées en mode tolérant (", qa_failed, " site(s))."))
+  } else {
+    log_info(paste0("Contrôle fiabilité autonome: OK (", nrow(qa_autonomous$detail), " sites, ", qa_failed, " écart)"))
+  }
 
   # Générer les graphiques et les figures pour le rapport.
   # Les figures sont enregistrées dans le répertoire de sortie et un message de log est affiché pour chaque figure générée.
@@ -3471,26 +3809,33 @@ main <- function() {
   # Les messages de log permettent de suivre l'avancement de la génération des figures et de vérifier que toutes les figures ont été créées avec succès.
   # Les figures sont essentielles pour l'analyse visuelle des données et pour communiquer les résultats de manière efficace aux parties prenantes.
   log_section("Génération des résultats graphiques et des figures")
-  build_site_dashboard(site_metrics, out_dir)
-  log_info("Figure 1 : tableau de bord des sites terminé")
+  fig1_step <- "Figure 1 : tableau de bord des sites"
+  fig1_res <- run_non_blocking_step(fig1_step, function() build_site_dashboard(site_metrics, out_dir))
+  if (fig1_res$ok) log_info(paste0(fig1_step, " terminé")) else register_non_blocking_failure(fig1_step, fig1_res$error)
 
-  build_scatter_positionnement(site_metrics, out_dir)
-  log_info("Figure 2 : positionnement écologique terminé")
+  fig2_step <- "Figure 2 : positionnement écologique"
+  fig2_res <- run_non_blocking_step(fig2_step, function() build_scatter_positionnement(site_metrics, out_dir))
+  if (fig2_res$ok) log_info(paste0(fig2_step, " terminé")) else register_non_blocking_failure(fig2_step, fig2_res$error)
 
-  build_potentiel_breakdown(site_metrics, out_dir)
-  log_info("Figure 3 : décomposition du potentiel terminée")
+  fig3_step <- "Figure 3 : décomposition du potentiel"
+  fig3_res <- run_non_blocking_step(fig3_step, function() build_potentiel_breakdown(site_metrics, out_dir))
+  if (fig3_res$ok) log_info(paste0(fig3_step, " terminée")) else register_non_blocking_failure(fig3_step, fig3_res$error)
 
-  build_chegd_by_visit(site_metrics, out_dir)
-  log_info("Figure 4 : CHEGD par visite terminé")
+  fig4_step <- "Figure 4 : CHEGD par visite"
+  fig4_res <- run_non_blocking_step(fig4_step, function() build_chegd_by_visit(site_metrics, out_dir))
+  if (fig4_res$ok) log_info(paste0(fig4_step, " terminé")) else register_non_blocking_failure(fig4_step, fig4_res$error)
 
-  build_classes_heatmap(site_metrics, out_dir)
-  log_info("Figure 5 : carte thermique des classes terminée")
+  fig5_step <- "Figure 5 : carte thermique des classes"
+  fig5_res <- run_non_blocking_step(fig5_step, function() build_classes_heatmap(site_metrics, out_dir))
+  if (fig5_res$ok) log_info(paste0(fig5_step, " terminée")) else register_non_blocking_failure(fig5_step, fig5_res$error)
 
-  build_reliability_levels_plot(summaries$reliability, out_dir)
-  log_info("Figure 6 : distribution des niveaux de fiabilité terminée")
+  fig6_step <- "Figure 6 : distribution des niveaux de fiabilité"
+  fig6_res <- run_non_blocking_step(fig6_step, function() build_reliability_levels_plot(summaries$reliability, out_dir))
+  if (fig6_res$ok) log_info(paste0(fig6_step, " terminée")) else register_non_blocking_failure(fig6_step, fig6_res$error)
 
-  build_ir_by_visit_plot(site_metrics, out_dir)
-  log_info("Figure 7 : indice de représentativité (IR) terminé")
+  fig7_step <- "Figure 7 : indice de représentativité (IR)"
+  fig7_res <- run_non_blocking_step(fig7_step, function() build_ir_by_visit_plot(site_metrics, out_dir))
+  if (fig7_res$ok) log_info(paste0(fig7_step, " terminé")) else register_non_blocking_failure(fig7_step, fig7_res$error)
 
   # Objectifs de fiabilité (1-4) : descriptif, pondération, modèles, inférence.
   # Chaque objectif est exécuté séquentiellement, et les résultats sont enregistrés dans le répertoire de sortie.
@@ -3498,13 +3843,22 @@ main <- function() {
   # Les résultats finaux sont exportés sous forme de fichiers CSV, et un résumé des fichiers générés est affiché dans le log.
   # Les objectifs de fiabilité permettent d'évaluer la qualité des données et de fournir des indicateurs pour la prise de décision.
   log_section("Objectifs de fiabilité (1-4)")
-  reliability_objectives <- run_reliability_objectives(df_clean, cols, site_metrics, out_dir)
-  if (!is.null(reliability_objectives$summary)) {
-    log_info("Objectifs de fiabilité terminés - Meilleurs candidats :")
-    for (i in seq_len(nrow(reliability_objectives$summary))) {
-      r <- reliability_objectives$summary[i, ]
-      log_info(paste0("  - ", r$objectif, ": ", r$candidat))
+  reliability_objectives <- NULL
+  reliability_step <- "Objectifs de fiabilité (1-4)"
+  reliability_res <- run_non_blocking_step(reliability_step, function() {
+    reliability_objectives <<- run_reliability_objectives(df_clean, cols, site_metrics, out_dir)
+  })
+
+  if (reliability_res$ok) {
+    if (!is.null(reliability_objectives$summary)) {
+      log_info("Objectifs de fiabilité terminés - Meilleurs candidats :")
+      for (i in seq_len(nrow(reliability_objectives$summary))) {
+        r <- reliability_objectives$summary[i, ]
+        log_info(paste0("  - ", r$objectif, ": ", r$candidat))
+      }
     }
+  } else {
+    register_non_blocking_failure(reliability_step, reliability_res$error)
   }
 
   # Exporter les résultats finaux et les fichiers CSV.
@@ -3534,6 +3888,10 @@ main <- function() {
   log_info("  - synthese_evaluation_par_site.csv")
   log_info("  - qa_controles_autonomes_detail.csv")
   log_info("  - qa_controles_autonomes_resume.csv")
+  log_info("  - qa_validation_entree_resume.csv")
+  log_info("  - qa_validation_entree_lignes.csv")
+  log_info("  - qa_validation_entree_indicateurs.csv")
+  log_info("  - qa_validation_entree_alertes.csv")
   log_info("Figures :")
   log_info("  - fig1_tableau_de_bord_pelouses.png / .pdf")
   log_info("  - fig2_positionnement_ecologique.png / .pdf")
@@ -3548,6 +3906,18 @@ main <- function() {
   log_info("  - stat_obj3_model_metrics.csv + stat_confusion_matrix.csv + stat_coefficients.csv + figs")
   log_info("  - stat_obj4_inference_tests.csv + fig")
   log_info("  - stat_model_selection_summary.csv")
+
+  if (nrow(non_blocking_failures) > 0) {
+    write.csv(
+      non_blocking_failures,
+      file.path(out_dir, "non_blocking_failures.csv"),
+      row.names = FALSE,
+      fileEncoding = "UTF-8"
+    )
+    log_warning_msg(paste0("Étapes non bloquantes en échec : ", nrow(non_blocking_failures), " (voir non_blocking_failures.csv)"))
+  } else {
+    log_info("Aucun échec sur les étapes non bloquantes")
+  }
 
   # Pied-de-page
   log_footer()

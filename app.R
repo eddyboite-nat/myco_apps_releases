@@ -129,6 +129,57 @@ file_table <- function(root, extensions, limit = 80) {
   utils::head(out, limit)
 }
 
+result_app_label <- function(app_id) {
+  labels <- c(
+    ICR = "ICR",
+    EPFIP_CHEGD = "CHEGD"
+  )
+  labels[[app_id]] %||% app_id
+}
+
+result_apps_table <- function() {
+  if (!dir.exists(results_dir)) {
+    return(data.frame(id = character(), label = character(), count = integer(), latest = as.POSIXct(character())))
+  }
+
+  dirs <- list.files(results_dir, full.names = FALSE, recursive = FALSE, no.. = TRUE)
+  dirs <- dirs[dir.exists(file.path(results_dir, dirs))]
+  if (!length(dirs)) {
+    return(data.frame(id = character(), label = character(), count = integer(), latest = as.POSIXct(character())))
+  }
+
+  rows <- lapply(dirs, function(app_id) {
+    app_files <- relative_files(file.path(results_dir, app_id), c("csv", "txt", "log", "png", "pdf", "svg", "xlsx"))
+    full <- file.path(results_dir, app_id, app_files)
+    latest <- if (length(full)) max(file.info(full)$mtime, na.rm = TRUE) else as.POSIXct(NA)
+    data.frame(
+      id = app_id,
+      label = result_app_label(app_id),
+      count = length(app_files),
+      latest = latest,
+      stringsAsFactors = FALSE
+    )
+  })
+
+  out <- do.call(rbind, rows)
+  out <- out[order(out$latest, decreasing = TRUE, na.last = TRUE), , drop = FALSE]
+  row.names(out) <- NULL
+  out
+}
+
+result_file_table <- function(app_id, limit = 120) {
+  if (is.null(app_id) || !nzchar(app_id)) {
+    return(data.frame(name = character(), size = numeric(), mtime = as.POSIXct(character())))
+  }
+  app_dir <- safe_child(results_dir, app_id, must_work = TRUE)
+  files <- file_table(app_dir, c("csv", "txt", "log", "png", "pdf", "svg", "xlsx"), limit = limit)
+  if (nrow(files)) {
+    files$name <- file.path(app_id, files$name)
+    files$name <- gsub("\\\\", "/", files$name)
+  }
+  files
+}
+
 find_chegd_default_file <- function() {
   exact <- file.path(data_dir, chegd_default_data)
   if (file.exists(exact)) return(exact)
@@ -314,6 +365,41 @@ ui <- fluidPage(
         color: #656d60;
         font-size: 12px;
       }
+      .results-browser {
+        display: grid;
+        grid-template-columns: 150px minmax(0, 1fr);
+        gap: 12px;
+      }
+      .results-master .form-group {
+        margin-bottom: 0;
+      }
+      .results-master .control-label {
+        display: none;
+      }
+      .results-master .radio {
+        margin: 0 0 7px;
+      }
+      .results-master .radio label {
+        display: block;
+        min-height: 38px;
+        padding: 9px 10px 9px 28px;
+        border: 1px solid #dfe4da;
+        border-radius: 6px;
+        background: #fbfcfa;
+        color: #20231f;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .results-master .radio input {
+        margin-top: 2px;
+      }
+      .results-detail-title {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 8px;
+      }
       @media (max-width: 820px) {
         .container-fluid { width: calc(100vw - 20px); }
         .app-header {
@@ -323,7 +409,7 @@ ui <- fluidPage(
           padding-top: 16px;
           padding-bottom: 16px;
         }
-        .controls, .grid { grid-template-columns: 1fr; }
+        .controls, .grid, .results-browser { grid-template-columns: 1fr; }
         pre { min-height: 320px; }
       }
     "))
@@ -363,7 +449,19 @@ ui <- fluidPage(
       div(class = "file-list", uiOutput("logs_list")),
       tags$hr(),
       h2("Résultats"),
-      div(class = "file-list", uiOutput("results_list"))
+      div(
+        class = "results-browser",
+        div(class = "results-master", uiOutput("results_app_master")),
+        div(
+          class = "results-detail",
+          div(
+            class = "results-detail-title",
+            strong(textOutput("results_app_title", inline = TRUE)),
+            span(class = "muted", textOutput("results_app_meta", inline = TRUE))
+          ),
+          div(class = "file-list", uiOutput("results_list"))
+        )
+      )
     )
   )
 )
@@ -399,6 +497,21 @@ server <- function(input, output, session) {
     }
     updateSelectInput(session, "script", choices = scripts, selected = selected_script)
     updateSelectInput(session, "data_file", choices = data_files, selected = selected_data)
+  }
+
+  refresh_result_apps <- function() {
+    apps <- result_apps_table()
+    selected_app <- isolate(input$results_app)
+    if (!nrow(apps)) {
+      updateRadioButtons(session, "results_app", choices = character(), selected = character())
+      return(invisible(apps))
+    }
+    if (is.null(selected_app) || !selected_app %in% apps$id) {
+      selected_app <- apps$id[[1]]
+    }
+    labels <- paste0(apps$label, " (", apps$count, ")")
+    updateRadioButtons(session, "results_app", choices = stats::setNames(apps$id, labels), selected = selected_app)
+    invisible(apps)
   }
 
   append_output <- function(lines) {
@@ -447,10 +560,12 @@ server <- function(input, output, session) {
   }
 
   refresh_choices()
+  refresh_result_apps()
 
   observe({
     invalidateLater(2500, session)
     refresh_choices()
+    refresh_result_apps()
   })
 
   observe({
@@ -596,9 +711,41 @@ server <- function(input, output, session) {
     render_file_links(file_table(logs_dir, c("log", "txt")), "logs")
   })
 
+  output$results_app_master <- renderUI({
+    apps <- result_apps_table()
+    if (!nrow(apps)) return(tags$p(class = "muted", "Aucune app"))
+    labels <- paste0(apps$label, " (", apps$count, ")")
+    selected_app <- input$results_app
+    if (is.null(selected_app) || !selected_app %in% apps$id) {
+      selected_app <- apps$id[[1]]
+    }
+    radioButtons("results_app", NULL, choices = stats::setNames(apps$id, labels), selected = selected_app)
+  })
+
+  output$results_app_title <- renderText({
+    apps <- result_apps_table()
+    selected_app <- input$results_app
+    if (!nrow(apps) || is.null(selected_app) || !selected_app %in% apps$id) return("Aucun résultat")
+    apps$label[match(selected_app, apps$id)]
+  })
+
+  output$results_app_meta <- renderText({
+    apps <- result_apps_table()
+    selected_app <- input$results_app
+    if (!nrow(apps) || is.null(selected_app) || !selected_app %in% apps$id) return("")
+    app <- apps[match(selected_app, apps$id), , drop = FALSE]
+    latest <- if (!is.na(app$latest[[1]])) format(app$latest[[1]], "%Y-%m-%d %H:%M:%S") else "jamais"
+    paste(app$count[[1]], "fichier(s) - dernier :", latest)
+  })
+
   output$results_list <- renderUI({
     invalidateLater(2500, session)
-    render_file_links(file_table(results_dir, c("csv", "txt", "log", "png", "pdf", "svg", "xlsx")), "results")
+    selected_app <- input$results_app
+    apps <- result_apps_table()
+    if (is.null(selected_app) || !selected_app %in% apps$id) {
+      selected_app <- if (nrow(apps)) apps$id[[1]] else ""
+    }
+    render_file_links(result_file_table(selected_app), "results")
   })
 }
 
