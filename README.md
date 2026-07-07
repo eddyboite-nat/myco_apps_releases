@@ -77,6 +77,28 @@ myco_apps_releases/
 └── README.md                             # Ce fichier
 ```
 
+## Interface web locale
+
+Une interface web locale est disponible pour lancer les scripts sans modifier leur contenu.
+
+Depuis la racine du dépôt :
+
+```bash
+Rscript app.R
+```
+
+Sur macOS, vous pouvez aussi double-cliquer sur `lancer_myco_app.command`.
+
+L'application ouvre `http://127.0.0.1:8765/` et permet de :
+
+* sélectionner un script présent dans `scripts/` ;
+* sélectionner un fichier de données présent dans `data/` ;
+* lancer l'exécution via `Rscript` ;
+* consulter le flux d'exécution, les logs de `logs/` et les résultats de `results/` ;
+* fermer le serveur local avec le bouton `Fermer l'app`.
+
+La validation des données reste assurée par les scripts R. L'interface ne permet pas de modifier les scripts.
+
 ---
 
 ## Évaluation du potentiel fongique, de l'intérêt patrimonial et du gradient CHEGD
