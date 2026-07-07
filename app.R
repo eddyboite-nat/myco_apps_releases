@@ -180,6 +180,29 @@ result_file_table <- function(app_id, limit = 120) {
   files
 }
 
+read_text_file <- function(root, relative_path, max_lines = 2000) {
+  if (is.null(relative_path) || !nzchar(relative_path)) return("")
+  path <- safe_child(root, relative_path, must_work = TRUE)
+  if (!file.exists(path) || !isTRUE(file.info(path)$isdir %in% FALSE)) {
+    stop("Fichier introuvable : ", relative_path, call. = FALSE)
+  }
+
+  lines <- tryCatch(
+    readLines(path, warn = FALSE, encoding = "UTF-8"),
+    error = function(e) readLines(path, warn = FALSE)
+  )
+  total <- length(lines)
+  if (total > max_lines) {
+    lines <- utils::tail(lines, max_lines)
+    lines <- c(
+      paste0("[APP INFO] Affichage limité aux ", max_lines, " dernières lignes sur ", total, "."),
+      "",
+      lines
+    )
+  }
+  paste(lines, collapse = "\n")
+}
+
 find_chegd_default_file <- function() {
   exact <- file.path(data_dir, chegd_default_data)
   if (file.exists(exact)) return(exact)
@@ -199,7 +222,43 @@ format_size <- function(bytes) {
 }
 
 resource_link <- function(root_name, rel_path) {
-  paste0(root_name, "/", URLencode(rel_path, reserved = TRUE))
+  paste0(root_name, "/", URLencode(rel_path, reserved = FALSE))
+}
+
+guess_table_separator <- function(path) {
+  first_lines <- readLines(path, n = 5, warn = FALSE, encoding = "UTF-8")
+  first_lines <- first_lines[nzchar(trimws(first_lines))]
+  if (!length(first_lines)) return(";")
+
+  count_fixed <- function(pattern) {
+    matches <- gregexpr(pattern, first_lines, fixed = TRUE)
+    sum(vapply(matches, function(x) if (identical(x, -1L)) 0L else length(x), integer(1)))
+  }
+
+  scores <- c(
+    tab = count_fixed("\t"),
+    semicolon = count_fixed(";"),
+    comma = count_fixed(",")
+  )
+  names(which.max(scores))
+}
+
+read_csv_preview <- function(root, relative_path, max_rows = 500) {
+  path <- safe_child(root, relative_path, must_work = TRUE)
+  sep_name <- guess_table_separator(path)
+  sep <- switch(sep_name, tab = "\t", comma = ",", semicolon = ";", ";")
+  utils::read.table(
+    path,
+    header = TRUE,
+    sep = sep,
+    quote = "\"",
+    comment.char = "",
+    stringsAsFactors = FALSE,
+    check.names = FALSE,
+    fill = TRUE,
+    fileEncoding = "UTF-8",
+    nrows = max_rows
+  )
 }
 
 render_file_links <- function(files, root_name) {
@@ -233,7 +292,7 @@ ui <- fluidPage(
         font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       }
       .container-fluid {
-        width: min(1180px, calc(100vw - 32px));
+        width: min(1440px, calc(100vw - 32px));
         padding: 0;
       }
       .app-header {
@@ -242,8 +301,8 @@ ui <- fluidPage(
         align-items: center;
         justify-content: space-between;
         gap: 20px;
-        margin: 0 calc((100vw - min(1180px, calc(100vw - 32px))) / -2) 22px;
-        padding: 18px calc((100vw - min(1180px, calc(100vw - 32px))) / 2);
+        margin: 0 calc((100vw - min(1440px, calc(100vw - 32px))) / -2) 22px;
+        padding: 18px calc((100vw - min(1440px, calc(100vw - 32px))) / 2);
         border-bottom: 1px solid #dfe4da;
         background: #eef2ea;
       }
@@ -323,9 +382,7 @@ ui <- fluidPage(
         font-size: 12px;
       }
       .grid {
-        display: grid;
-        grid-template-columns: 1.2fr .8fr;
-        gap: 18px;
+        display: block;
       }
       pre {
         min-height: 420px;
@@ -365,13 +422,69 @@ ui <- fluidPage(
         color: #656d60;
         font-size: 12px;
       }
+      .nav-tabs {
+        border-bottom: 1px solid #dfe4da;
+        margin-bottom: 14px;
+      }
+      .nav-tabs > li > a {
+        border-radius: 6px 6px 0 0;
+        color: #496154;
+        font-weight: 700;
+      }
+      .nav-tabs > li.active > a,
+      .nav-tabs > li.active > a:focus,
+      .nav-tabs > li.active > a:hover {
+        color: #20231f;
+        border-color: #dfe4da #dfe4da #ffffff;
+      }
+      .log-viewer .form-group {
+        margin-bottom: 10px;
+      }
+      .log-viewer pre {
+        min-height: 520px;
+        max-height: 68vh;
+      }
+      .console-view pre {
+        min-height: 560px;
+        max-height: 70vh;
+      }
       .results-browser {
         display: grid;
-        grid-template-columns: 150px minmax(0, 1fr);
+        grid-template-columns: 180px minmax(240px, 340px) minmax(0, 1fr);
         gap: 12px;
       }
       .results-master .form-group {
         margin-bottom: 0;
+      }
+      .result-file-master {
+        margin-bottom: 0;
+        max-height: 68vh;
+        overflow: auto;
+        padding-right: 4px;
+      }
+      .result-file-master .form-group {
+        margin-bottom: 0;
+      }
+      .result-file-master .control-label {
+        display: none;
+      }
+      .result-file-master .radio {
+        margin: 0 0 7px;
+      }
+      .result-file-master .radio label {
+        display: block;
+        min-height: 34px;
+        padding: 8px 10px 8px 28px;
+        border: 1px solid #dfe4da;
+        border-radius: 6px;
+        background: #fbfcfa;
+        color: #20231f;
+        font-size: 12px;
+        font-weight: 600;
+        overflow-wrap: anywhere;
+      }
+      .result-file-master .radio input {
+        margin-top: 1px;
       }
       .results-master .control-label {
         display: none;
@@ -400,6 +513,38 @@ ui <- fluidPage(
         gap: 10px;
         margin-bottom: 8px;
       }
+      .result-preview {
+        margin-top: 12px;
+      }
+      .result-preview img {
+        max-width: 100%;
+        max-height: 70vh;
+        border: 1px solid #dfe4da;
+        border-radius: 6px;
+        background: #fff;
+      }
+      .result-preview iframe {
+        width: 100%;
+        height: 70vh;
+        border: 1px solid #dfe4da;
+        border-radius: 6px;
+        background: #fff;
+      }
+      .result-preview .table {
+        font-size: 12px;
+        background: #fff;
+      }
+      .result-preview-table {
+        max-height: 70vh;
+        overflow: auto;
+        border: 1px solid #dfe4da;
+        border-radius: 6px;
+        padding: 8px;
+        background: #fff;
+      }
+      .open-file-row {
+        margin-top: 8px;
+      }
       @media (max-width: 820px) {
         .container-fluid { width: calc(100vw - 20px); }
         .app-header {
@@ -409,7 +554,7 @@ ui <- fluidPage(
           padding-top: 16px;
           padding-bottom: 16px;
         }
-        .controls, .grid, .results-browser { grid-template-columns: 1fr; }
+        .controls, .results-browser { grid-template-columns: 1fr; }
         pre { min-height: 320px; }
       }
     "))
@@ -437,29 +582,50 @@ ui <- fluidPage(
     )
   ),
   div(
-    class = "grid",
-    div(
-      class = "panel",
-      h2("Logs d'exécution"),
-      verbatimTextOutput("console_output", placeholder = TRUE)
-    ),
-    div(
-      class = "panel",
-      h2("Fichiers logs"),
-      div(class = "file-list", uiOutput("logs_list")),
-      tags$hr(),
-      h2("Résultats"),
-      div(
-        class = "results-browser",
-        div(class = "results-master", uiOutput("results_app_master")),
+    class = "panel",
+    tabsetPanel(
+      id = "main_tabs",
+      tabPanel(
+        "Console",
         div(
-          class = "results-detail",
+          class = "console-view",
+          verbatimTextOutput("console_output", placeholder = TRUE)
+        )
+      ),
+      tabPanel(
+        "Logs",
+        div(
+          class = "log-viewer",
+          selectInput("log_file", "Fichier log", choices = character(), width = "100%"),
           div(
             class = "results-detail-title",
-            strong(textOutput("results_app_title", inline = TRUE)),
-            span(class = "muted", textOutput("results_app_meta", inline = TRUE))
+            strong(textOutput("log_file_title", inline = TRUE)),
+            span(class = "muted", textOutput("log_file_meta", inline = TRUE))
           ),
-          div(class = "file-list", uiOutput("results_list"))
+          verbatimTextOutput("log_content", placeholder = TRUE)
+        )
+      ),
+      tabPanel(
+        "Résultats",
+        div(
+          class = "results-browser",
+          div(class = "results-master", uiOutput("results_app_master")),
+          div(class = "result-file-master", uiOutput("result_file_master")),
+          div(
+            class = "results-detail",
+            div(
+              class = "results-detail-title",
+              strong(textOutput("results_app_title", inline = TRUE)),
+              span(class = "muted", textOutput("results_app_meta", inline = TRUE))
+            ),
+            div(
+              class = "results-detail-title",
+              strong(textOutput("result_file_title", inline = TRUE)),
+              span(class = "muted", textOutput("result_file_meta", inline = TRUE))
+            ),
+            div(class = "open-file-row", uiOutput("result_file_link")),
+            div(class = "result-preview", uiOutput("result_preview"))
+          )
         )
       )
     )
@@ -514,6 +680,42 @@ server <- function(input, output, session) {
     invisible(apps)
   }
 
+  refresh_logs <- function() {
+    logs <- file_table(logs_dir, c("log", "txt"), limit = 200)
+    selected_log <- isolate(input$log_file)
+    if (!nrow(logs)) {
+      updateSelectInput(session, "log_file", choices = character(), selected = character())
+      return(invisible(logs))
+    }
+    if (is.null(selected_log) || !selected_log %in% logs$name) {
+      selected_log <- logs$name[[1]]
+    }
+    labels <- paste0(logs$name, " - ", format(logs$mtime, "%Y-%m-%d %H:%M"))
+    updateSelectInput(session, "log_file", choices = stats::setNames(logs$name, labels), selected = selected_log)
+    invisible(logs)
+  }
+
+  refresh_result_files <- function() {
+    apps <- result_apps_table()
+    selected_app <- isolate(input$results_app)
+    if (is.null(selected_app) || !selected_app %in% apps$id) {
+      selected_app <- if (nrow(apps)) apps$id[[1]] else ""
+    }
+
+    files <- result_file_table(selected_app)
+    selected_file <- isolate(input$result_file)
+    if (!nrow(files)) {
+      updateRadioButtons(session, "result_file", choices = character(), selected = character())
+      return(invisible(files))
+    }
+    if (is.null(selected_file) || !selected_file %in% files$name) {
+      selected_file <- files$name[[1]]
+    }
+    labels <- paste0(files$name, " - ", format(files$mtime, "%Y-%m-%d %H:%M"))
+    updateRadioButtons(session, "result_file", choices = stats::setNames(files$name, labels), selected = selected_file)
+    invisible(files)
+  }
+
   append_output <- function(lines) {
     lines <- lines[nzchar(lines) | !is.na(lines)]
     if (!length(lines)) return()
@@ -561,12 +763,19 @@ server <- function(input, output, session) {
 
   refresh_choices()
   refresh_result_apps()
+  refresh_logs()
+  refresh_result_files()
 
   observe({
     invalidateLater(2500, session)
     refresh_choices()
     refresh_result_apps()
+    refresh_logs()
   })
+
+  observeEvent(input$results_app, {
+    refresh_result_files()
+  }, ignoreInit = TRUE)
 
   observe({
     invalidateLater(1000, session)
@@ -585,6 +794,9 @@ server <- function(input, output, session) {
         run$process <- NULL
         restore_chegd_input()
         release_global_lock()
+        refresh_result_apps()
+        refresh_result_files()
+        refresh_logs()
       }
     }
   })
@@ -706,9 +918,29 @@ server <- function(input, output, session) {
     paste(run$output, collapse = "\n")
   })
 
-  output$logs_list <- renderUI({
+  output$log_file_title <- renderText({
+    selected_log <- input$log_file
+    if (is.null(selected_log) || !nzchar(selected_log)) return("Aucun log")
+    selected_log
+  })
+
+  output$log_file_meta <- renderText({
+    selected_log <- input$log_file
+    if (is.null(selected_log) || !nzchar(selected_log)) return("")
+    path <- tryCatch(safe_child(logs_dir, selected_log, must_work = TRUE), error = function(e) NULL)
+    if (is.null(path) || !file.exists(path)) return("")
+    info <- file.info(path)
+    paste(format_size(info$size), "-", format(info$mtime, "%Y-%m-%d %H:%M:%S"))
+  })
+
+  output$log_content <- renderText({
     invalidateLater(2500, session)
-    render_file_links(file_table(logs_dir, c("log", "txt")), "logs")
+    selected_log <- input$log_file
+    if (is.null(selected_log) || !nzchar(selected_log)) return("Aucun fichier log disponible.")
+    tryCatch(
+      read_text_file(logs_dir, selected_log),
+      error = function(e) paste("[APP ERROR]", conditionMessage(e))
+    )
   })
 
   output$results_app_master <- renderUI({
@@ -738,14 +970,88 @@ server <- function(input, output, session) {
     paste(app$count[[1]], "fichier(s) - dernier :", latest)
   })
 
-  output$results_list <- renderUI({
-    invalidateLater(2500, session)
+  output$result_file_master <- renderUI({
     selected_app <- input$results_app
     apps <- result_apps_table()
     if (is.null(selected_app) || !selected_app %in% apps$id) {
       selected_app <- if (nrow(apps)) apps$id[[1]] else ""
     }
-    render_file_links(result_file_table(selected_app), "results")
+    files <- result_file_table(selected_app)
+    if (!nrow(files)) return(tags$p(class = "muted", "Aucun fichier"))
+    selected_file <- input$result_file
+    if (is.null(selected_file) || !selected_file %in% files$name) {
+      selected_file <- files$name[[1]]
+    }
+    labels <- paste0(files$name, " - ", format(files$mtime, "%Y-%m-%d %H:%M"))
+    radioButtons("result_file", NULL, choices = stats::setNames(files$name, labels), selected = selected_file)
+  })
+
+  output$result_file_title <- renderText({
+    selected_file <- input$result_file
+    if (is.null(selected_file) || !nzchar(selected_file)) return("Aucun fichier")
+    basename(selected_file)
+  })
+
+  output$result_file_meta <- renderText({
+    selected_file <- input$result_file
+    if (is.null(selected_file) || !nzchar(selected_file)) return("")
+    path <- tryCatch(safe_child(results_dir, selected_file, must_work = TRUE), error = function(e) NULL)
+    if (is.null(path) || !file.exists(path)) return("")
+    info <- file.info(path)
+    paste(format_size(info$size), "-", format(info$mtime, "%Y-%m-%d %H:%M:%S"))
+  })
+
+  output$result_file_link <- renderUI({
+    selected_file <- input$result_file
+    if (is.null(selected_file) || !nzchar(selected_file)) return(NULL)
+    tags$a(class = "file-link", href = resource_link("results", selected_file), target = "_blank", "Ouvrir dans un nouvel onglet")
+  })
+
+  output$result_preview <- renderUI({
+    selected_file <- input$result_file
+    if (is.null(selected_file) || !nzchar(selected_file)) {
+      return(tags$p(class = "muted", "Aucun fichier résultat disponible."))
+    }
+
+    ext <- tolower(tools::file_ext(selected_file))
+    url <- resource_link("results", selected_file)
+
+    if (ext %in% c("png", "jpg", "jpeg", "gif", "svg")) {
+      return(tags$img(src = url, alt = basename(selected_file)))
+    }
+    if (identical(ext, "pdf")) {
+      return(tags$iframe(src = url, title = basename(selected_file)))
+    }
+    if (ext %in% c("csv", "tsv")) {
+      return(div(class = "result-preview-table", tableOutput("result_csv_preview")))
+    }
+    if (ext %in% c("txt", "log")) {
+      return(verbatimTextOutput("result_text_preview", placeholder = TRUE))
+    }
+
+    tags$p(class = "muted", "Aperçu non disponible pour ce format. Utilisez le lien d'ouverture.")
+  })
+
+  output$result_csv_preview <- renderTable({
+    selected_file <- input$result_file
+    if (is.null(selected_file) || !nzchar(selected_file)) return(NULL)
+    ext <- tolower(tools::file_ext(selected_file))
+    if (!ext %in% c("csv", "tsv")) return(NULL)
+    tryCatch(
+      read_csv_preview(results_dir, selected_file),
+      error = function(e) data.frame(Erreur = conditionMessage(e), check.names = FALSE)
+    )
+  }, striped = TRUE, hover = TRUE, bordered = TRUE, spacing = "s")
+
+  output$result_text_preview <- renderText({
+    selected_file <- input$result_file
+    if (is.null(selected_file) || !nzchar(selected_file)) return("")
+    ext <- tolower(tools::file_ext(selected_file))
+    if (!ext %in% c("txt", "log")) return("")
+    tryCatch(
+      read_text_file(results_dir, selected_file),
+      error = function(e) paste("[APP ERROR]", conditionMessage(e))
+    )
   })
 }
 
