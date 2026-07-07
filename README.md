@@ -79,25 +79,69 @@ myco_apps_releases/
 
 ## Interface web locale
 
-Une interface web locale est disponible pour lancer les scripts sans modifier leur contenu.
+Une interface web locale Shiny est disponible pour lancer les scripts sans modifier leur contenu.
+Elle fonctionne en local, depuis ce dépôt, et utilise les répertoires standards `scripts/`, `data/`, `logs/` et `results/`.
 
-Depuis la racine du dépôt :
+### Lancement
+
+Sur macOS, double-cliquer sur :
+
+* `lancer_myco_app.command`
+
+Le script de lancement vérifie la présence de `Rscript` et des packages R requis (`shiny`, `processx`, `later`), puis ouvre l'application locale.
+
+Depuis un terminal, il est aussi possible de lancer :
 
 ```bash
 Rscript app.R
 ```
 
-Sur macOS, vous pouvez aussi double-cliquer sur `lancer_myco_app.command`.
+Par défaut, l'application écoute sur :
 
-L'application ouvre `http://127.0.0.1:8765/` et permet de :
+* `http://127.0.0.1:8765/`
+
+Si le port est déjà utilisé :
+
+```bash
+MYCO_APP_PORT=8766 Rscript app.R
+```
+
+Variables optionnelles :
+
+* `MYCO_APP_HOST` : hôte d'écoute, par défaut `127.0.0.1`
+* `MYCO_APP_PORT` : port local, par défaut `8765`
+* `MYCO_APP_NO_BROWSER=true` : ne pas ouvrir automatiquement le navigateur
+
+### Utilisation
+
+L'application permet de :
 
 * sélectionner un script présent dans `scripts/` ;
 * sélectionner un fichier de données présent dans `data/` ;
 * lancer l'exécution via `Rscript` ;
-* consulter le flux d'exécution, les logs de `logs/` et les résultats de `results/` ;
+* consulter la console d'exécution en direct ;
+* afficher le contenu des fichiers logs générés dans `logs/` ;
+* parcourir les résultats par application (`ICR`, `CHEGD`, etc.) ;
+* prévisualiser les résultats :
+  * `CSV` / `TSV` en tableau ;
+  * `PNG` et images directement dans l'interface ;
+  * `PDF` dans un lecteur intégré ;
+  * `TXT` / `LOG` en texte ;
 * fermer le serveur local avec le bouton `Fermer l'app`.
 
+L'interface est organisée en trois onglets :
+
+* `Console` : flux d'exécution du script lancé ;
+* `Logs` : sélection et affichage du contenu des fichiers logs ;
+* `Résultats` : navigation par application, sélection de fichier et aperçu intégré.
+
+### Robustesse
+
 La validation des données reste assurée par les scripts R. L'interface ne permet pas de modifier les scripts.
+Une seule exécution est autorisée à la fois afin d'éviter les collisions entre sorties et fichiers temporaires.
+
+Pour le script CHEGD, qui attend un nom de fichier d'entrée fixe, l'interface prépare temporairement le fichier attendu avant l'exécution puis restaure l'état initial après l'analyse.
+Les erreurs de copie, de restauration, de port déjà utilisé ou de dépendances manquantes sont affichées explicitement.
 
 ---
 
