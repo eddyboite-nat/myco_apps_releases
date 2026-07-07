@@ -163,7 +163,6 @@ vers une surcharge par fichier externe (ex. YAML/JSON) pour :
 \section{Dépendances techniques}
 \subsection{Packages R}
 \begin{itemize}[leftmargin=1.2cm]
-  \item \texttt{readxl} : lecture Excel,
   \item \texttt{dplyr}, \texttt{stringr} : transformation/normalisation,
   \item \texttt{ggplot2}, \texttt{gridExtra} : visualisation,
   \item \texttt{MASS} : régression ordinale \texttt{polr},
@@ -175,7 +174,7 @@ Les packages manquants sont installés au démarrage : \texttt{requireNamespace(
 
 \section{Contrats d'entrée et de sortie}
 \subsection{Entrées}
-Formats supportés : \texttt{.csv}, \texttt{.xlsx}.\
+Formats supportés : \texttt{.csv} (séparateur détecté automatiquement : \texttt{;}, \texttt{,} ou tabulation).\
 Colonnes obligatoires : espèce, famille, date, effectif, site, fiabilité.
 
 \subsection{Sorties}
@@ -280,7 +279,7 @@ Le pipeline manipule des tables intermédiaires standardisées :
 \subsection{Phase A --- Ingestion et normalisation}
 \begin{itemize}[leftmargin=1.2cm]
   \item \texttt{resolve\_input\_file} : résolution robuste du chemin (exact, normalisé, distance minimale),
-  \item \texttt{read\_input\_data} : chargement CSV/XLSX, détection séparateur CSV,
+  \item \texttt{read\_input\_data} : chargement CSV, détection séparateur CSV,
   \item suppression des colonnes techniques \texttt{...*},
   \item conversion de types :
   \begin{itemize}
@@ -288,6 +287,10 @@ Le pipeline manipule des tables intermédiaires standardisées :
     \item \texttt{to\_numeric\_safe} (virgule décimale).
   \end{itemize}
 \end{itemize}
+
+Le pipeline intègre en outre un contrôle de qualité d'entrée exporté dans
+\texttt{qa\_validation\_entree\_*.csv}, ainsi qu'un mode d'exécution
+\texttt{strict}/\texttt{tolérant} piloté par la configuration embarquée.
 
 Les commentaires du code décrivent également la détection du séparateur CSV
 sur les premières lignes non vides et le nettoyage des colonnes entièrement
@@ -494,25 +497,16 @@ Les graphiques doivent respecter les principes suivants :
   \item reproductibilité des dimensions d'export (PNG/PDF).
 \end{itemize}
 
-\section{Alignement référence (mode fidélité Excel)}
-\subsection{Détection}
-Recherche d'un classeur \texttt{.xlsx} (hors input) contenant la feuille
-\texttt{Visites sur sites}.
+\section{Mode autonome (sans dépendance classeur externe)}
+Le script opère en mode autonome : les fonctions de lecture/résolution d'un
+classeur de référence externe sont neutralisées et retournent \texttt{NULL}.
 
-\subsection{Feuilles exploitées}
+Conséquences techniques :
 \begin{itemize}[leftmargin=1.2cm]
-  \item \texttt{Analyse des résultats},
-  \item \texttt{Intérêt patrimonial},
-  \item \texttt{Visites sur sites},
-  \item \texttt{Évaluation CHEGD pelouses}.
+  \item les métriques site sont calculées directement à partir du CSV d'entrée ;
+  \item aucun alignement automatique sur un classeur de référence n'est appliqué ;
+  \item les sorties restent entièrement déterministes pour un même input et une même configuration.
 \end{itemize}
-
-\subsection{Principe technique}
-Les métriques calculées localement peuvent être remplacées par les références,
-puis consolidées dans \texttt{combined}.
-Les gradients par visite sont prioritairement alignés sur
-\texttt{Évaluation CHEGD pelouses}, ce qui garantit la reproduction exacte de l'IR du classeur.
-Objectif : reproductibilité métier avec le classeur de référence.
 
 \section{Logging et observabilité}
 \subsection{Fonctions dédiées}
@@ -719,5 +713,26 @@ Le protocole original spécifie :
   \item Sellier, Y., et coll. (s.d.). \textit{Évaluation du potentiel fongique et de l'intérêt patrimonial des pelouses}. Mycofrance. \url{https://www.mycofrance.fr/wp-content/uploads/2025/05/Bull.-SMF-131-1-2-Y-Sellier-et-coll.pdf}.
   \item Wickham, H., \& Grolemund, G. (2017). \textit{R for data science}. O'Reilly.
 \end{itemize}
+% ============================================================================================================================
+\section*{Contact et versionnement}
+\addcontentsline{toc}{section}{Contact et versionnement}
+% ============================================================================================================================
 
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{ll}
+    \toprule
+    \textbf{Auteur}          & Eddy Boite \\
+    \textbf{Dépôt GitHub}    & \texttt{eddyboite-nat/statistics} \\
+    \textbf{Branche}         & \texttt{main} \\
+    \textbf{Version script}  & 1.0 \\
+    \textbf{Date de ce document} & 7 juillet 2026 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Pour toute évolution du script, ouvrir une issue dans le dépôt GitHub
+ou documenter les changements dans le journal \texttt{CHANGELOG.md} du projet.
+
+% ============================================================================================================================
 \end{document}

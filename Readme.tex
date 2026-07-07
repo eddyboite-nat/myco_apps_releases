@@ -1,0 +1,2347 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\PassOptionsToPackage{dvipsnames,svgnames,x11names}{xcolor}
+\documentclass[
+]{article}
+\usepackage{xcolor}
+\usepackage[margin=2cm]{geometry}
+\usepackage{amsmath,amssymb}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\newenvironment{Shaded}{}{}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{#1}}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.49,0.56,0.16}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\BuiltInTok}[1]{\textcolor[rgb]{0.00,0.50,0.00}{#1}}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.53,0.00,0.00}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.56,0.13,0.00}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.73,0.13,0.13}{\textit{#1}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{1.00,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.25,0.63,0.44}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.02,0.16,0.49}{#1}}
+\newcommand{\ImportTok}[1]{\textcolor[rgb]{0.00,0.50,0.00}{\textbf{#1}}}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.40,0.40,0.40}{#1}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.00,0.44,0.13}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.74,0.48,0.00}{#1}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.73,0.40,0.53}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.10,0.09,0.49}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.25,0.44,0.63}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.38,0.63,0.69}{\textbf{\textit{#1}}}}
+\usepackage{longtable,booktabs,array}
+\newcounter{none} % for unnumbered tables
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\usepackage{bookmark}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  pdftitle={myco\_apps\_releases},
+  colorlinks=true,
+  linkcolor={blue},
+  filecolor={Maroon},
+  citecolor={Blue},
+  urlcolor={blue},
+  pdfcreator={LaTeX via pandoc}}
+
+\title{myco\_apps\_releases}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{myco\_apps\_releases}\label{myco_apps_releases}
+
+Dépôt de publication des scripts R prêts à l\textquotesingle emploi
+issus des projets de mycologie et d\textquotesingle écologie.\\
+Chaque application est autonome : données d\textquotesingle exemple,
+script principal et documentation inclus.
+
+\textbf{Auteur :} Eddy Boite\\
+\textbf{Dernière mise à jour :} 15 Juin 2026
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{Table des matières}\label{table-des-matiuxe8res}
+
+\begin{itemize}
+\tightlist
+\item
+  \hyperref[-applications-disponibles]{Applications disponibles}
+\item
+  \hyperref[-structure-du-dux5cux25C3ux5cux25A9pux5cux25C3ux5cux25B4t]{Structure
+  du dépôt}
+\item
+  \hyperref[-evaluation-du-potentiel-fongique-de-lintux5cux25C3ux5cux25A9rux5cux25C3ux5cux25AAt-patrimonial-et-du-gradient-chegd]{Évaluation
+  du potentiel fongique, de l\textquotesingle intérêt patrimonial et du
+  gradient CHEGD}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[-quick-start-chegd]{Quick Start CHEGD}
+  \item
+    \hyperref[-structure-attendue-des-donnux5cux25C3ux5cux25A9es-chegd]{Structure
+    attendue des données CHEGD}
+  \item
+    \hyperref[-lancer-le-script-chegd--guide-dux5cux25C3ux5cux25A9taillux5cux25C3ux5cux25A9]{Lancer
+    le script CHEGD -- guide détaillé}
+  \item
+    \hyperref[-sorties-gux5cux25C3ux5cux25A9nux5cux25C3ux5cux25A9rux5cux25C3ux5cux25A9es-chegd]{Sorties
+    générées CHEGD}
+  \item
+    \hyperref[-installation-des-dux5cux25C3ux5cux25A9pendances-chegd]{Installation
+    des dépendances CHEGD}
+  \item
+    \hyperref[-configuration-chegd]{Configuration CHEGD}
+  \item
+    \hyperref[-interprux5cux25C3ux5cux25A9tation-des-indicateurs-chegd]{Interprétation
+    des indicateurs CHEGD}
+  \item
+    \hyperref[-lecture-des-graphiques-chegd]{Lecture des graphiques
+    CHEGD}
+  \item
+    \hyperref[-dux5cux25C3ux5cux25A9pannage-faq-chegd]{Dépannage (FAQ
+    CHEGD)}
+  \item
+    \hyperref[-glossaire-chegd]{Glossaire CHEGD}
+  \item
+    \hyperref[-rux5cux25C3ux5cux25A9fux5cux25C3ux5cux25A9rences-chegd]{Références
+    CHEGD}
+  \end{itemize}
+\item
+  \hyperref[-inventaires-fongiques--complux5cux25C3ux5cux25A9tude--reprux5cux25C3ux5cux25A9sentativitux5cux25C3ux5cux25A9]{Inventaires
+  fongiques -- Complétude \& Représentativité}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \hyperref[-prux5cux25C3ux5cux25A9requis-systux5cux25C3ux5cux25A8me-complets]{Prérequis
+    système}
+  \item
+    \hyperref[-quick-start]{Quick Start}
+  \item
+    \hyperref[-vux5cux25C3ux5cux25A9rifier-que-tout-fonctionne]{Vérifier
+    que tout fonctionne}
+  \item
+    \hyperref[-structure-attendue-des-donnux5cux25C3ux5cux25A9es]{Structure
+    attendue des données}
+  \item
+    \hyperref[ux5cux25EFux5cux25B8ux5cux258F-lancer-le-script--guide-dux5cux25C3ux5cux25A9taillux5cux25C3ux5cux25A9]{Lancer
+    le script -- guide détaillé}
+  \item
+    \hyperref[-sorties-gux5cux25C3ux5cux25A9nux5cux25C3ux5cux25A9rux5cux25C3ux5cux25A9es]{Sorties
+    générées}
+  \item
+    \hyperref[-installation-des-dux5cux25C3ux5cux25A9pendances]{Installation
+    des dépendances}
+  \item
+    \hyperref[-configuration]{Configuration}
+  \item
+    \hyperref[-interprux5cux25C3ux5cux25A9tation-des-indicateurs]{Interprétation
+    des indicateurs}
+  \item
+    \hyperref[-lecture-des-graphiques]{Lecture des graphiques}
+  \item
+    \hyperref[-bonnes-pratiques-dinterprux5cux25C3ux5cux25A9tation]{Bonnes
+    pratiques}
+  \item
+    \hyperref[-dux5cux25C3ux5cux25A9pannage-faq]{Dépannage (FAQ)}
+  \item
+    \hyperref[-historique-des-versions]{Historique des versions}
+  \item
+    \hyperref[-glossaire]{Glossaire}
+  \item
+    \hyperref[-Rux5cux25C3ux5cux25A9fux5cux25C3ux5cux25A9rences]{Références}
+  \end{itemize}
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{Applications disponibles}\label{applications-disponibles}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}lllll@{}}
+\toprule\noalign{}
+\# & Application & Script & Version & Domaine \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+1 &
+\hyperref[-inventaires-fongiques--complux5cux25C3ux5cux25A9tude--reprux5cux25C3ux5cux25A9sentativitux5cux25C3ux5cux25A9]{Inventaires
+fongiques -- Complétude \& Représentativité} &
+\texttt{scripts/Inventaires\_completude\_representativite.R} & v1.4 &
+Mycologie / Écologie \\
+2 &
+\hyperref[-evaluation-du-potentiel-fongique-de-lintux5cux25C3ux5cux25A9rux5cux25C3ux5cux25AAt-patrimonial-et-du-gradient-chegd]{Évaluation
+du potentiel fongique, de l\textquotesingle intérêt patrimonial et du
+gradient CHEGD} &
+\texttt{scripts/Evaluation\_Potentiel\_Fongique\_Interets\_Patrimoniaux\_CHEGD.R}
+& v1.0 & Mycologie / Patrimonialité \\
+\end{longtable}
+}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{Structure du dépôt}\label{structure-du-duxe9puxf4t}
+
+\begin{verbatim}
+myco_apps_releases/
+├── data/
+│   └── observations.csv                  # Données d'exemple (prêtes à utiliser)
+├── docs/
+│   ├── Readme_Analyse_Inventaires_Fongiques.md            # Documentation détaillée (ICR)
+│   ├── Inventaires_completude_representativite_Conception_Technique.md
+│   ├── Evaluation_Potentiel_Fongique_Interets_Patrimoniaux_CHEGD_Conception_Fonctionnelle.tex
+│   └── Evaluation_Potentiel_Fongique_Interets_Patrimoniaux_CHEGD_Conception_technique.tex
+├── logs/                                 # Journaux d'exécution
+├── results/
+│   ├── ICR/                             # Dossier de sortie (créé automatiquement)
+│   └── EPFIP_CHEGD/                     # Sorties de l'évaluation CHEGD
+├── scripts/
+│   ├── Inventaires_completude_representativite.R          # Script principal (v1.4)
+│   └── Evaluation_Potentiel_Fongique_Interets_Patrimoniaux_CHEGD.R
+└── README.md                             # Ce fichier
+\end{verbatim}
+
+\subsection{Interface web locale}\label{interface-web-locale}
+
+Une interface web locale Shiny est disponible pour lancer les scripts
+sans modifier leur contenu. Elle fonctionne en local, depuis ce dépôt,
+et utilise les répertoires standards \texttt{scripts/}, \texttt{data/},
+\texttt{logs/} et \texttt{results/}.
+
+\subsubsection{Lancement}\label{lancement}
+
+Sur macOS, double-cliquer sur :
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{lancer\_myco\_app.command}
+\end{itemize}
+
+Sur Windows, double-cliquer sur :
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{lancer\_myco\_app\_windows.bat}
+\end{itemize}
+
+Les scripts de lancement vérifient la présence de \texttt{Rscript} et
+des packages R requis (\texttt{shiny}, \texttt{processx},
+\texttt{later}), puis ouvrent l\textquotesingle application locale. Le
+script Windows cherche \texttt{Rscript.exe} dans le \texttt{PATH}, puis
+dans les emplacements d\textquotesingle installation R habituels
+(\texttt{Program\ Files/R/...}).
+
+Depuis un terminal, il est aussi possible de lancer :
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\ExtensionTok{Rscript}\NormalTok{ app.R}
+\end{Highlighting}
+\end{Shaded}
+
+Depuis Windows PowerShell ou l\textquotesingle invite de commandes, le
+lancement direct est :
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{lancer\_myco\_app\_windows.bat}
+\end{Highlighting}
+\end{Shaded}
+
+Par défaut, l\textquotesingle application écoute sur :
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{http://127.0.0.1:8765/}
+\end{itemize}
+
+Si le port est déjà utilisé :
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\VariableTok{MYCO\_APP\_PORT}\OperatorTok{=}\NormalTok{8766 }\ExtensionTok{Rscript}\NormalTok{ app.R}
+\end{Highlighting}
+\end{Shaded}
+
+Variables optionnelles :
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{MYCO\_APP\_HOST} : hôte d\textquotesingle écoute, par défaut
+  \texttt{127.0.0.1}
+\item
+  \texttt{MYCO\_APP\_PORT} : port local, par défaut \texttt{8765}
+\item
+  \texttt{MYCO\_APP\_NO\_BROWSER=true} : ne pas ouvrir automatiquement
+  le navigateur
+\end{itemize}
+
+\subsubsection{Utilisation}\label{utilisation}
+
+L\textquotesingle application permet de :
+
+\begin{itemize}
+\tightlist
+\item
+  sélectionner un script présent dans \texttt{scripts/} ;
+\item
+  sélectionner un fichier de données présent dans \texttt{data/} ;
+\item
+  lancer l\textquotesingle exécution via \texttt{Rscript} ;
+\item
+  consulter la console d\textquotesingle exécution en direct ;
+\item
+  afficher le contenu des fichiers logs générés dans \texttt{logs/} ;
+\item
+  parcourir les résultats par application (\texttt{ICR}, \texttt{CHEGD},
+  etc.) ;
+\item
+  prévisualiser les résultats :
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \texttt{CSV} / \texttt{TSV} en tableau ;
+  \item
+    \texttt{PNG} et images directement dans l\textquotesingle interface
+    ;
+  \item
+    \texttt{PDF} dans un lecteur intégré ;
+  \item
+    \texttt{TXT} / \texttt{LOG} en texte ;
+  \end{itemize}
+\item
+  fermer le serveur local avec le bouton
+  \texttt{Fermer\ l\textquotesingle{}app}.
+\end{itemize}
+
+L\textquotesingle interface est organisée en trois onglets :
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{Console} : flux d\textquotesingle exécution du script lancé ;
+\item
+  \texttt{Logs} : sélection et affichage du contenu des fichiers logs ;
+\item
+  \texttt{Résultats} : navigation par application, sélection de fichier
+  et aperçu intégré.
+\end{itemize}
+
+\subsubsection{Robustesse}\label{robustesse}
+
+La validation des données reste assurée par les scripts R.
+L\textquotesingle interface ne permet pas de modifier les scripts. Une
+seule exécution est autorisée à la fois afin d\textquotesingle éviter
+les collisions entre sorties et fichiers temporaires.
+
+Pour le script CHEGD, qui attend un nom de fichier
+d\textquotesingle entrée fixe, l\textquotesingle interface prépare
+temporairement le fichier attendu avant l\textquotesingle exécution puis
+restaure l\textquotesingle état initial après l\textquotesingle analyse.
+Les erreurs de copie, de restauration, de port déjà utilisé ou de
+dépendances manquantes sont affichées explicitement.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{Évaluation du potentiel fongique, de
+l\textquotesingle intérêt patrimonial et du gradient
+CHEGD}\label{uxe9valuation-du-potentiel-fongique-de-lintuxe9ruxeat-patrimonial-et-du-gradient-chegd}
+
+Pipeline R dédié à l\textquotesingle évaluation multi-critères des
+pelouses sur trois axes :
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Potentiel fongique} (score et classe),
+\item
+  \textbf{Intérêt patrimonial} (indice et classe),
+\item
+  \textbf{Gradient CHEGD} et \textbf{indice de représentativité (IR)}.
+\end{itemize}
+
+Le script intègre également un module de \textbf{fiabilité de
+détermination} (objectifs 1 à 4), avec export des statistiques, figures
+et synthèses de sélection de modèles.
+
+\textbf{Script principal :}
+\texttt{scripts/Evaluation\_Potentiel\_Fongique\_Interets\_Patrimoniaux\_CHEGD.R}
+
+\textbf{Conceptions associées :}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{docs/Evaluation\_Potentiel\_Fongique\_Interets\_Patrimoniaux\_CHEGD\_Conception\_Fonctionnelle.tex}
+\item
+  \texttt{docs/Evaluation\_Potentiel\_Fongique\_Interets\_Patrimoniaux\_CHEGD\_Conception\_technique.tex}
+\end{itemize}
+
+\subsubsection{Entrées attendues}\label{entruxe9es-attendues}
+
+Le script supporte :
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{CSV} (séparateur auto-détecté)
+\item
+  \texttt{XLSX} (avec ou sans feuille explicitée)
+\end{itemize}
+
+Colonnes métier attendues (configurables dans
+\texttt{get\_embedded\_config()}) :
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{Espèces}
+\item
+  \texttt{Famille}
+\item
+  \texttt{Date}
+\item
+  \texttt{Nombre\ d\textquotesingle{}espèce}
+\item
+  \texttt{Site}
+\item
+  \texttt{Fiabilité\ détermination}
+\end{itemize}
+
+Par défaut, le fichier d\textquotesingle entrée est :
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{data/données\_récoltes\_chegd\_pelouses.csv}
+\end{itemize}
+
+\subsubsection{Lancer l\textquotesingle analyse
+CHEGD}\label{lancer-lanalyse-chegd}
+
+En ligne de commande, depuis la racine du dépôt :
+
+\texttt{Rscript\ scripts/Evaluation\_Potentiel\_Fongique\_Interets\_Patrimoniaux\_CHEGD.R}
+
+\subsubsection{Sorties principales}\label{sorties-principales}
+
+Les résultats sont exportés dans :
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{results/EPFIP\_CHEGD/}
+\end{itemize}
+
+Fichiers de sortie majeurs :
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{resume\_global.csv}
+\item
+  \texttt{resume\_par\_site.csv}
+\item
+  \texttt{potentiel\_fongique\_par\_site.csv}
+\item
+  \texttt{indice\_patrimonial\_par\_site.csv}
+\item
+  \texttt{gradient\_chegd\_par\_site.csv}
+\item
+  \texttt{indice\_representativite\_ir\_par\_site.csv}
+\item
+  \texttt{synthese\_evaluation\_par\_site.csv}
+\end{itemize}
+
+Figures générées :
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{fig1\_tableau\_de\_bord\_pelouses} (PNG/PDF)
+\item
+  \texttt{fig2\_positionnement\_ecologique} (PNG/PDF)
+\item
+  \texttt{fig3\_composition\_potentiel} (PNG/PDF)
+\item
+  \texttt{fig4\_chegd\_par\_visite} (PNG/PDF)
+\item
+  \texttt{fig5\_heatmap\_classes} (PNG/PDF)
+\item
+  \texttt{fig6\_niveaux\_fiabilite} (PNG/PDF)
+\item
+  \texttt{fig7\_indice\_representativite\_ir} (PNG/PDF)
+\end{itemize}
+
+Le journal d\textquotesingle exécution est écrit dans :
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{logs/EPFIP\_CHEGD\_YYYYMMDD\_HHMM.log}
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsubsection{Quick Start CHEGD}\label{quick-start-chegd}
+
+\textbf{Pour lancer rapidement l\textquotesingle application CHEGD avec
+les données du dépôt :}
+
+Cette section suit le même format pas-à-pas que
+l\textquotesingle application Inventaires, afin de faciliter la prise en
+main des deux pipelines.
+
+\paragraph{Étape 1️⃣ --- Vérifier le fichier
+d\textquotesingle entrée}\label{uxe9tape-one--vuxe9rifier-le-fichier-dentruxe9e}
+
+Par défaut, le script lit :
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{data/données\_récoltes\_chegd\_pelouses.csv}
+\end{itemize}
+
+Vous pouvez conserver ce nom, ou modifier la configuration embarquée
+dans le script.
+
+\paragraph{Étape 2️⃣ --- Lancer le
+script}\label{uxe9tape-two--lancer-le-script}
+
+Depuis la racine du dépôt :
+
+\texttt{Rscript\ scripts/Evaluation\_Potentiel\_Fongique\_Interets\_Patrimoniaux\_CHEGD.R}
+
+\paragraph{Étape 3️⃣ --- Consulter les
+sorties}\label{uxe9tape-three--consulter-les-sorties}
+
+Les résultats sont produits dans :
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{results/EPFIP\_CHEGD/}
+\end{itemize}
+
+avec les tableaux CSV, les figures PNG/PDF et le journal
+d\textquotesingle exécution dans \texttt{logs/}.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsubsection{Structure attendue des données
+CHEGD}\label{structure-attendue-des-donnuxe9es-chegd}
+
+Le script accepte \textbf{CSV} ou \textbf{XLSX} (séparateur CSV
+auto-détecté).
+
+\paragraph{Colonnes métier
+attendues}\label{colonnes-muxe9tier-attendues}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}lll@{}}
+\toprule\noalign{}
+Colonne & Type attendu & Description \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\texttt{Espèces} & Texte & Nom de l\textquotesingle espèce observée \\
+\texttt{Famille} & Texte & Famille taxonomique \\
+\texttt{Date} & Date ou texte convertible & Date
+d\textquotesingle observation \\
+\texttt{Nombre\ d\textquotesingle{}espèce} & Numérique & Abondance /
+effectif observé \\
+\texttt{Site} & Texte & Libellé du site (ex. \texttt{Pelouse\ 16}) \\
+\texttt{Fiabilité\ détermination} & Texte & Niveau de confiance de
+détermination \\
+\end{longtable}
+}
+
+\begin{quote}
+Ces colonnes sont configurables dans \texttt{get\_embedded\_config()}.
+\end{quote}
+
+\paragraph{Formats de date reconnus}\label{formats-de-date-reconnus}
+
+Le script gère notamment :
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{YYYY-MM-DD}
+\item
+  \texttt{DD/MM/YYYY}
+\item
+  \texttt{DD-MM-YYYY}
+\item
+  dates Excel (numériques)
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsubsection{Lancer le script CHEGD -- guide
+détaillé}\label{lancer-le-script-chegd--guide-duxe9tailluxe9}
+
+Méthodes d\textquotesingle exécution identiques à la section Inventaires
+: une option en ligne de commande pour la reproductibilité et une option
+interactive pour l\textquotesingle exploration.
+
+\paragraph{Option A --- Ligne de commande
+(recommandée)}\label{option-a--ligne-de-commande-recommanduxe9e}
+
+\begin{verbatim}
+cd /chemin/vers/myco_apps_releases
+Rscript scripts/Evaluation_Potentiel_Fongique_Interets_Patrimoniaux_CHEGD.R
+\end{verbatim}
+
+\paragraph{Option B --- RStudio / session
+interactive}\label{option-b--rstudio--session-interactive}
+
+\begin{verbatim}
+setwd("/chemin/vers/myco_apps_releases")
+source("scripts/Evaluation_Potentiel_Fongique_Interets_Patrimoniaux_CHEGD.R")
+\end{verbatim}
+
+\paragraph{Ce qui se passe pendant
+l\textquotesingle exécution}\label{ce-qui-se-passe-pendant-lexuxe9cution}
+
+Le script :
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  lit et valide les données d\textquotesingle entrée,
+\item
+  calcule les indicateurs par site (potentiel, patrimonialité, CHEGD),
+\item
+  calcule les indicateurs de fiabilité (objectifs 1 à 4),
+\item
+  exporte CSV + figures,
+\item
+  écrit un log horodaté dans \texttt{logs/}.
+\end{enumerate}
+
+Si un classeur de référence est détecté (feuilles dédiées), le pipeline
+active un \textbf{mode d\textquotesingle alignement ``fidélité Excel''}
+pour reproduire les valeurs métier du classeur.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsubsection{Sorties générées
+CHEGD}\label{sorties-guxe9nuxe9ruxe9es-chegd}
+
+Les sorties sont écrites dans :
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{results/EPFIP\_CHEGD/}
+\end{itemize}
+
+\paragraph{Fichiers de synthèse
+principaux}\label{fichiers-de-synthuxe8se-principaux}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Fichier & Description \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\texttt{resume\_global.csv} & Vue d\textquotesingle ensemble du jeu
+analysé \\
+\texttt{resume\_par\_site.csv} & Statistiques agrégées par site \\
+\texttt{potentiel\_fongique\_par\_site.csv} & Score/classe de potentiel
+fongique \\
+\texttt{indice\_patrimonial\_par\_site.csv} & Indice/classe
+patrimoniale \\
+\texttt{gradient\_chegd\_par\_site.csv} & Gradient CHEGD par site et
+visites \\
+\texttt{indice\_representativite\_ir\_par\_site.csv} & Indice IR par
+visite/site \\
+\texttt{synthese\_evaluation\_par\_site.csv} & Consolidation
+multi-indicateurs \\
+\end{longtable}
+}
+
+\paragraph{Module fiabilité (Objectifs 1 à
+4)}\label{module-fiabilituxe9-objectifs-1-uxe0-4}
+
+Le script exporte aussi des fichiers statistiques dédiés à la fiabilité
+de détermination, notamment :
+
+\begin{itemize}
+\tightlist
+\item
+  distributions de niveaux de fiabilité,
+\item
+  comparaison de schémas de pondération,
+\item
+  sélection de modèles (validation croisée),
+\item
+  synthèse finale de recommandation.
+\end{itemize}
+
+\paragraph{Figures générées}\label{figures-guxe9nuxe9ruxe9es}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{fig1\_tableau\_de\_bord\_pelouses}
+\item
+  \texttt{fig2\_positionnement\_ecologique}
+\item
+  \texttt{fig3\_composition\_potentiel}
+\item
+  \texttt{fig4\_chegd\_par\_visite}
+\item
+  \texttt{fig5\_heatmap\_classes}
+\item
+  \texttt{fig6\_niveaux\_fiabilite}
+\item
+  \texttt{fig7\_indice\_representativite\_ir}
+\end{itemize}
+
+Chaque figure est exportée en \textbf{PNG} et \textbf{PDF}.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsubsection{Installation des dépendances
+CHEGD}\label{installation-des-duxe9pendances-chegd}
+
+\paragraph{Packages requis}\label{packages-requis}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Package & Rôle principal \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\texttt{readxl} & Lecture des fichiers Excel \\
+\texttt{dplyr} & Manipulation de données \\
+\texttt{stringr} & Traitement de chaînes \\
+\texttt{ggplot2} & Visualisation \\
+\texttt{gridExtra} & Composition multi-graphiques \\
+\texttt{MASS} & Modèles statistiques ordonnés \\
+\texttt{nnet} & Modèles multinomiaux \\
+\end{longtable}
+}
+
+Commande groupée :
+
+\begin{verbatim}
+install.packages(c("readxl", "dplyr", "stringr", "ggplot2", "gridExtra", "MASS", "nnet"))
+\end{verbatim}
+
+\paragraph{Package optionnel}\label{package-optionnel}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{ggrepel} (améliore le placement des labels sur certaines
+  figures)
+\end{itemize}
+
+\begin{quote}
+Le script tente d\textquotesingle installer automatiquement les packages
+requis s\textquotesingle ils sont absents.
+\end{quote}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsubsection{Configuration CHEGD}\label{configuration-chegd}
+
+La configuration est intégrée dans la fonction
+\texttt{get\_embedded\_config()} du script.
+
+Paramètres principaux :
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}lll@{}}
+\toprule\noalign{}
+Paramètre & Valeur par défaut & Description \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\texttt{input\_file} &
+\texttt{data/données\_récoltes\_chegd\_pelouses.csv} & Fichier
+d\textquotesingle entrée \\
+\texttt{input\_sheet} & \texttt{NULL} & Feuille Excel à lire (si
+XLSX) \\
+\texttt{output\_dir} & \texttt{results} & Dossier parent de sortie \\
+\texttt{output\_prefix} & \texttt{EPFIP\_CHEGD} & Sous-dossier de
+sortie \\
+\texttt{columns\$species} & \texttt{Espèces} & Colonne espèce \\
+\texttt{columns\$family} & \texttt{Famille} & Colonne famille \\
+\texttt{columns\$date} & \texttt{Date} & Colonne date \\
+\texttt{columns\$count} & \texttt{Nombre\ d\textquotesingle{}espèce} &
+Colonne abondance \\
+\texttt{columns\$site} & \texttt{Site} & Colonne site \\
+\texttt{columns\$reliability} & \texttt{Fiabilité\ détermination} &
+Colonne fiabilité \\
+\end{longtable}
+}
+
+Exemple d\textquotesingle adaptation :
+
+\begin{verbatim}
+# Dans get_embedded_config()
+input_file = "data/mon_fichier_chegd.xlsx"
+input_sheet = "Feuil1"
+\end{verbatim}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsubsection{Interprétation des indicateurs
+CHEGD}\label{interpruxe9tation-des-indicateurs-chegd}
+
+\paragraph{Potentiel fongique}\label{potentiel-fongique}
+
+Le score est classé selon trois niveaux :
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{≤ 10} : \texttt{Potentiel\ fongique\ faible}
+\item
+  \textbf{{]}10 ; 30{[}} : \texttt{Potentiel\ fongique\ intéressant}
+\item
+  \textbf{≥ 30} : \texttt{Potentiel\ fongique\ élevé}
+\end{itemize}
+
+\paragraph{Intérêt patrimonial}\label{intuxe9ruxeat-patrimonial}
+
+Classement selon l\textquotesingle indice patrimonial :
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{≤ 2} : \texttt{Intérêt\ faible}
+\item
+  \textbf{3 à 5} : \texttt{Intérêt\ local}
+\item
+  \textbf{6 à 10} : \texttt{Intérêt\ régional}
+\item
+  \textbf{11 à 14} : \texttt{Intérêt\ national}
+\item
+  \textbf{≥ 15} : \texttt{Intérêt\ international}
+\end{itemize}
+
+\paragraph{Gradient CHEGD et IR}\label{gradient-chegd-et-ir}
+
+Le script calcule un gradient par visite et un indice de
+représentativité :
+
+IR\_\{visite\} = \textbackslash max\textbackslash left(0, 1 -
+\textbackslash frac\{gradient\_\{visite\}\}\{chegd\_\{total\}\}\textbackslash right)
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{IR proche de 1} : meilleure représentativité,
+\item
+  \textbf{IR faible} : marge de progression plus importante sur la
+  couverture.
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsubsection{Lecture des graphiques
+CHEGD}\label{lecture-des-graphiques-chegd}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Figure & Lecture principale \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\texttt{fig1\_tableau\_de\_bord\_pelouses} & Comparaison globale des 3
+axes par pelouse \\
+\texttt{fig2\_positionnement\_ecologique} & Positionnement potentiel ×
+patrimonialité, couleur/taille = CHEGD \\
+\texttt{fig3\_composition\_potentiel} & Décomposition du score potentiel
+par groupes fonctionnels \\
+\texttt{fig4\_chegd\_par\_visite} & Variation du gradient CHEGD selon
+les visites \\
+\texttt{fig5\_heatmap\_classes} & Vue décisionnelle synthétique des
+classes finales \\
+\texttt{fig6\_niveaux\_fiabilite} & Répartition des niveaux de fiabilité
+de détermination \\
+\texttt{fig7\_indice\_representativite\_ir} & Heatmap de
+l\textquotesingle IR par visite et par pelouse \\
+\end{longtable}
+}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsubsection{Dépannage (FAQ CHEGD)}\label{duxe9pannage-faq-chegd}
+
+\textbf{Le script ne trouve pas mon fichier d\textquotesingle entrée}\\
+Vérifier \texttt{input\_file} dans \texttt{get\_embedded\_config()} et
+la présence réelle du fichier dans \texttt{data/}.
+
+\textbf{Erreur de colonnes manquantes}\\
+Contrôler les intitulés exacts des colonnes métier (ou adapter
+\texttt{columns\$...} dans la configuration).
+
+\textbf{Dates mal interprétées}\\
+Vérifier le format de la colonne \texttt{Date} et éviter les valeurs
+hétérogènes dans une même colonne.
+
+\textbf{Pourquoi mes valeurs diffèrent du classeur de référence ?}\\
+Le mode ``fidélité Excel'' n\textquotesingle est activé que si un
+classeur de référence compatible est détecté (feuilles attendues).
+
+\textbf{Je n\textquotesingle ai pas toutes les figures}\\
+Certaines figures dépendent de la disponibilité de données suffisantes
+ou de certaines structures (ex. gradients par visite exploitables).
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsubsection{Glossaire CHEGD}\label{glossaire-chegd}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Terme & Définition \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\textbf{CHEGD} & Gradient composite basé sur les groupes fonctionnels
+utilisés pour l\textquotesingle évaluation écologique des pelouses. \\
+\textbf{IR} & Indice de représentativité calculé par visite : IR =
+\textbackslash max(0, 1 - gradient\_\{visite\}/chegd\_\{total\}). \\
+\textbf{Potentiel fongique} & Score synthétique basé sur la présence de
+groupes et d\textquotesingle espèces indicatrices, puis classé en 3
+niveaux. \\
+\textbf{Indice patrimonial} & Indice de valeur patrimoniale du site,
+classé de \emph{faible} à \emph{international}. \\
+\textbf{Fiabilité détermination} & Niveau de confiance taxonomique de
+l\textquotesingle observation (ex. certaine/probable/non renseignée). \\
+\textbf{Mode fidélité Excel} & Mécanisme d\textquotesingle alignement
+des sorties script sur un classeur de référence quand les feuilles
+attendues sont détectées. \\
+\end{longtable}
+}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsubsection{Références CHEGD}\label{ruxe9fuxe9rences-chegd}
+
+\begin{itemize}
+\tightlist
+\item
+  Sellier, Y. et coll. --- \emph{Bulletin de la Société Mycologique de
+  France}, vol. 131, pp. 1--2.
+\item
+  Protocole métier interne documenté dans :
+\item
+  \texttt{docs/Evaluation\_Potentiel\_Fongique\_Interets\_Patrimoniaux\_CHEGD\_Conception\_Fonctionnelle.tex}
+\item
+  \texttt{docs/Evaluation\_Potentiel\_Fongique\_Interets\_Patrimoniaux\_CHEGD\_Conception\_technique.tex}
+\item
+  Implémentation opérationnelle :
+  \texttt{scripts/Evaluation\_Potentiel\_Fongique\_Interets\_Patrimoniaux\_CHEGD.R}.
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{Inventaires fongiques -- Complétude \&
+Représentativité}\label{inventaires-fongiques--compluxe9tude--repruxe9sentativituxe9}
+
+Pipeline R pour automatiser l\textquotesingle analyse de la
+\textbf{complétude d\textquotesingle inventaires fongiques} et de leur
+\textbf{représentativité}, via :
+
+\begin{itemize}
+\tightlist
+\item
+  le \textbf{TEE} (Taux d\textquotesingle Espèces Exceptionnelles)
+\item
+  l\textquotesingle{}\textbf{Ir} (Indice de représentativité : Ir = 1 -
+  TEE)
+\item
+  la courbe temps-espèces avec ajustement linéaire et hyperbolique
+\item
+  les métriques de pertinence scientifique (stabilité, robustesse,
+  cohérence spatio-temporelle)
+\item
+  les comparaisons multi-sites avec classement et heatmap
+\end{itemize}
+
+Le script produit automatiquement des tableaux CSV et des graphiques PNG
+(export PDF et SVG également disponibles), par site et en synthèse
+globale, avec un manifeste automatique de traçabilité en fin
+d\textquotesingle exécution.
+
+Validation CSV renforcée incluse : contrôle de schéma, audit
+\texttt{readr::problems()}, rapport de conformité exporté, et arrêt en
+mode strict si non-conformité.
+
+\begin{quote}
+Documentation complète :
+\url{docs/Readme_Analyse_Inventaires_Fongiques.md}\\
+Conception technique :
+\url{docs/Inventaires_completude_representativite_Conception_Technique.md}
+\end{quote}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsubsection{Prérequis système
+complets}\label{pruxe9requis-systuxe8me-complets}
+
+\paragraph{Installer R (obligatoire)}\label{installer-r-obligatoire}
+
+\textbf{R} est un environnement de calcul statistique gratuit et
+open-source. Le script s\textquotesingle exécute avec \textbf{R ≥ 4.0}
+sur \textbf{Windows}, \textbf{macOS} et \textbf{Linux}.
+
+\subparagraph{Télécharger et installer
+R}\label{tuxe9luxe9charger-et-installer-r}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Accéder au site officiel :}
+  \href{https://cran.r-project.org}{cran.r-project.org}
+\item
+  \textbf{Sélectionner votre système d\textquotesingle exploitation :}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    \textbf{Windows} : cliquer sur
+    \href{https://cran.r-project.org/bin/windows/}{Download R for
+    Windows}, puis
+    \href{https://cran.r-project.org/bin/windows/base/}{base}, puis
+    télécharger le dernier exécutable \texttt{.exe}
+  \item
+    \textbf{macOS} : cliquer sur
+    \href{https://cran.r-project.org/bin/macosx/}{Download R for macOS},
+    puis télécharger le \texttt{.pkg} correspondant à votre architecture
+    (Intel ou Apple Silicon)
+  \item
+    \textbf{Linux} : suivre les instructions pour Debian/Ubuntu, Fedora,
+    Red Hat, CentOS, etc.
+  \end{itemize}
+\item
+  \textbf{Exécuter l\textquotesingle installateur} et suivre les
+  instructions par défaut (tout en \textbf{Next} convient)
+\item
+  \textbf{Vérifier l\textquotesingle installation :} ouvrir un
+  \textbf{Terminal} (macOS/Linux) ou \textbf{Invite de Commandes}
+  (Windows) et taper :
+\end{enumerate}
+
+\begin{verbatim}
+R --version
+\end{verbatim}
+
+Vous devez voir \texttt{R\ version\ 4.x.x} ou plus récent.
+
+\paragraph{Installer RStudio Desktop (fortement recommandé, mais
+optionnel)}\label{installer-rstudio-desktop-fortement-recommanduxe9-mais-optionnel}
+
+\textbf{RStudio} est un \textbf{IDE} (interface graphique) qui rend R
+beaucoup plus convivial pour les débutants. Ce n\textquotesingle est pas
+obligatoire, mais \textbf{très utile}.
+
+\subparagraph{Télécharger et installer
+RStudio}\label{tuxe9luxe9charger-et-installer-rstudio}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Accéder au site :}
+  \href{https://posit.co/download/rstudio-desktop/}{posit.co/download/rstudio-desktop}
+\item
+  \textbf{Télécharger la version gratuite} (version "Community",
+  open-source)
+\item
+  \textbf{Sélectionner votre système d\textquotesingle exploitation} et
+  télécharger l\textquotesingle installateur
+\item
+  \textbf{Exécuter l\textquotesingle installateur} et suivre les
+  instructions par défaut
+\item
+  \textbf{Ouvrir RStudio} pour la première fois --- vous verrez une
+  fenêtre avec 4 panneaux (Editeur, Console, Environnement, Fichiers)
+\end{enumerate}
+
+\paragraph{Installer les packages R
+requis}\label{installer-les-packages-r-requis}
+
+Les \textbf{packages} sont des extensions qui ajoutent des
+fonctionnalités à R. Le script utilise une dizaine de packages pour
+manipuler les données et générer les graphiques.
+
+\subparagraph{Méthode A --- Via RStudio (recommandée pour les
+débutants)}\label{muxe9thode-a--via-rstudio-recommanduxe9e-pour-les-duxe9butants}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Ouvrir RStudio}
+\item
+  \textbf{Dans le panneau en bas-à-droite} (onglet "Packages"), cliquer
+  sur le bouton \textbf{Install}
+\item
+  \textbf{Copier-coller} la liste de packages ci-dessous dans la zone
+  qui s\textquotesingle ouvre :
+\end{enumerate}
+
+\begin{verbatim}
+dplyr tidyr ggplot2 purrr readr stringr forcats tibble scales gridExtra
+\end{verbatim}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Vérifier} que "Install from: CRAN repository" est sélectionné
+\item
+  \textbf{Cliquer sur "Install"} et attendre (1--5 minutes selon la
+  connexion)
+\end{enumerate}
+
+\subparagraph{Méthode B --- Via la console R
+(texte)}\label{muxe9thode-b--via-la-console-r-texte}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Ouvrir la console R} (application "R" sur Windows/macOS, ou
+  console classique)
+\item
+  \textbf{Copier-coller} cette commande complète et appuyer sur
+  \textbf{Entrée} :
+\end{enumerate}
+
+\begin{verbatim}
+install.packages(c(
+  "dplyr", "tidyr", "ggplot2", "purrr",
+  "readr", "stringr", "forcats", "tibble",
+  "scales", "gridExtra"
+))
+\end{verbatim}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Répondre} \texttt{**y**} \textbf{ou} \texttt{**yes**} aux
+  questions qui s\textquotesingle affichent
+\item
+  \textbf{Attendre} que l\textquotesingle installation se termine
+  (aucune erreur rouge au final ne doit présager un problème ; une
+  installation réussie se termine par \texttt{Done})
+\end{enumerate}
+
+\subparagraph{Vérifier
+l\textquotesingle installation}\label{vuxe9rifier-linstallation}
+
+Après l\textquotesingle installation, exécuter cette commande pour
+vérifier que tout les packages requis sont présents :
+
+\begin{verbatim}
+required_pkgs <- c("dplyr", "tidyr", "ggplot2", "purrr", "readr", "stringr", "forcats", "tibble", "scales", "gridExtra")
+missing <- !sapply(required_pkgs, requireNamespace, quietly = TRUE)
+if (any(missing)) {
+  cat("❌ Packages manquants :", paste(required_pkgs[missing], collapse = ", \n"))
+} else {
+  cat("✅ Tous les packages requis sont installés !")
+}
+\end{verbatim}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\paragraph{Résumé : les 3 étapes pour se
+préparer}\label{ruxe9sumuxe9--les-3-uxe9tapes-pour-se-pruxe9parer}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}llll@{}}
+\toprule\noalign{}
+\# & Étape & Durée & Difficulté \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\textbf{1} & Télécharger et installer \textbf{R} & 5--10 min & Facile
+(suivre les instructions) \\
+\textbf{2} & Télécharger et installer \textbf{RStudio} & 5--10 min &
+Facile (optionnel mais recommandé) \\
+\textbf{3} & Installer les \textbf{packages R} & 2--5 min & Facile
+(copier-coller une commande) \\
+\end{longtable}
+}
+
+\textbf{Résultat :} vous avez tout ce qu\textquotesingle il faut pour
+lancer le script !
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\paragraph{Besoin d\textquotesingle aide ? Dépannage
+initial}\label{besoin-daide--duxe9pannage-initial}
+
+\textbf{"R n\textquotesingle est pas reconnu" dans le Terminal/Invite de
+Commandes}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Windows} : redémarrer le Terminal \textbf{après}
+  l\textquotesingle installation de R
+\item
+  \textbf{macOS/Linux} : la commande \texttt{R\ -\/-version} fonctionne
+  généralement
+\end{itemize}
+
+\textbf{"je ne sais pas ouvrir un Terminal"}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Windows} : appuyer sur \textbf{Windows + R}, taper
+  \texttt{cmd}, appuyer sur \textbf{Entrée}
+\item
+  \textbf{macOS} : \textbf{Cmd + Espace}, taper \texttt{Terminal},
+  appuyer sur \textbf{Entrée}
+\item
+  \textbf{Linux} : \textbf{Ctrl + Alt + T} (dépend de la distribution)
+\end{itemize}
+
+\textbf{"Un package refuse de s\textquotesingle installer"}
+
+\begin{itemize}
+\tightlist
+\item
+  Ignorer pour l\textquotesingle instant --- le script affichera un
+  message explicite si un package obligatoire manque
+\item
+  Réessayer plus tard avec une bonne connexion Internet
+\end{itemize}
+
+\textbf{"je veux lancer le script directement sans RStudio"}
+
+\begin{itemize}
+\tightlist
+\item
+  C\textquotesingle est possible, voir section
+  \hyperref[ux5cux25EFux5cux25B8ux5cux258F-lancer-le-script--guide-dux5cux25C3ux5cux25A9taillux5cux25C3ux5cux25A9]{Lancer
+  le script -- guide détaillé}, Option A (ligne de commande)
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsubsection{Quick Start}\label{quick-start}
+
+\textbf{Pour les débutants qui viennent d\textquotesingle installer R et
+RStudio :}
+
+\paragraph{Étape 1️⃣ --- Préparer vos
+données}\label{uxe9tape-one--pruxe9parer-vos-donnuxe9es}
+
+Placer votre fichier d\textquotesingle observations dans le dossier
+\texttt{data/} du dépôt, sous le nom \texttt{observations.csv}.
+
+Un fichier d\textquotesingle exemple (\texttt{data/observations.csv})
+est \textbf{déjà fourni} --- vous pouvez l\textquotesingle utiliser
+directement pour tester !
+
+\paragraph{Étape 2️⃣ --- Ouvrir RStudio et charger le
+script}\label{uxe9tape-two--ouvrir-rstudio-et-charger-le-script}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Ouvrir RStudio}
+\item
+  \textbf{Cliquer sur File → Open File} et naviguer vers :
+\item
+  \textbf{Cliquer sur "Source"} (bouton en haut-droite du panneau
+  éditeur) pour lancer le script
+\item
+  \textbf{Attendre} que l\textquotesingle exécution se termine (vous
+  verrez les messages de progression dans la console en bas)
+\end{enumerate}
+
+\paragraph{Étape 3️⃣ --- Consulter les
+résultats}\label{uxe9tape-three--consulter-les-ruxe9sultats}
+
+Les sorties seront créées dans le dossier \texttt{**results/**} :
+
+\begin{itemize}
+\tightlist
+\item
+  Fichiers \textbf{CSV} = tableaux de données à ouvrir avec Excel ou un
+  tableur
+\item
+  Fichiers \textbf{PNG} = graphiques prêts à consulter
+\end{itemize}
+
+C\textquotesingle est tout ! 🎉
+
+\paragraph{Alternative : ligne de commande (pour utilisateurs
+avancés)}\label{alternative--ligne-de-commande-pour-utilisateurs-avancuxe9s}
+
+Si vous êtes à l\textquotesingle aise avec le Terminal, ouvrir un
+terminal, naviguer jusqu\textquotesingle à la racine du dépôt et
+exécuter :
+
+\begin{verbatim}
+Rscript scripts/Inventaires_completude_representativite.R
+\end{verbatim}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsubsection{Vérifier que tout
+fonctionne}\label{vuxe9rifier-que-tout-fonctionne}
+
+Avant de lancer le script sur vos vraies données, un simple test de
+vérification :
+
+\paragraph{Test 1 : R fonctionne}\label{test-1--r-fonctionne}
+
+Ouvrir \textbf{RStudio} (ou la console R), et copier-coller ceci dans la
+console :
+
+\begin{verbatim}
+print("Hello from R! ✅")
+\end{verbatim}
+
+Si vous voyez \texttt{{[}1{]}\ "Hello\ from\ R!\ ✅"},
+c\textquotesingle est bon.
+
+\paragraph{Test 2 : Les packages sont bien
+installés}\label{test-2--les-packages-sont-bien-installuxe9s}
+
+Copier-coller ceci dans la console :
+
+\begin{verbatim}
+required_pkgs <- c("dplyr", "tidyr", "ggplot2", "purrr", "readr", "stringr", "forcats", "tibble", "scales", "gridExtra")
+all_ok <- all(sapply(required_pkgs, requireNamespace, quietly = TRUE))
+if (all_ok) {
+  print("✅ Tous les packages obligatoires sont prêts !")
+} else {
+  print("❌ Certains packages manquent. Relancer l'installation.")
+}
+\end{verbatim}
+
+Si vous voyez \texttt{✅}, vous êtes prêt à lancer le script.
+
+\paragraph{Test 3 : Lancer le script sur les données
+d\textquotesingle exemple}\label{test-3--lancer-le-script-sur-les-donnuxe9es-dexemple}
+
+Maintenant, lancez le script en cliquant sur "Source" (comme dans le
+Quick Start). Vous devez voir des messages horodatés dans la console,
+puis un \textbf{manifeste} en fin d\textquotesingle exécution listant
+tous les fichiers créés.
+
+Si tout s\textquotesingle est bien passé, consultez le dossier
+\texttt{results/} --- vous y trouverez les fichiers CSV et PNG.
+
+\textbf{Félicitations ! Vous êtes prêt à lancer le script sur vos
+propres données.}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsubsection{Structure attendue des
+données}\label{structure-attendue-des-donnuxe9es}
+
+Le fichier d\textquotesingle entrée doit être en format \textbf{CSV} (ou
+TSV / TXT, détection automatique du séparateur).
+
+\paragraph{Colonnes obligatoires}\label{colonnes-obligatoires}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}lll@{}}
+\toprule\noalign{}
+Colonne & Type & Description \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\texttt{site} & Texte & Identifiant du site inventorié \\
+\texttt{date} & Date (\texttt{YYYY-MM-DD}) & Date de la visite \\
+\texttt{visite\_id} & Texte & Identifiant de la visite (ex. \texttt{V1},
+\texttt{V2}\ldots) \\
+\texttt{espece} & Texte & Nom de l\textquotesingle espèce observée \\
+\end{longtable}
+}
+
+\paragraph{Colonne optionnelle}\label{colonne-optionnelle}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}lll@{}}
+\toprule\noalign{}
+Colonne & Type & Description \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\texttt{placette} & Texte & Identifiant de la placette (active
+l\textquotesingle analyse spatiale et la CA/AFC) \\
+\end{longtable}
+}
+
+\begin{quote}
+\textbf{Important :} une visite est identifiée de façon unique par la
+combinaison \texttt{site\ +\ date\ +\ visite\_id}. Cela permet de gérer
+les jeux de données où un même \texttt{visite\_id} peut être réutilisé à
+des dates différentes.
+\end{quote}
+
+\paragraph{Exemple de données}\label{exemple-de-donnuxe9es}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}lllll@{}}
+\toprule\noalign{}
+site & date & visite\_id & espece & placette \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+BoisLarge & 2025-09-10 & V1 & Gyrodon lividus & P1 \\
+BoisLarge & 2025-09-10 & V1 & Russula leprosa & P1 \\
+BoisLarge & 2025-09-17 & V2 & Amanita rubescens & P2 \\
+Site\_B & 2025-10-01 & V1 & Cantharellus cibarius & P3 \\
+\end{longtable}
+}
+
+Le fichier \texttt{data/observations.csv} fourni contient un jeu de
+données d\textquotesingle exemple fonctionnel avec plusieurs sites et
+placettes.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsubsection{Lancer le script -- guide
+détaillé}\label{lancer-le-script--guide-duxe9tailluxe9}
+
+\paragraph{Option A --- Ligne de commande
+(Rscript)}\label{option-a--ligne-de-commande-rscript}
+
+Méthode recommandée pour une exécution reproductible et automatisable.
+
+\begin{verbatim}
+# Ouvrir un terminal, se positionner à la racine du dépôt
+cd /chemin/vers/myco_apps_releases
+
+# Lancer le script
+Rscript scripts/Inventaires_completude_representativite.R
+\end{verbatim}
+
+\paragraph{Option B --- Session R interactive (RStudio ou console
+R)}\label{option-b--session-r-interactive-rstudio-ou-console-r}
+
+\begin{verbatim}
+# Définir le répertoire de travail sur la racine du dépôt
+setwd("/chemin/vers/myco_apps_releases")
+
+# Charger et exécuter le script
+source("scripts/Inventaires_completude_representativite.R")
+\end{verbatim}
+
+\begin{quote}
+Dans RStudio, vous pouvez également ouvrir le fichier \texttt{.R} et
+utiliser le bouton \textbf{Source} (Ctrl+Shift+S / Cmd+Shift+S).
+\end{quote}
+
+\paragraph{Contrôle de l\textquotesingle exécution via variable
+d\textquotesingle environnement}\label{contruxf4le-de-lexuxe9cution-via-variable-denvironnement}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}lll@{}}
+\toprule\noalign{}
+Variable & Valeur & Effet \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\texttt{INVENTAIRES\_AUTO\_RUN} & \texttt{TRUE} (défaut) & Lance
+l\textquotesingle analyse automatiquement au chargement \\
+\texttt{INVENTAIRES\_AUTO\_RUN} & \texttt{FALSE} (ou \texttt{0},
+\texttt{no}, \texttt{off}) & Charge uniquement les fonctions sans les
+exécuter \\
+\end{longtable}
+}
+
+\begin{verbatim}
+# Charger les fonctions sans lancer l'analyse (utile pour tester ou déboguer)
+INVENTAIRES_AUTO_RUN=FALSE Rscript scripts/Inventaires_completude_representativite.R
+\end{verbatim}
+
+\paragraph{Ce qui s\textquotesingle affiche dans la console pendant
+l\textquotesingle exécution}\label{ce-qui-saffiche-dans-la-console-pendant-lexuxe9cution}
+
+Le script journalise chaque étape avec horodatage
+\texttt{{[}YYYY-MM-DD\ HH:MM:SS{]}\ {[}INFO{]}} :
+
+\begin{verbatim}
+[2026-03-23 10:00:01] [INFO] Initialisation du script ...
+[2026-03-23 10:00:01] [INFO] Lecture du fichier : data/observations.csv
+[2026-03-23 10:00:01] [INFO] Données valides : 120 lignes, 3 sites, 15 espèces
+[2026-03-23 10:00:02] [INFO] Traitement site : BoisLarge (8 visites)
+[2026-03-23 10:00:03] [INFO] Traitement site : Site_B (6 visites)
+...
+[2026-03-23 10:00:08] [INFO] ================ MANIFESTE DES SORTIES ================
+[2026-03-23 10:00:08] [INFO] [MANIFEST] OK   results/ICR_donnees_preparees.csv
+[2026-03-23 10:00:08] [INFO] [MANIFEST] OK   results/ICR_resume_tous_sites.csv
+...
+\end{verbatim}
+
+En fin d\textquotesingle exécution, le \textbf{manifeste} liste
+l\textquotesingle état de chaque fichier attendu :
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{OK} --- fichier produit avec succès
+\item
+  \texttt{MANQUANT} --- fichier obligatoire non généré (voir les logs
+  pour l\textquotesingle erreur)
+\item
+  \texttt{OPTIONNEL\_NON\_GENERE} --- fichier optionnel non généré
+  (conditions non réunies)
+\end{itemize}
+
+\paragraph{Options de débogage (à modifier directement en tête du
+script)}\label{options-de-duxe9bogage-uxe0-modifier-directement-en-tuxeate-du-script}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}lll@{}}
+\toprule\noalign{}
+Option & Défaut & Effet si \texttt{TRUE} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\texttt{DEBUG\_MODE} & \texttt{FALSE} & Affiche des messages très
+détaillés et tous les warnings R \\
+\texttt{BENCHMARK\_MODE} & \texttt{FALSE} & Mesure et affiche le temps
+d\textquotesingle exécution de chaque calcul \\
+\texttt{CLEAN\_ENVIRONMENT} & \texttt{FALSE} & Nettoie
+l\textquotesingle environnement R avant exécution (usage isolé
+uniquement) \\
+\end{longtable}
+}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsubsection{Sorties générées}\label{sorties-guxe9nuxe9ruxe9es}
+
+Toutes les sorties sont créées dans \texttt{results/ICR/} (le dossier
+est créé automatiquement s\textquotesingle il n\textquotesingle existe
+pas).
+
+\paragraph{Vue d\textquotesingle ensemble du pipeline (9 étapes →
+fichiers)}\label{vue-densemble-du-pipeline-9-uxe9tapes--fichiers}
+
+\begin{verbatim}
+1) Préparation/validation des données
+    -> Global CSV : ICR_donnees_preparees.csv
+2) Richesse observée et cumulée (courbe temps-espèces)
+    -> Site CSV   : <site>/ICR_01_courbe_temps_especes.csv
+    -> Site PNG   : <site>/ICR_01_richesse_par_visite_et_cumul.png
+3) Ajustements linéaire/hyperbolique (si conditions remplies)
+    -> Site CSV   : <site>/ICR_05_modeles.csv
+    -> Site PNG   : <site>/ICR_02_courbe_temps_especes_hyperbole.png
+4) Asymptote hyperbolique et ratio de complétude
+    -> Site CSV   : <site>/ICR_04_resume_site.csv
+    -> Global CSV : ICR_resume_tous_sites.csv
+    -> Global PNG : ICR_comparaison_completude_sites.png
+5) TEE (taux d'espèces exceptionnelles) et indice Ir
+    -> Site CSV   : <site>/ICR_02_tee_ir.csv
+    -> Site PNG   : <site>/ICR_03_tee_ir.png
+    -> Global PNG : ICR_comparaison_ir_sites.png
+6) Fréquences d'occurrence des espèces
+    -> Site CSV   : <site>/ICR_03_frequence_especes.csv
+    -> Site PNG   : <site>/ICR_04_histogramme_frequences.png
+7) Occupation spatiale (si placette disponible)
+    -> Site CSV   : <site>/ICR_06_occupation_spatiale.csv
+    -> Site PNG   : <site>/ICR_05_temporel_vs_spatial.png
+8) CA/AFC placettes-espèces (si vegan et données adaptées)
+    -> Site PNG   : <site>/ICR_06_CA_placettes_especes.png
+9) Métriques de pertinence scientifique (stabilité, robustesse, cohérence)
+    -> Site CSV   : <site>/ICR_07_metrics_pertinence.csv
+    -> Global CSV : ICR_metrics_pertinence_tous_sites.csv
+    -> Site PNG   : <site>/ICR_07_metrics_pertinence_dashboard.png
+    -> Global PNG : ICR_metrics_pertinence_heatmap_sites.png
+    -> Global PNG : ICR_metrics_pertinence_score_sites.png
+\end{verbatim}
+
+\paragraph{\texorpdfstring{Fichiers globaux
+(\texttt{results/})}{Fichiers globaux (results/)}}\label{fichiers-globaux-results}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}lll@{}}
+\toprule\noalign{}
+Fichier & Type & Description \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\texttt{ICR\_00\_csv\_conformite\_report.csv} & CSV & Rapport de
+conformité CSV (schéma + parsing) avant traitement. \\
+\texttt{ICR\_00\_csv\_conformite\_problems.csv} & CSV & Détails des
+problèmes de parsing (si présents). \\
+\texttt{ICR\_donnees\_preparees.csv} & CSV & Données nettoyées et
+standardisées \\
+\texttt{ICR\_resume\_tous\_sites.csv} & CSV & Synthèse complétude +
+représentativité tous sites \\
+\texttt{ICR\_metrics\_pertinence\_tous\_sites.csv} & CSV & Métriques de
+pertinence scientifique multi-sites \\
+\texttt{ICR\_comparaison\_completude\_sites.png} & Graphique &
+Comparaison du ratio de complétude entre sites \\
+\texttt{ICR\_comparaison\_ir\_sites.png} & Graphique & Comparaison de
+l\textquotesingle indice Ir entre sites \\
+\texttt{ICR\_metrics\_pertinence\_heatmap\_sites.png} & Graphique &
+Heatmap comparative des 7 métriques de pertinence \\
+\texttt{ICR\_metrics\_pertinence\_score\_sites.png} & Graphique &
+Classement global des sites par score de pertinence \\
+\end{longtable}
+}
+
+\paragraph{\texorpdfstring{Fichiers par site
+(\texttt{results/\textless{}nom\_du\_site\textgreater{}/})}{Fichiers par site (results/\textless nom\_du\_site\textgreater/)}}\label{fichiers-par-site-resultsnom_du_site}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}llll@{}}
+\toprule\noalign{}
+Fichier & Type & Condition & Description \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\texttt{ICR\_01\_courbe\_temps\_especes.csv} & CSV & Toujours & Richesse
+observée et cumulée par visite \\
+\texttt{ICR\_02\_tee\_ir.csv} & CSV & Toujours & Évolution de TEE et Ir
+au fil des visites \\
+\texttt{ICR\_03\_frequence\_especes.csv} & CSV & Toujours & Fréquences
+d\textquotesingle occurrence des espèces \\
+\texttt{ICR\_04\_resume\_site.csv} & CSV & Toujours & Résumé synthétique
+du site \\
+\texttt{ICR\_05\_modeles.csv} & CSV & Si modèles ajustés & Paramètres
+des modèles linéaire/hyperbolique \\
+\texttt{ICR\_06\_occupation\_spatiale.csv} & CSV & Si \texttt{placette}
+disponible & Occupation spatiale par placette \\
+\texttt{ICR\_07\_metrics\_pertinence.csv} & CSV & Toujours & 15
+métriques de pertinence scientifique \\
+\texttt{ICR\_01\_richesse\_par\_visite\_et\_cumul.png} & Graphique &
+Toujours & Richesse par visite + richesse cumulée \\
+\texttt{ICR\_02\_courbe\_temps\_especes\_hyperbole.png} & Graphique &
+Toujours & Courbe temps-espèces + ajustement hyperbolique \\
+\texttt{ICR\_03\_tee\_ir.png} & Graphique & Toujours & TEE et Ir en deux
+panneaux \\
+\texttt{ICR\_04\_histogramme\_frequences.png} & Graphique & Toujours &
+Distribution des fréquences d\textquotesingle observabilité \\
+\texttt{ICR\_05\_temporel\_vs\_spatial.png} & Graphique & Si
+\texttt{placette} disponible & Fréquence temporelle vs occupation
+spatiale \\
+\texttt{ICR\_06\_CA\_placettes\_especes.png} & Graphique & Si
+\texttt{vegan} + \texttt{placette} & Ordination CA/AFC
+placettes-espèces \\
+\texttt{ICR\_07\_metrics\_pertinence\_dashboard.png} & Graphique &
+Toujours & Dashboard des 7 métriques de pertinence du site \\
+\end{longtable}
+}
+
+\begin{quote}
+\textbf{Convention de nommage :} tous les fichiers générés sont préfixés
+\texttt{ICR\_} pour les distinguer des sorties des autres scripts du
+projet.
+\end{quote}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsubsection{Installation des
+dépendances}\label{installation-des-duxe9pendances}
+
+\paragraph{Packages requis}\label{packages-requis-1}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Package & Rôle \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\texttt{dplyr} & Manipulation de données tabulaires \\
+\texttt{tidyr} & Restructuration des données (format long/large) \\
+\texttt{ggplot2} & Génération des graphiques \\
+\texttt{purrr} & Itérations fonctionnelles sur les sites \\
+\texttt{readr} & Lecture/écriture des fichiers CSV/TSV \\
+\texttt{stringr} & Traitement des chaînes de caractères \\
+\texttt{forcats} & Gestion des facteurs \\
+\texttt{tibble} & Structures tabulaires modernes \\
+\texttt{scales} & Mise en forme des axes graphiques \\
+\texttt{gridExtra} & Assemblage de graphiques multi-panneaux \\
+\end{longtable}
+}
+
+\begin{verbatim}
+install.packages(c(
+  "dplyr", "tidyr", "ggplot2", "purrr",
+  "readr", "stringr", "forcats", "tibble",
+  "scales", "gridExtra"
+))
+\end{verbatim}
+
+\paragraph{Packages optionnels}\label{packages-optionnels}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Package & Fonctionnalité activée \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\texttt{minpack.lm} & Ajustement hyperbolique (estimation
+d\textquotesingle asymptote, ratio de complétude) \\
+\texttt{vegan} & Ordination CA/AFC (analyse placettes--espèces) \\
+\end{longtable}
+}
+
+\begin{verbatim}
+install.packages(c("minpack.lm", "vegan"))
+\end{verbatim}
+
+\begin{quote}
+Le script vérifie les packages requis au démarrage et affiche une
+commande d\textquotesingle installation explicite si certains sont
+manquants. L\textquotesingle exécution s\textquotesingle arrête
+proprement avec un message clair plutôt que de produire des résultats
+partiels silencieux.
+\end{quote}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsubsection{⚙️ Configuration}\label{gear-configuration}
+
+La configuration est centralisée dans l\textquotesingle objet
+\texttt{CONFIG} au début du script
+(\texttt{scripts/Inventaires\_completude\_representativite.R}). Toute
+adaptation se fait directement dans ce bloc.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}lll@{}}
+\toprule\noalign{}
+Paramètre & Valeur par défaut & Description \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\texttt{input\_file} & \texttt{data/observations.csv} & Chemin du
+fichier d\textquotesingle entrée (relatif à la racine du projet) \\
+\texttt{output\_dir} & \texttt{results/ICR} & Dossier de sortie des CSV
+et graphiques \\
+\texttt{date\_format} & \texttt{\%Y-\%m-\%d} & Format de date R attendu
+(ex. \texttt{2026-03-18}) \\
+\texttt{csv\_strict\_mode} & \texttt{TRUE} & Stoppe
+l\textquotesingle exécution si le CSV n\textquotesingle est pas
+conforme \\
+\texttt{csv\_allow\_extra\_cols} & \texttt{FALSE} & Autorise/refuse les
+colonnes supplémentaires \\
+\texttt{csv\_required\_cols} &
+\texttt{c("site","date","visite\_id","espece")} & Colonnes obligatoires
+du schéma CSV \\
+\texttt{csv\_optional\_cols} & \texttt{c("placette")} & Colonnes
+optionnelles autorisées \\
+\texttt{make\_ca} & \texttt{TRUE} & Active l\textquotesingle ordination
+CA/AFC si les conditions sont réunies \\
+\texttt{min\_visits\_for\_model} & \texttt{5} & Nombre minimal de
+visites pour ajuster les modèles \\
+\texttt{freq\_breaks} & \texttt{c(0,\ .10,\ .25,\ .50,\ .75,\ 1)} &
+Bornes des classes de fréquence (en proportion) \\
+\texttt{freq\_labels} & \texttt{exceptionnelle\ …\ constante} & Noms des
+5 classes de fréquence \\
+\texttt{width} & \texttt{10} & Largeur des graphiques exportés (en
+pouces) \\
+\texttt{height} & \texttt{6} & Hauteur des graphiques exportés (en
+pouces) \\
+\texttt{dpi} & \texttt{300} & Résolution des PNG exportés (points par
+pouce) \\
+\end{longtable}
+}
+
+\textbf{Exemple de personnalisation :}
+
+\begin{verbatim}
+# Dans le script, modifier CONFIG avant l'exécution :
+CONFIG$input_file <- "data/mon_inventaire_2026.csv"
+CONFIG$date_format <- "%d/%m/%Y"   # si vos dates sont au format jour/mois/année
+CONFIG$make_ca <- FALSE            # désactiver la CA/AFC
+CONFIG$min_visits_for_model <- 3   # assouplir le seuil si peu de visites
+\end{verbatim}
+
+\textbf{Variables d\textquotesingle environnement utiles :}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{INVENTAIRES\_INPUT\_FILE}
+\item
+  \texttt{INVENTAIRES\_OUTPUT\_DIR}
+\item
+  \texttt{INVENTAIRES\_DATE\_FORMAT}
+\item
+  \texttt{INVENTAIRES\_CSV\_STRICT}
+\item
+  \texttt{INVENTAIRES\_CSV\_ALLOW\_EXTRA\_COLS}
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsubsection{Interprétation des
+indicateurs}\label{interpruxe9tation-des-indicateurs}
+
+\paragraph{TEE -- Taux d\textquotesingle Espèces
+Exceptionnelles}\label{tee--taux-despuxe8ces-exceptionnelles}
+
+Proportion d\textquotesingle espèces observées \textbf{une seule fois}
+dans l\textquotesingle inventaire.
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+TEE & Interprétation \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\textgreater{} 0,40 & Inventaire souvent \textbf{incomplet} \\
+0,20 -- 0,40 & Inventaire \textbf{intermédiaire} \\
+\textless{} 0,20 & Inventaire généralement \textbf{bien consolidé} \\
+\end{longtable}
+}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{TEE élevé en fin de suivi} : beaucoup
+  d\textquotesingle espèces vues qu\textquotesingle une fois →
+  inventaire en phase d\textquotesingle accumulation.
+\item
+  \textbf{TEE qui diminue} : signe positif, les espèces "uniques"
+  deviennent progressivement récurrentes.
+\item
+  \textbf{TEE stable et bas} : communauté mieux couverte, effort proche
+  d\textquotesingle un plateau.
+\end{itemize}
+
+\paragraph{Ir -- Indice de
+représentativité}\label{ir--indice-de-repruxe9sentativituxe9}
+
+Ir = 1 - TEE
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Ir & Représentativité \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+≥ 0,80 & Bonne à élevée \\
+0,60 -- 0,80 & Moyenne \\
+\textless{} 0,60 & Faible \\
+\end{longtable}
+}
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Ir en hausse au fil des visites} : le protocole capture mieux
+  la diversité réelle du site.
+\item
+  \textbf{Ir qui plafonne tôt} : effort potentiellement suffisant, sauf
+  si période écologique incomplète.
+\item
+  \textbf{Ir faible et stagnant} : effort, calendrier ou stratification
+  spatiale à revoir.
+\end{itemize}
+
+\paragraph{Complétude / asymptote
+hyperbolique}\label{compluxe9tude--asymptote-hyperbolique}
+
+\textbackslash text\{Complétude\} =
+\textbackslash frac\{S\_\{obs\}\}\{S\_\{asymptote\}\}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Complétude & Interprétation \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\textgreater{} 0,90 & Inventaire très avancé \\
+0,70 -- 0,90 & Progression correcte, inventaire partiel \\
+\textless{} 0,70 & Insuffisante pour conclure sur
+l\textquotesingle exhaustivité \\
+\end{longtable}
+}
+
+\begin{quote}
+L\textquotesingle asymptote ne doit pas être interprétée comme une
+"vérité absolue", mais comme un \textbf{repère quantitatif} de
+complétude.
+\end{quote}
+
+\paragraph{Score de pertinence scientifique (agrégé,
+v1.4)}\label{score-de-pertinence-scientifique-agruxe9guxe9-v14}
+
+\textbackslash text\{Score\} = 0\{,\}35 \textbackslash times Ir +
+0\{,\}35 \textbackslash times \textbackslash text\{complétude\} +
+0\{,\}20 \textbackslash times \textbackslash text\{stabilité\} +
+0\{,\}10 \textbackslash times R\^{}2
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsubsection{📈 Lecture des
+graphiques}\label{chart_with_upwards_trend-lecture-des-graphiques}
+
+\paragraph{\texorpdfstring{\texttt{ICR\_01\_richesse\_par\_visite\_et\_cumul.png}}{ICR\_01\_richesse\_par\_visite\_et\_cumul.png}}\label{icr_01_richesse_par_visite_et_cumulpng}
+
+Combine \textbf{barres} (richesse observée par visite) et \textbf{ligne}
+(richesse cumulée).
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Barres encore hautes + cumul qui monte vite} → inventaire en
+  phase active de découverte.
+\item
+  \textbf{Barres qui baissent + cumul qui se tasse} → entrée dans une
+  phase de saturation.
+\item
+  \textbf{Dents de scie marquées} → forte dépendance météo / saison /
+  observateur.
+\item
+  Signal d\textquotesingle alerte : si les dernières visites apportent
+  encore beaucoup de nouvelles espèces, l\textquotesingle arrêt de
+  l\textquotesingle inventaire peut être prématuré.
+\end{itemize}
+
+\paragraph{\texorpdfstring{\texttt{ICR\_02\_courbe\_temps\_especes\_hyperbole.png}}{ICR\_02\_courbe\_temps\_especes\_hyperbole.png}}\label{icr_02_courbe_temps_especes_hyperbolepng}
+
+Superpose les observations à un ajustement hyperbolique (si
+\texttt{minpack.lm} disponible) et une asymptote estimée.
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Courbe observée proche de la courbe ajustée} → modèle
+  cohérent, asymptote fiable.
+\item
+  \textbf{Écart important} → structure de données non compatible avec ce
+  modèle (saisonnalité forte, ruptures d\textquotesingle effort, etc.).
+\item
+  \textbf{Asymptote nettement au-dessus de la richesse actuelle} → marge
+  de découverte encore importante.
+\end{itemize}
+
+\paragraph{\texorpdfstring{\texttt{ICR\_03\_tee\_ir.png}}{ICR\_03\_tee\_ir.png}}\label{icr_03_tee_irpng}
+
+Deux panneaux complémentaires :
+
+panneau haut : nombre d\textquotesingle espèces observées une seule fois
+(\texttt{nb\_esp\_1fois})
+
+panneau bas : indice Ir sur l\textquotesingle échelle {[}0,1{]} avec
+seuils visuels (0,60 et 0,80)
+
+\textbf{Espèces uniques qui ralentissent} → signal de consolidation de
+l\textquotesingle inventaire.
+
+\textbf{Ir qui augmente puis se stabilise} → représentativité qui
+converge.
+
+Les seuils sont des repères empiriques : toujours interpréter avec le
+contexte (saison, effort, habitat).
+
+\paragraph{\texorpdfstring{\texttt{ICR\_04\_histogramme\_frequences.png}}{ICR\_04\_histogramme\_frequences.png}}\label{icr_04_histogramme_frequencespng}
+
+Distribution du nombre d\textquotesingle espèces selon leur fréquence
+d\textquotesingle occurrence.
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Pic sur les faibles fréquences} → communauté riche en espèces
+  rares/occasionnelles.
+\item
+  \textbf{Répartition plus équilibrée} → noyau d\textquotesingle espèces
+  régulières bien documenté.
+\item
+  \textbf{Queue vers les fortes fréquences} → présence
+  d\textquotesingle espèces constantes, potentiels bons indicateurs
+  écologiques.
+\end{itemize}
+
+\paragraph{\texorpdfstring{\texttt{ICR\_05\_temporel\_vs\_spatial.png}
+\emph{(si} \texttt{\_placette\_}
+\emph{disponible)}}{ICR\_05\_temporel\_vs\_spatial.png (si \_placette\_ disponible)}}\label{icr_05_temporel_vs_spatialpng-si-_placette_-disponible}
+
+Nuage de points reliant fréquence temporelle (x = proportion de visites)
+et occupation spatiale (y = proportion de placettes).
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Haut-droite} → espèces fréquentes et largement réparties
+  (généralistes / communes).
+\item
+  \textbf{Bas-gauche} → espèces rares et localisées (vraie rareté).
+\item
+  \textbf{Bas-droite} → espèces temporellement fréquentes mais
+  spatialement confinées (micro-habitats stables).
+\item
+  \textbf{Haut-gauche} → espèces spatialement larges mais irrégulières
+  dans le temps (phénologie / pulses).
+\end{itemize}
+
+Ce diagramme permet de distinguer rareté vraie, rareté
+d\textquotesingle observation et hétérogénéité spatiale.
+
+\paragraph{\texorpdfstring{\texttt{ICR\_06\_CA\_placettes\_especes.png}
+\emph{(si} \texttt{\_vegan\_} \emph{+} \texttt{\_placette\_}
+\emph{disponibles)}}{ICR\_06\_CA\_placettes\_especes.png (si \_vegan\_ + \_placette\_ disponibles)}}\label{icr_06_ca_placettes_especespng-si-_vegan_--_placette_-disponibles}
+
+Ordination CA/AFC explorant les associations placettes--espèces.
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{Points proches} → profils mycologiques similaires.
+\item
+  \textbf{Groupes compacts} → unités écologiques homogènes.
+\item
+  \textbf{Points isolés} → placettes atypiques ou espèces spécialisées.
+\item
+  Les axes de CA sont relatifs au jeu de données analysé ; comparer des
+  CA entre jeux différents demande prudence.
+\end{itemize}
+
+\paragraph{\texorpdfstring{\texttt{ICR\_07\_metrics\_pertinence\_dashboard.png}}{ICR\_07\_metrics\_pertinence\_dashboard.png}}\label{icr_07_metrics_pertinence_dashboardpng}
+
+Dashboard panoramique par site : barres horizontales pour chacun des 7
+indicateurs (normalisés 0--1).
+
+\begin{itemize}
+\tightlist
+\item
+  Lignes de seuil pointillées à \textbf{0,60} (acceptable) et
+  \textbf{0,80} (bon).
+\item
+  Tout indicateur sous 0,60 motive un complément
+  d\textquotesingle effort ou une révision du protocole.
+\end{itemize}
+
+\paragraph{Graphiques multi-sites}\label{graphiques-multi-sites}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Graphique & Ce qu\textquotesingle il montre \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\texttt{ICR\_comparaison\_completude\_sites.png} & Sites classés par
+ratio de complétude --- identifier rapidement les sites à renforcer \\
+\texttt{ICR\_comparaison\_ir\_sites.png} & Sites classés par Ir final
+--- prioriser les revisites (sites à Ir faible en premier) \\
+\texttt{ICR\_metrics\_pertinence\_heatmap\_sites.png} & Heatmap 7
+métriques × tous sites (rouge = faible, vert = bon) --- vue synthétique
+comparative \\
+\texttt{ICR\_metrics\_pertinence\_score\_sites.png} & Classement par
+score agrégé avec zones rouge/jaune/vert --- synthèse exécutive \\
+\end{longtable}
+}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsubsection{Bonnes pratiques
+d\textquotesingle interprétation}\label{bonnes-pratiques-dinterpruxe9tation}
+
+\begin{itemize}
+\tightlist
+\item
+  Interpréter \textbf{ensemble} : courbe cumulée + TEE/Ir + fréquences +
+  spatial.
+\item
+  Toujours contextualiser avec : saison, pression
+  d\textquotesingle échantillonnage, météo, observateurs.
+\item
+  Préférer les \textbf{tendances sur plusieurs visites} plutôt
+  qu\textquotesingle une lecture ponctuelle.
+\item
+  Un site bas en complétude n\textquotesingle est pas "mauvais" : il
+  peut être plus hétérogène ou plus difficile à prospecter.
+\item
+  Croiser complétude et Ir avant de conclure sur
+  l\textquotesingle effort à fournir : un Ir élevé avec une complétude
+  faible peut signifier un site très riche, pas un protocole défaillant.
+\item
+  Pour des décisions de gestion, combiner ces indicateurs avec
+  l\textquotesingle expertise terrain et la connaissance taxonomique.
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsubsection{Dépannage (FAQ)}\label{duxe9pannage-faq}
+
+\textbf{Le script ne trouve pas mon fichier d\textquotesingle entrée}\\
+Vérifier qu\textquotesingle un fichier existe dans \texttt{data/} sous :
+\texttt{observations.csv}, \texttt{observations.txt} ou
+\texttt{observations.tsv}, et que les 4 colonnes obligatoires
+(\texttt{site}, \texttt{date}, \texttt{visite\_id}, \texttt{espece})
+sont présentes.
+
+\textbf{Le script s\textquotesingle arrête avec "CSV non conforme"}\\
+Consulter :
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{results/ICR/ICR\_00\_csv\_conformite\_report.csv}
+\item
+  \texttt{results/ICR/ICR\_00\_csv\_conformite\_problems.csv} (si
+  présent)
+\end{itemize}
+
+Causes typiques : colonne obligatoire manquante, colonne supplémentaire
+non autorisée, ou ligne mal formée.
+
+\textbf{Erreur "Packages requis manquants"}\\
+Le script affiche la commande \texttt{install.packages(...)} exacte à
+exécuter. Copier-coller cette commande dans R, puis relancer le script.
+
+\textbf{Erreur sur les dates}\\
+Contrôler le format de la colonne \texttt{date} et adapter
+\texttt{CONFIG\$date\_format} dans le script (défaut :
+\texttt{\%Y-\%m-\%d}, ex. \texttt{2026-03-23}). Format courant
+alternatif : \texttt{\%d/\%m/\%Y} pour \texttt{23/03/2026}.
+
+\textbf{Le modèle hyperbolique n\textquotesingle est pas calculé}\\
+Installer \texttt{minpack.lm}. Sans ce package,
+l\textquotesingle analyse continue mais sans asymptote hyperbolique ni
+ratio de complétude. Vérifier aussi que le site a au moins
+\texttt{CONFIG\$min\_visits\_for\_model} visites (défaut : 5).
+
+\textbf{La CA/AFC n\textquotesingle apparaît pas}\\
+Nécessite : package \texttt{vegan} installé + colonne \texttt{placette}
+présente + matrice placette-espèce suffisamment informative (plusieurs
+placettes avec plusieurs espèces différentes). Vérifier également que
+\texttt{CONFIG\$make\_ca} est \texttt{TRUE}.
+
+\textbf{Le manifeste signale des fichiers MANQUANT}
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{MANQUANT} : fichier obligatoire non produit --- voir les logs
+  d\textquotesingle exécution pour l\textquotesingle erreur associée.
+\item
+  \texttt{OPTIONNEL\_NON\_GENERE} : normal si les conditions ne sont pas
+  réunies (ex. \texttt{placette} absent, \texttt{vegan} non installé,
+  \texttt{make\_ca\ =\ FALSE}).
+\end{itemize}
+
+\textbf{Les graphiques de métriques de pertinence ne sont pas générés}\\
+Le site doit avoir au moins 2 visites et les colonnes \texttt{Ir\_final}
+et \texttt{completude} doivent être présentes dans le résumé du site.
+
+\textbf{Exécution très lente}\\
+Activer \texttt{BENCHMARK\_MODE\ \textless{}-\ TRUE} en tête du script
+pour identifier les goulots d\textquotesingle étranglement. Sur de
+grands jeux de données, la phase de calculs cumulés bénéficie de la
+vectorisation introduite en v1.2.
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsubsection{Historique des versions}\label{historique-des-versions}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}lll@{}}
+\toprule\noalign{}
+Version & Phase & Principales évolutions \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\textbf{v1.4} (actuelle) & Phase 4 --- Industrialisation & Métriques de
+pertinence scientifique (stabilité, robustesse, cohérence, score
+agrégé), rapport Quarto, manifeste automatique des sorties \\
+\textbf{v1.3} & Phase 3 --- Graphiques & Thème unifié CVD-friendly
+(palette accessible 5 couleurs), annotations scientifiques, diagramme
+TEE/Ir 2 panneaux avec seuils, comparaisons sites annotées, export
+multi-formats (PNG, PDF, SVG) \\
+\textbf{v1.2} & Phase 2 --- Performance & Vectorisation des calculs
+cumulés, mode benchmarking (\texttt{BENCHMARK\_MODE}) \\
+\textbf{v1.1} & Phase 1 --- Fiabilisation & Validation robuste des
+données d\textquotesingle entrée, détection automatique du séparateur
+(CSV/TSV/TXT), messages d\textquotesingle erreur explicites \\
+\end{longtable}
+}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsubsection{Glossaire}\label{glossaire}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}ll@{}}
+\toprule\noalign{}
+Terme & Définition \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+\textbf{TEE} & Taux d\textquotesingle Espèces Exceptionnelles :
+proportion d\textquotesingle espèces observées une seule fois \\
+\textbf{Ir} & Indice de représentativité : Ir = 1 - TEE \\
+\textbf{Asymptote} & Richesse théorique maximale estimée par le modèle
+hyperbolique \\
+\textbf{Complétude} & Ratio S\_\{obs\} / S\_\{asymptote\} : avancement
+de l\textquotesingle inventaire vers la richesse théorique \\
+\textbf{Robustesse} & Qualité d\textquotesingle ajustement (R\^{}2) du
+modèle d\textquotesingle asymptote \\
+\textbf{Stabilité} & Convergence de Ir sur les dernières visites \\
+\textbf{Cohérence} & Corrélation Spearman entre fréquences temporelles
+et spatiales, normalisée en {[}0,1{]} \\
+\textbf{Score pertinence} & Indicateur agrégé pondéré : 0\{,\}35
+\textbackslash times Ir + 0\{,\}35 \textbackslash times
+\textbackslash text\{complétude\} + 0\{,\}20 \textbackslash times
+\textbackslash text\{stabilité\} + 0\{,\}10 \textbackslash times
+R\^{}2 \\
+\textbf{CA / AFC} & Correspondence Analysis / Analyse Factorielle des
+Correspondances \\
+\textbf{CSV} & Comma-Separated Values : fichier texte tabulaire, champs
+séparés par des virgules \\
+\textbf{TSV} & Tab-Separated Values : fichier texte tabulaire, champs
+séparés par des tabulations \\
+\textbf{ICR} & Préfixe de nommage de tous les fichiers produits par ce
+script \\
+\textbf{CVD-friendly} & Compatible daltoniens (Color Vision Deficiency)
+: palette graphique accessible \\
+\textbf{vegan} & Package R (\emph{Vegetation Ecology And other Nature
+data Group Analysis}) : outils d\textquotesingle analyse en écologie des
+communautés --- ordinations (CA/AFC, PCA, NMDS), indices de diversité,
+tests de permutation, etc. Dans ce projet, utilisé pour
+l\textquotesingle ordination CA/AFC entre placettes et espèces \\
+\end{longtable}
+}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{Références}\label{ruxe9fuxe9rences}
+
+\begin{itemize}
+\tightlist
+\item
+  Cours 24 Inventaires (diapositives N° 25-48 du ) - DU Mycologie 2026
+  du Professeur Pierre-Arthur Moreau, Université de Lille (UFR3S PHAR)
+\item
+  Méthodes et définitions utilisées dans ce document (TEE, complétude,
+  CA/AFC, cohérence tempo-spatiale) s'appuient sur les principes
+  standards de l'écologie des communautés et de l'analyse multivariée
+  sous R, en particulier via les packages \textbf{vegan}, \textbf{dplyr}
+  et \textbf{ggplot2}. Pour un cadre théorique détaillé, se référer à la
+  documentation officielle de ces packages ainsi qu'aux ouvrages de
+  référence en ordination écologique.
+\end{itemize}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{Contact}\label{contact}
+
+\textbf{Auteur :} Eddy Boite\\
+Pour toute question ou évolution, ouvrir une issue sur ce dépôt.
+
+\end{document}

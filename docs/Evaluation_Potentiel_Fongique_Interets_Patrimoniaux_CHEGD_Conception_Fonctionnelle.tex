@@ -112,7 +112,7 @@ l'évaluation de la valeur patrimoniale des prairies en Europe occidentale.
 Le pipeline réalise automatiquement, pour chaque site (pelouse) :
 
 \begin{enumerate}[label=\arabic*.]
-  \item Lecture et validation d'un fichier de données brutes (Excel \texttt{.xlsx} ou CSV).
+  \item Lecture et validation d'un fichier de données brutes CSV.
   \item Production de résumés descriptifs globaux (par site, famille, espèce, date, fiabilité).
   \item Calcul du \textbf{potentiel fongique} : score pondéré par groupe fonctionnel.
   \item Calcul de l'\textbf{intérêt patrimonial} : indice CHEGD et classification en 5 niveaux.
@@ -132,7 +132,6 @@ Le pipeline réalise automatiquement, pour chaque site (pelouse) :
     \toprule
     \textbf{Package} & \textbf{Rôle} \\
     \midrule
-    \texttt{readxl}    & Lecture des fichiers Excel (\texttt{.xlsx}) \\
     \texttt{dplyr}     & Manipulation de tableaux (filtrage, jointures, agrégations) \\
     \texttt{stringr}   & Traitements de chaînes (regex, normalisation, extraction) \\
     \texttt{ggplot2}   & Génération des figures \\
@@ -276,8 +275,7 @@ Le fichier d'entrée est résolu via une stratégie à \textbf{3 niveaux} :
 \subsubsection{Formats acceptés}
 
 \begin{itemize}
-  \item \textbf{Excel (\texttt{.xlsx})} : lu via \texttt{readxl::read\_excel()}, avec sélection optionnelle de feuille.
-  \item \textbf{CSV} : séparateur auto-détecté (compares le nombre de \texttt{;} et \texttt{,} sur les 5 premières lignes). Les lignes ne contenant que des séparateurs sont éliminées. Le BOM et les colonnes vides de bord sont supprimés.
+  \item \textbf{CSV} : séparateur auto-détecté (tabulation, \texttt{;} ou \texttt{,} sur les 5 premières lignes). Les lignes ne contenant que des séparateurs sont éliminées. Le BOM et les colonnes vides de bord sont supprimés.
 \end{itemize}
 
 \subsubsection{Colonnes obligatoires}
@@ -1049,7 +1047,7 @@ méthodologiques dans le journal de versionnement.
 
 \begin{description}
   \item[Le script ne trouve pas le fichier d'entrée.]
-    Vérifier qu'un fichier \texttt{.xlsx} ou \texttt{.csv} est présent dans \texttt{data/}.
+    Vérifier qu'un fichier \texttt{.csv} est présent dans \texttt{data/}.
     Le nom est résolu par correspondance normalisée : les accents et la casse ne sont pas bloquants.
     Consulter les messages \texttt{info} dans la console pour identifier le fichier retenu.
 
@@ -1152,6 +1150,7 @@ results/EPFIP_CHEGD/
 % ============================================================================================================================
 
 \begin{itemize}
+  \item Sellier, Y., et coll. (s.d.). \textit{Évaluation du potentiel fongique et de l'intérêt patrimonial des pelouses}. Mycofrance. \url{https://www.mycofrance.fr/wp-content/uploads/2025/05/Bull.-SMF-131-1-2-Y-Sellier-et-coll.pdf}.
   \item Harding, J.S. \& al. (2012). \textit{Grassland fungi as biodiversity indicators}.
   \item Methode CHEGD : Rotheroe, M. \& al. (1996). \textit{Waxcap grasslands : an assessment of the British resource.} English Nature Research Reports.
   \item Cours 24 Inventaires — DU Mycologie 2026 du Professeur Pierre-Arthur Moreau, Université de Lille (UFR3S PHAR).
@@ -1173,7 +1172,7 @@ results/EPFIP_CHEGD/
     \textbf{Dépôt GitHub}    & \texttt{eddyboite-nat/statistics} \\
     \textbf{Branche}         & \texttt{main} \\
     \textbf{Version script}  & 1.0 \\
-    \textbf{Date de ce document} & 21 juin 2026 \\
+    \textbf{Date de ce document} & 7 juillet 2026 \\
     \bottomrule
   \end{tabular}
 \end{table}
