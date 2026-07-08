@@ -1,14 +1,14 @@
 "check_id","severity","issue_count","reference_count","passed","details","pct_issue"
-"rows_quasi_empty","warning",0,88,TRUE,"Lignes vides sur toutes les colonnes métier.",0
+"rows_quasi_empty","warning",0,85,TRUE,"Lignes vides sur toutes les colonnes métier.",0
 "dates_invalid","warning",0,85,TRUE,"Dates renseignées mais non converties en Date.",0
-"counts_invalid","warning",1,86,TRUE,"Effectifs renseignés mais non convertis en numérique.",1.16
+"counts_invalid","warning",0,85,TRUE,"Effectifs renseignés mais non convertis en numérique.",0
 "counts_negative","warning",0,85,TRUE,"Effectifs numériques strictement négatifs.",0
-"species_missing","warning",0,88,TRUE,"Nom d'espèce absent.",0
-"sites_missing","warning",3,88,TRUE,"Site absent.",3.41
+"species_missing","warning",0,85,TRUE,"Nom d'espèce absent.",0
+"sites_missing","warning",0,85,TRUE,"Site absent.",0
 "site_ids_unresolved","warning",0,85,TRUE,"Site renseigné mais sans identifiant exploitable.",0
-"exact_duplicates","warning",0,88,TRUE,"Doublons exacts sur les colonnes métier.",0
-"usable_rows_present","error",88,88,TRUE,"Au moins une ligne exploitable doit être présente.",100
+"exact_duplicates","warning",0,85,TRUE,"Doublons exacts sur les colonnes métier.",0
+"usable_rows_present","error",85,85,TRUE,"Au moins une ligne exploitable doit être présente.",100
 "dates_not_all_invalid","error",0,85,TRUE,"Toutes les dates renseignées sont invalides.",0
-"counts_not_all_invalid","error",1,86,TRUE,"Tous les effectifs renseignés sont invalides.",1.16
-"sites_not_all_missing","error",3,88,TRUE,"Toutes les lignes ont un site manquant.",3.41
-"species_not_all_missing","error",0,88,TRUE,"Toutes les lignes ont une espèce manquante.",0
+"counts_not_all_invalid","error",0,85,TRUE,"Tous les effectifs renseignés sont invalides.",0
+"sites_not_all_missing","error",0,85,TRUE,"Toutes les lignes ont un site manquant.",0
+"species_not_all_missing","error",0,85,TRUE,"Toutes les lignes ont une espèce manquante.",0

@@ -1,5 +1,5 @@
 "objectif","candidat","metric_primary","metric_secondary","selected"
 "Objectif1_Descriptif","Descriptif",NA,NA,1
 "Objectif2_Ponderation","S2",0.9996,5,1
-"Objectif3_Modeles","baseline_majority",0.879,0.7841,1
-"Objectif4_Inference","Fisher_simule",2.92086218122924,0.0011998800119988,1
+"Objectif3_Modeles","baseline_majority",0.8961,0.8118,1
+"Objectif4_Inference","Fisher",0.928426155110636,0.117916300416804,1

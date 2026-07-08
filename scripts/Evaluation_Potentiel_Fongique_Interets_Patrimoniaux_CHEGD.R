@@ -40,7 +40,9 @@
 #   - Répertoire fixe dans cfg$output_dir contenant les CSV de synthèse.
 #
 # Version :
-#   - 1.0
+#   - 1.1 (2026-07-08) : signalement explicite des lignes vides et données manquantes dans main() ;
+#                        correction du faux positif d'alerte qualité (0 >= seuil 0) dans build_input_quality_digest().
+#   - 1.0 : version initiale.
 #
 # Auteur : Eddy Boite (SMF, RNF, FongiFrance)
 # 
@@ -111,7 +113,7 @@ library(nnet)
 # SCRIPT_VERSION : version fonctionnelle du pipeline (SemVer simplifiée).
 # Utilisée dans les logs pour tracer précisément la version exécutée.
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-SCRIPT_VERSION <- "1.0"
+SCRIPT_VERSION <- "1.1"
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Système de logging
@@ -971,7 +973,8 @@ validate_input_data <- function(raw, df_clean, cols, out_dir = NULL) {
 #
 # Comportement :
 #   - calcule les indicateurs qualité clés (% invalides/manquants/doublons),
-#   - compare chaque indicateur à son seuil,
+#   - compare chaque indicateur à son seuil avec la règle : alerte si `value_count > 0 ET value_pct >= seuil`
+#     (un indicateur à 0 occurrence ne déclenche jamais d'alerte, même si le seuil est 0),
 #   - journalise un digest lisible (top anomalies + alertes),
 #   - exporte 2 CSV de pilotage qualité.
 #
@@ -1071,7 +1074,9 @@ build_input_quality_digest <- function(
 
   indicators$alert_threshold_pct <- as.numeric(unlist(thresholds[indicators$indicator_id]))
   indicators$alert <- ifelse(
-    !is.na(indicators$alert_threshold_pct) & !is.na(indicators$value_pct) & indicators$value_pct >= indicators$alert_threshold_pct,
+    !is.na(indicators$alert_threshold_pct) & !is.na(indicators$value_pct) &
+      indicators$value_count > 0 &
+      indicators$value_pct >= indicators$alert_threshold_pct,
     TRUE,
     FALSE
   )
@@ -3604,7 +3609,8 @@ write_outputs <- function(df_clean, summaries, site_metrics, out_dir, cols) {
 #   3) Lecture du CSV + nettoyage structurel (`read_input_data`).
 #   4) Validation des colonnes (`ensure_required_columns`).
 #   5) Conversion des champs critiques (dates/effectifs) dans `df_clean`.
-#   6) Validation qualité d'entrée (`validate_input_data`) + export QA entrée.
+#   6) Validation qualité d'entrée (`validate_input_data`) + export QA entrée
+#      + signalement explicite des lignes vides et des colonnes incomplètes (hors Commentaire).
 #   7) Calcul des résumés descriptifs (`calc_summaries`).
 #   8) Calcul des métriques par site (`build_site_level_metrics`).
 #   9) Contrôle de cohérence autonome CHEGD/IR (`validate_autonomous_reliability`) + export QA.
@@ -3741,6 +3747,66 @@ main <- function() {
 
   log_info("Validation qualité des données d'entrée : OK")
 
+  # ── Signalement explicite des lignes vides et des données manquantes ──────────────────────────────────────────────────────
+  # Mini-spécification — signalement de complétude post-validation.
+  # Entrée   : `df_clean` après nettoyage structurel ; `cols` (colonnes métier).
+  # Comportement :
+  #   1) Compte les lignes où toutes les colonnes métier sont vides (trimws == "").
+  #   2) Compte les lignes avec au moins une valeur vide ou "NA" sur les colonnes métier,
+  #      à l'exclusion de la colonne Commentaire (non obligatoire).
+  #      Produit un détail colonne par colonne pour chaque colonne concernée.
+  # Sortie   : messages [WARN] dans les logs ; aucun export CSV, aucun arrêt.
+  # ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  total_rows <- nrow(df_clean)
+
+  # 1) Lignes complètement vides (toutes colonnes métier vides)
+  business_cols <- unname(unlist(cols, use.names = FALSE))
+  business_cols <- business_cols[business_cols %in% names(df_clean)]
+  raw_chr_check <- as.data.frame(
+    lapply(df_clean[, business_cols, drop = FALSE], function(col) {
+      trimws(as.character(col))
+    }),
+    stringsAsFactors = FALSE
+  )
+  n_fully_empty <- sum(rowSums(raw_chr_check != "") == 0)
+  if (n_fully_empty > 0) {
+    log_warning_msg(paste0(
+      n_fully_empty, " ligne(s) complètement vide(s) sur les colonnes métier (",
+      round(100 * n_fully_empty / max(total_rows, 1), 1), " %)"
+    ))
+  } else {
+    log_info("Lignes complètement vides : aucune")
+  }
+
+  # 2) Lignes avec au moins une donnée manquante (hors colonne Commentaire)
+  cols_sans_commentaire <- business_cols[!business_cols %in% c("Commentaire", "commentaire", "comment")]
+  raw_chr_no_comment <- as.data.frame(
+    lapply(df_clean[, cols_sans_commentaire, drop = FALSE], function(col) {
+      trimws(as.character(col))
+    }),
+    stringsAsFactors = FALSE
+  )
+  n_incomplete <- sum(rowSums(raw_chr_no_comment == "" | raw_chr_no_comment == "NA") > 0)
+  if (n_incomplete > 0) {
+    pct_incomplete <- round(100 * n_incomplete / max(total_rows, 1), 1)
+    log_warning_msg(paste0(
+      n_incomplete, " ligne(s) avec au moins une donnée manquante (hors Commentaire) sur ",
+      total_rows, " (", pct_incomplete, " %)"
+    ))
+    # Détail colonne par colonne
+    for (col_name in cols_sans_commentaire) {
+      n_col_missing <- sum(raw_chr_no_comment[[col_name]] == "" | raw_chr_no_comment[[col_name]] == "NA")
+      if (n_col_missing > 0) {
+        log_warning_msg(paste0(
+          "  └─ ", col_name, " : ", n_col_missing, " valeur(s) manquante(s)"
+        ))
+      }
+    }
+  } else {
+    log_info("Données manquantes (hors Commentaire) : aucune")
+  }
+  # ─────────────────────────────────────────────────────────────────────────
+
   log_data_summary(
     nrow(df_clean),
     n_distinct(df_clean[[cols$species]], na.rm = TRUE),
@@ -3750,7 +3816,6 @@ main <- function() {
 
   missing_reliability <- sum(is.na(df_clean[[cols$reliability]]) | trimws(as.character(df_clean[[cols$reliability]])) == "")
   if (missing_reliability > 0) {
-    total_rows <- nrow(df_clean)
     pct_missing <- round(100 * missing_reliability / max(total_rows, 1), 2)
     log_warning_msg(paste0(missing_reliability, " observation(s) sans niveau de fiabilité (", pct_missing, " %)"))
   }

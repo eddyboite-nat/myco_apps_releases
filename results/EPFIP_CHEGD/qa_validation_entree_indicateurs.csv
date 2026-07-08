@@ -1,10 +1,10 @@
 "indicator_id","value_count","value_pct","alert_threshold_pct","alert"
 "rows_quasi_empty",0,0,1,FALSE
 "dates_invalid",0,0,10,FALSE
-"counts_invalid",1,1.16,5,FALSE
-"counts_negative",0,0,0,TRUE
+"counts_invalid",0,0,5,FALSE
+"counts_negative",0,0,0,FALSE
 "species_missing",0,0,5,FALSE
-"sites_missing",3,3.41,5,FALSE
-"site_ids_unresolved",0,0,0,TRUE
+"sites_missing",0,0,5,FALSE
+"site_ids_unresolved",0,0,0,FALSE
 "exact_duplicates",0,0,2,FALSE
-"missing_reliability",3,3.41,20,FALSE
+"missing_reliability",0,0,20,FALSE
