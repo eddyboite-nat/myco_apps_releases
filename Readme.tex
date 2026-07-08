@@ -40,7 +40,7 @@ principal, une documentation d'utilisation et des répertoires de sortie standar
 
 \section{Applications disponibles}
 
-\begin{description}[style=nextline]
+\begin{description}[style=nextline,leftmargin=0pt,labelwidth=0pt,labelsep=0pt]
   \item[Inventaires fongiques --- Complétude et Représentativité]
   Script ICR version 1.4, dédié à l'analyse de la complétude d'inventaires et à la
   représentativité des observations par site, date et espèce.
@@ -61,7 +61,7 @@ myco_apps_releases/
 |   |-- ICR/
 |   `-- EPFIP_CHEGD/
 |-- scripts/                      # Scripts R principaux
-`-- README.md
+`-- README.pdf
 \end{CodeBlock}
 
 \section{Interface web locale}
@@ -75,7 +75,6 @@ fonctionne depuis le poste utilisateur et s'appuie sur les dossiers \texttt{scri
 \begin{itemize}
   \item macOS : double-cliquer sur \texttt{Lancer\_Mac.command}.
   \item Windows : double-cliquer sur \texttt{Lancer\_Windows.bat}.
-  \item Linux : exécuter \texttt{./Lancer\_Linux.sh} dans un terminal.
 \end{itemize}
 
 \section{Quick Start CHEGD}
@@ -148,7 +147,7 @@ il est préférable d'installer les dépendances avant la distribution de l'arch
 
 \section{Dépannage}
 
-\begin{description}[style=nextline]
+\begin{description}[style=nextline,leftmargin=0pt,labelwidth=0pt,labelsep=0pt]
   \item[Le script ne trouve pas le fichier d'entrée]
   Vérifier le chemin, le nom de fichier et la présence du fichier dans \texttt{data/}.
 
@@ -166,5 +165,26 @@ il est préférable d'installer les dépendances avant la distribution de l'arch
   \item Venables, W.N. \& Ripley, B.D. (2002). \textit{Modern Applied Statistics with S}. Springer.
   \item Documentation R et documentation des packages utilisés par les scripts.
 \end{itemize}
+% ============================================================================================================================
+\section*{Contact et versionnement}
+\addcontentsline{toc}{section}{Contact et versionnement}
+% ============================================================================================================================
 
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{ll}
+    \toprule
+    \textbf{Auteur}          & Eddy Boite \\
+    \textbf{Dépôt GitHub}    & \texttt{eddyboite-nat/myco\_apps\_releases} \\
+    \textbf{Branche}         & \texttt{main} \\
+    \textbf{Version script}  & 1.0 \\
+    \textbf{Date de ce document} & 7 juillet 2026 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Pour toute évolution du script, ouvrir une issue dans le dépôt GitHub
+ou documenter les changements dans le journal \texttt{CHANGELOG.md} du projet.
+
+% ============================================================================================================================
 \end{document}
