@@ -1,0 +1,148 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage{geometry}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{hyperref}
+\geometry{margin=2.5cm}
+
+\title{Inventaires fongiques -- Sp\'ecification technique (ICR)}
+\author{Eddy Boite}
+\date{9 juillet 2026}
+
+\begin{document}
+\maketitle
+
+\section*{Vue d'ensemble}
+Ce document d\'ecrit l'architecture technique du script \texttt{scripts/Inventaires\_completude\_representativite.R} (v1.4), les contrats d'entr\'ee/sortie, la configuration runtime et les limites op\'erationnelles.
+
+\section*{Architecture logique}
+\subsection*{Blocs principaux}
+\begin{enumerate}
+  \item Initialisation et validation de configuration
+  \item R\'esolution du fichier d'entr\'ee
+  \item Lecture auto-d\'elimiteur
+  \item Audit CSV et export de conformit\'e
+  \item Pr\'eparation/nettoyage des donn\'ees
+  \item Analyse par site
+  \item Consolidation multi-sites
+  \item Export des livrables CSV/PNG
+  \item Manifeste de sortie
+\end{enumerate}
+
+\subsection*{Fonctions cl\'es}
+\begin{itemize}
+  \item \texttt{validate\_config()}, \texttt{resolve\_input\_file()}, \texttt{read\_delim\_auto()}
+  \item \texttt{audit\_csv\_conformity()}, \texttt{export\_csv\_conformity\_report()}, \texttt{prepare\_data()}
+  \item \texttt{calc\_cumulative\_metrics()}, \texttt{calc\_tee\_ir()}, \texttt{calc\_species\_frequency()}, \texttt{calc\_spatial\_occupancy()}
+  \item \texttt{fit\_linear\_model()}, \texttt{fit\_hyperbolic\_model()}, \texttt{calc\_scientific\_metrics()}
+  \item \texttt{analyze\_site()}, \texttt{run\_analysis()}, \texttt{log\_output\_manifest()}
+\end{itemize}
+
+\section*{Configuration runtime (CONFIG)}
+\begin{longtable}{|p{4.2cm}|p{3.1cm}|p{7.0cm}|}
+\hline
+\textbf{Cl\'e} & \textbf{D\'efaut} & \textbf{Description} \\
+\hline
+\texttt{input\_file} & \texttt{data/observations.csv} & Fichier source \\
+\hline
+\texttt{output\_dir} & \texttt{results/ICR} & R\'epertoire de sortie \\
+\hline
+\texttt{date\_format} & \texttt{\%Y-\%m-\%d} & Parsing des dates \\
+\hline
+\texttt{csv\_strict\_mode} & \texttt{TRUE} & Arr\^et si CSV non conforme \\
+\hline
+\texttt{csv\_allow\_extra\_cols} & \texttt{FALSE} & Tol\'erance des colonnes suppl\'ementaires \\
+\hline
+\texttt{csv\_required\_cols} & \texttt{site,date,visite\_id,espece} & Sch\'ema obligatoire \\
+\hline
+\texttt{csv\_optional\_cols} & \texttt{placette} & Sch\'ema optionnel \\
+\hline
+\texttt{make\_ca} & \texttt{TRUE} & Active la CA/AFC si possible \\
+\hline
+\texttt{min\_visits\_for\_model} & \texttt{5} & Seuil de mod\'elisation \\
+\hline
+\texttt{width,height,dpi} & \texttt{10,6,300} & Param\`etres d'export des graphiques \\
+\hline
+\end{longtable}
+
+Variables d'environnement : \texttt{INVENTAIRES\_INPUT\_FILE}, \texttt{INVENTAIRES\_OUTPUT\_DIR}, \texttt{INVENTAIRES\_DATE\_FORMAT}, \texttt{INVENTAIRES\_CSV\_STRICT}, \texttt{INVENTAIRES\_CSV\_ALLOW\_EXTRA\_COLS}, \texttt{INVENTAIRES\_AUTO\_RUN}.
+
+\section*{Modes d'ex\'ecution et flags internes}
+Le script expose des flags globaux :
+\begin{itemize}
+  \item \texttt{DEBUG\_MODE} (d\'efaut \texttt{FALSE}) : warnings affich\'es en continu et logs d\'etaill\'es.
+  \item \texttt{BENCHMARK\_MODE} (d\'efaut \texttt{FALSE}) : chronom\'etrage des blocs de calcul.
+  \item \texttt{CLEAN\_ENVIRONMENT} (d\'efaut \texttt{FALSE}) : purge de l'environnement avant lancement (mode expert).
+\end{itemize}
+
+Le lancement automatique est contr\^ol\'e via \texttt{INVENTAIRES\_AUTO\_RUN} (d\'efaut \texttt{TRUE}).
+
+\section*{Contrat d'entr\'ee}
+\texttt{data/observations.csv} (ou \texttt{.txt}/\texttt{.tsv}) avec colonnes obligatoires \texttt{site,date,visite\_id,espece} et optionnelle \texttt{placette}.
+
+R\`egles : visite distincte \texttt{date + visite\_id} (et \texttt{site} en multi-sites), parsing date strict, d\'eduplication de la cl\'e observation.
+
+\section*{Audit CSV}
+Sorties d'audit :
+\begin{itemize}
+  \item \texttt{results/ICR/ICR\_00\_csv\_conformite\_report.csv}
+  \item \texttt{results/ICR/ICR\_00\_csv\_conformite\_problems.csv} (si anomalies)
+\end{itemize}
+
+En mode strict, toute non-conformit\'e est bloquante.
+
+\section*{Journalisation et int\'egrit\'e des sorties}
+La journalisation est r\'ealis\'ee en console via \texttt{log\_info()}, \texttt{log\_debug()} et \texttt{log\_warning()}.
+
+En fin de pipeline, \texttt{log\_output\_manifest()} contr\^ole les livrables avec statuts :
+\texttt{OK}, \texttt{MANQUANT}, \texttt{OPTIONNEL\_NON\_GENERE}.
+
+Le script supprime automatiquement tout \texttt{Rplots.pdf} parasite g\'en\'er\'e pendant l'ex\'ecution (niveau site et global).
+
+\section*{Livrables}
+\subsection*{Global}
+\texttt{ICR\_donnees\_preparees.csv}, \texttt{ICR\_resume\_tous\_sites.csv}, \texttt{ICR\_metrics\_pertinence\_tous\_sites.csv},\
+\texttt{ICR\_comparaison\_completude\_sites.png}, \texttt{ICR\_comparaison\_ir\_sites.png},\
+\texttt{ICR\_metrics\_pertinence\_heatmap\_sites.png}, \texttt{ICR\_metrics\_pertinence\_score\_sites.png}.
+
+\subsection*{Par site}
+\texttt{ICR\_01\_courbe\_temps\_especes.csv}, \texttt{ICR\_02\_tee\_ir.csv}, \texttt{ICR\_03\_frequence\_especes.csv}, \texttt{ICR\_04\_resume\_site.csv}, \texttt{ICR\_07\_metrics\_pertinence.csv} + graphiques associ\'es.
+
+Sorties conditionnelles : \texttt{ICR\_05\_modeles.csv}, \texttt{ICR\_06\_occupation\_spatiale.csv}, \texttt{ICR\_05\_temporel\_vs\_spatial.png}, \texttt{ICR\_06\_CA\_placettes\_especes.png}.
+
+\section*{Flux d'ex\'ecution}
+\begin{verbatim}
+run_analysis(CONFIG)
+  -> validate_config()
+  -> resolve_input_file()
+  -> read_delim_auto()
+  -> audit_csv_conformity()
+  -> export_csv_conformity_report()
+  -> prepare_data()
+  -> for each site: analyze_site()
+       -> calculs cumul/TEE/frequences/spatial
+       -> modeles lineaire/hyperbolique
+       -> metriques scientifiques
+       -> exports CSV/PNG
+  -> consolidation multi-sites
+  -> graphiques globaux
+  -> log_output_manifest()
+\end{verbatim}
+
+\section*{D\'ependances}
+Requises : \texttt{dplyr}, \texttt{tidyr}, \texttt{ggplot2}, \texttt{purrr}, \texttt{readr}, \texttt{stringr}, \texttt{forcats}, \texttt{tibble}, \texttt{scales}, \texttt{gridExtra}.\\
+Optionnelles : \texttt{minpack.lm} (hyperbolique), \texttt{vegan} (CA/AFC).
+
+\section*{Limites connues}
+\begin{itemize}
+  \item Sans \texttt{placette}, pas d'analyse spatiale.
+  \item Sans \texttt{minpack.lm}, pas d'asymptote hyperbolique.
+  \item Si \texttt{nb\_visites < min\_visits\_for\_model}, pas de mod\'elisation.
+  \item En mode strict, un CSV non conforme bloque le pipeline.
+\end{itemize}
+
+\end{document}

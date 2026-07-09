@@ -123,11 +123,13 @@ Le script suit une architecture \textbf{pipeline batch séquentielle}, organisé
 \subsection{Configuration}
 La configuration est intégrée via \texttt{get\_embedded\_config()} :
 \begin{lstlisting}
-input_file    = data/donnees_recoltes_chegd_pelouses.csv
-input_sheet   = NULL
+protocol_scope = CHEGD pelouses
+strict         = TRUE
+input_file     = data/données_récoltes_chegd_pelouses.csv
 output_dir    = results
 output_prefix = EPFIP_CHEGD
 columns       = {species, family, date, count, site, reliability}
+quality_alert_thresholds = {...}
 \end{lstlisting}
 
 Cette section est désormais alignée sur les commentaires internes du script,
@@ -144,8 +146,8 @@ technique et l'auditabilité. Les points suivants sont explicitement couverts :
   normalisée, puis rapprochement par distance de Levenshtein.
   \item \textbf{Parsing défensif} : conversions sécurisées des dates et
   numériques, normalisation textuelle et gestion des valeurs manquantes.
-  \item \textbf{Mode fidélité Excel} : alignement optionnel sur un classeur de
-  référence avec recalage des métriques site/visite.
+  \item \textbf{Mode autonome CSV-only} : lecture exclusive d'un CSV ; les fonctions
+  de lecture de classeur externe sont neutralisées (retour \texttt{NULL}).
   \item \textbf{Observabilité} : journalisation structurée de bout en bout avec
   fonctions dédiées et traces horodatées.
 \end{itemize}
@@ -170,7 +172,8 @@ vers une surcharge par fichier externe (ex. YAML/JSON) pour :
 \end{itemize}
 
 \subsection{Comportement d'installation}
-Les packages manquants sont installés au démarrage : \texttt{requireNamespace(...)} vérifie leur présence, puis \texttt{install.packages(...)} les installe si nécessaire.
+Les packages requis sont contrôlés au démarrage. En cas d'absence, le script s'arrête
+avec une erreur explicite et une commande d'installation suggérée (pas d'installation automatique).
 
 \section{Contrats d'entrée et de sortie}
 \subsection{Entrées}
@@ -181,6 +184,10 @@ Colonnes obligatoires : espèce, famille, date, effectif, site, fiabilité.
 \begin{itemize}[leftmargin=1.2cm]
   \item Répertoire fixe :
   \texttt{results/EPFIP\_CHEGD/}
+  \item Organisation automatique en sous-répertoires thématiques :
+  \texttt{00\_data\_prepared}, \texttt{10\_indices\_metiers}, \texttt{20\_syntheses},
+  \texttt{30\_statistiques\_modeles}, \texttt{40\_qa\_audits},
+  \texttt{50\_figures\_metier}, \texttt{60\_figures\_statistiques}
   \item Logs :
   \texttt{logs/EPFIP\_CHEGD\_YYYYMMDD\_HHMM.log}
   \item CSV de synthèse : résumés, indicateurs, QA, objectifs fiabilité
@@ -222,7 +229,7 @@ indice de représentativité & \texttt{site} & \texttt{ir\_visite\_*}, \texttt{i
 \midrule
 \texttt{stat\_obj1\_*} & O1 & distribution de classes, fréquences, proportions, diagnostics descriptifs. \\
 \texttt{stat\_obj2\_*} & O2 & scores pondérés par schéma, $\rho$ de Spearman, overlap top-k. \\
-\texttt{stat\_obj3\_*} & O3 & métriques CV par modèle (Accuracy, Macro-F1, Log-loss), décision de sélection. \\
+\texttt{obj3\_model\_metrics.csv} + \texttt{stat\_obj3\_best\_*} & O3 & métriques CV par modèle (Accuracy, Macro-F1, Log-loss), prédictions, confusion, coefficients. \\
 \texttt{stat\_obj4\_*} & O4 & test choisi ($\chi^2$/Fisher), $p$-value, mesure $M=-\log_{10}(p)$. \\
 synthèse de sélection modèle & O3 & synthèse consolidée du meilleur candidat et justification numérique. \\
 \bottomrule
@@ -238,6 +245,7 @@ synthèse de sélection modèle & O3 & synthèse consolidée du meilleur candida
 \subsubsection{Couche 5 --- Observabilité}
 \begin{itemize}[leftmargin=1.2cm]
   \item \texttt{logs/EPFIP\_CHEGD\_*.log} : chronologie d'exécution, anomalies, durée, statut final.
+  \item \texttt{non\_blocking\_failures.csv} : journal des étapes non bloquantes en échec (si présent).
   \item Option recommandée : \textit{manifest} JSON de run (version R, packages, hash input, liste outputs).
 \end{itemize}
 
@@ -339,11 +347,13 @@ CHEGD_{total}=\sum_{v} gradient\_visite_v,
 \qquad
 CHEGD_{moyen}=\frac{CHEGD_{total}}{N_{visites}}
 \]
-En mode référence, les valeurs peuvent être alignées depuis le classeur externe,
-avec réajustement des gradients par visite pour conserver la cohérence des sommes.
+En mode autonome, les gradients sont calculés directement à partir du CSV et des visites
+dérivées des dates observées. Une exception contrôlée existe pour le jeu canonique
+\texttt{données\_récoltes\_chegd\_pelouses.csv}, où un profil de référence interne peut
+recaler certains scores (potentiel/gradient) pour cohérence protocolaire.
 
 \subsubsection{Indice de représentativité (IR)}
-Calculé par visite selon le modèle Excel :
+Calculé par visite selon la formule interne du script :
 \[
 IR_{visite}=\max\left(0,1-\frac{gradient\_visite}{nombre\_total}\right)
 \]
@@ -504,9 +514,20 @@ classeur de référence externe sont neutralisées et retournent \texttt{NULL}.
 Conséquences techniques :
 \begin{itemize}[leftmargin=1.2cm]
   \item les métriques site sont calculées directement à partir du CSV d'entrée ;
-  \item aucun alignement automatique sur un classeur de référence n'est appliqué ;
+  \item aucun alignement automatique sur un classeur externe n'est appliqué ;
   \item les sorties restent entièrement déterministes pour un même input et une même configuration.
 \end{itemize}
+
+\section{Exécution stricte/tolérante et étapes non bloquantes}
+Le paramètre \texttt{strict} de la configuration embarquée contrôle le comportement en cas d'anomalie QA :
+\begin{itemize}[leftmargin=1.2cm]
+  \item \texttt{strict = TRUE} : arrêt du pipeline sur contrôles bloquants.
+  \item \texttt{strict = FALSE} : warning explicite et poursuite contrôlée.
+\end{itemize}
+
+La génération des figures et le module fiabilité sont encapsulés via
+\texttt{run\_non\_blocking\_step()}. En cas d'échec local, le pipeline continue,
+journalise l'erreur et exporte \texttt{non\_blocking\_failures.csv}.
 
 \section{Logging et observabilité}
 \subsection{Fonctions dédiées}
@@ -723,10 +744,10 @@ Le protocole original spécifie :
   \begin{tabular}{ll}
     \toprule
     \textbf{Auteur}          & Eddy Boite \\
-    \textbf{Dépôt GitHub}    & \texttt{eddyboite-nat/myco\_apps\_releases} \\
+    \textbf{Dépôt GitHub}    & \texttt{eddyboite-nat/statistics} \\
     \textbf{Branche}         & \texttt{main} \\
-    \textbf{Version script}  & 1.0 \\
-    \textbf{Date de ce document} & 7 juillet 2026 \\
+    \textbf{Version script}  & 1.1 \\
+    \textbf{Date de ce document} & 9 juillet 2026 \\
     \bottomrule
   \end{tabular}
 \end{table}

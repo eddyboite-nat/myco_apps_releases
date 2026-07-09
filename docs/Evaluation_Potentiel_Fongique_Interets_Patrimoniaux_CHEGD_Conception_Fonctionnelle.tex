@@ -154,7 +154,7 @@ Le pipeline réalise automatiquement, pour chaque site (pelouse) :
   \end{tabularx}
 \end{table}
 
-Les packages requis sont installés automatiquement au démarrage si absents.
+Les packages requis sont vérifiés au démarrage. Si un package manque, l'exécution s'arrête avec un message explicite et une commande \texttt{install.packages(...)} à lancer.
 
 % ============================================================================================================================
 \section{Méthodes}
@@ -169,44 +169,18 @@ module statistique.
 \begin{Verbatim}[fontsize=\small, frame=single, rulecolor=\color{midblue}]
 statistics/
 +-- data/
-|   \-- donnees_recoltes_chegd_pelouses.csv   # Donnees d'entree (configurable)
+|   \-- données_récoltes_chegd_pelouses.csv   # Données d'entrée (configurable)
 +-- docs/
 |   \-- Evaluation_Potentiel_Fongique_CHEGD_Conception_Fonctionnelle.tex
 +-- results/
-|   \-- EPFIP_CHEGD/                           # Repertoire de sortie fixe
-|       +-- donnees_brutes_nettoyees.csv
-|       +-- resume_par_site.csv
-|       +-- resume_par_famille.csv
-|       +-- resume_par_espece.csv
-|       +-- resume_par_date.csv
-|       +-- resume_fiabilite_determination.csv
-|       +-- potentiel_fongique_par_site.csv
-|       +-- indice_patrimonial_par_site.csv
-|       +-- gradient_chegd_par_site.csv
-|       +-- indice_representativite_ir_par_site.csv
-|       +-- synthese_evaluation_par_site.csv
-|       +-- resume_global.csv
-|       +-- fig1_tableau_de_bord_pelouses.{png,pdf}
-|       +-- fig2_positionnement_ecologique.{png,pdf}
-|       +-- fig3_composition_potentiel.{png,pdf}
-|       +-- fig4_chegd_par_visite.{png,pdf}
-|       +-- fig5_heatmap_classes.{png,pdf}
-|       +-- fig6_niveaux_fiabilite.{png,pdf}
-|       +-- fig7_indice_representativite_ir.{png,pdf}
-|       +-- stat_obj1_reliability_distribution.csv
-|       +-- stat_obj2_weighting_candidates.csv
-|       +-- stat_obj2_best_weighting.csv
-|       +-- stat_obj3_best_model_predictions.csv
-|       +-- stat_obj3_best_model_confusion_matrix.csv
-|       +-- stat_obj3_best_model_coefficients.csv
-|       +-- stat_obj4_inference_tests.csv
-|       +-- stat_model_selection_summary.csv
-|       +-- fig_stat1_reliability_distribution.{png,pdf}
-|       +-- fig_stat2_weighting_comparison.{png,pdf}
-|       +-- fig_stat3_cv_metrics.{png,pdf}
-|       +-- fig_stat3_confusion_matrix_best.{png,pdf}
-|       +-- fig_stat3_predicted_probabilities_best.{png,pdf}
-|       \-- fig_stat4_site_reliability_heatmap.{png,pdf}
+|   \-- EPFIP_CHEGD/                           # Répertoire de sortie fixe
+|       +-- 00_data_prepared/
+|       +-- 10_indices_metiers/
+|       +-- 20_syntheses/
+|       +-- 30_statistiques_modeles/
+|       +-- 40_qa_audits/
+|       +-- 50_figures_metier/
+|       \-- 60_figures_statistiques/
 +-- logs/
 |   \-- EPFIP_CHEGD_YYYYMMDD_HHMM.log         # Log horodate par execution
 +-- scripts/
@@ -217,8 +191,10 @@ statistics/
 \begin{infobox}[Convention de nommage]
   Tous les fichiers générés par ce script sont produits dans le sous-répertoire
   \texttt{results/EPFIP\_CHEGD/} (préfixe configurable via \texttt{output\_prefix}).
-  L'absence d'horodatage dans le nom du répertoire garantit que les réexécutions
-  \textbf{écrasent} les sorties précédentes plutôt que de créer des répertoires versionnés.
+  Le script organise ensuite automatiquement les artefacts dans des sous-répertoires
+  thématiques (\texttt{00\_data\_prepared} à \texttt{60\_figures\_statistiques}).
+  En cas d'échec d'une étape non bloquante (figure ou objectif fiabilité), un journal
+  \texttt{non\_blocking\_failures.csv} est exporté dans \texttt{40\_qa\_audits/}.
 \end{infobox}
 
 % ============================================================================================================================
@@ -235,8 +211,9 @@ La configuration est centralisée dans la fonction \texttt{get\_embedded\_config
     \toprule
     \textbf{Paramètre} & \textbf{Valeur par défaut} & \textbf{Description} \\
     \midrule
+    \texttt{protocol\_scope} & \texttt{CHEGD pelouses} & Libellé de périmètre protocolaire (logs) \\
+    \texttt{strict}        & \texttt{TRUE}          & Mode d'exécution : strict (arrêt) / tolérant (warning) \\
     \texttt{input\_file}    & \path{data/données_récoltes_chegd_pelouses.csv} & Chemin du fichier d'entrée \\
-    \texttt{input\_sheet}   & \texttt{NULL}          & Feuille Excel (NULL = première feuille) \\
     \texttt{output\_dir}    & \texttt{results}       & Répertoire de base pour les sorties \\
     \texttt{output\_prefix} & \texttt{EPFIP\_CHEGD}  & Préfixe du sous-répertoire de sortie \\
     \texttt{columns\$species}     & \texttt{Espèces}            & Nom de la colonne espèce \\
@@ -245,6 +222,7 @@ La configuration est centralisée dans la fonction \texttt{get\_embedded\_config
     \texttt{columns\$count}       & \texttt{Nombre d'espèce}    & Nom de la colonne effectif \\
     \texttt{columns\$site}        & \texttt{Site}               & Nom de la colonne site \\
     \texttt{columns\$reliability} & \texttt{Fiabilité détermination} & Nom de la colonne fiabilité \\
+    \texttt{quality\_alert\_thresholds} & liste de seuils \% & Seuils d'alerte QA (lignes vides, dates invalides, etc.) \\
     \bottomrule
   \end{tabularx}
 \end{table}
@@ -533,8 +511,7 @@ CHEGD}. Il reflète le degré de développement du cortège mycologique prairial
 \noindent\textbf{Définition du gradient CHEGD.}\par
 
 Le gradient CHEGD est le \textbf{nombre d'espèces CHEGD uniques observées lors d'une visite}.
-Il est calculé par site et par visite (identifiée par la date de sortie, en l'absence de
-classeur de référence).
+Il est calculé par site et par visite (visites dérivées des dates observées en mode CSV-only).
 
 Les espèces CHEGD retenues appartiennent aux genres :
 \textit{Clavaria, Clavulinopsis, Ramariopsis, Hygrocybe, Cuphophyllus, Gliophorus,
@@ -911,6 +888,13 @@ rose clair → vert foncé. Sites triés par IR moyen décroissant.
 \subsection{Sorties générées — vue d'ensemble}
 % ============================================================================================================================
 
+\begin{infobox}[Organisation finale des sorties]
+Après génération, les fichiers sont déplacés automatiquement dans l'arborescence thématique :
+\texttt{00\_data\_prepared}, \texttt{10\_indices\_metiers}, \texttt{20\_syntheses},
+\texttt{30\_statistiques\_modeles}, \texttt{40\_qa\_audits},
+\texttt{50\_figures\_metier}, \texttt{60\_figures\_statistiques}.
+\end{infobox}
+
 \subsubsection{Fichiers CSV}
 
 \begin{description}[leftmargin=1.2cm, style=nextline]
@@ -930,11 +914,19 @@ rose clair → vert foncé. Sites triés par IR moyen décroissant.
   \item[\path{stat_obj1_reliability_distribution.csv}] Distribution des niveaux de fiabilité.
   \item[\path{stat_obj2_weighting_candidates.csv}] Évaluation des 3 schémas de pondération.
   \item[\path{stat_obj2_best_weighting.csv}] Meilleur schéma retenu.
+  \item[\path{obj3_model_metrics.csv}] Comparaison des modèles (Accuracy, Macro-F1, Log-loss).
   \item[\path{stat_obj3_best_model_predictions.csv}] Prédictions du meilleur modèle sur tous les folds.
   \item[\path{stat_obj3_best_model_confusion_matrix.csv}] Matrice de confusion.
   \item[\path{stat_obj3_best_model_coefficients.csv}] Coefficients du modèle final.
   \item[\path{stat_obj4_inference_tests.csv}] Résultats du test d'inférence.
   \item[\path{stat_model_selection_summary.csv}] Synthèse des 4 objectifs.
+  \item[\path{qa_validation_entree_resume.csv}] QA entrée : synthèse des contrôles.
+  \item[\path{qa_validation_entree_lignes.csv}] QA entrée : détail des lignes en anomalie.
+  \item[\path{qa_validation_entree_indicateurs.csv}] QA entrée : indicateurs consolidés.
+  \item[\path{qa_validation_entree_alertes.csv}] QA entrée : alertes au-dessus des seuils.
+  \item[\path{qa_controles_autonomes_detail.csv}] QA CHEGD/IR : détail par site.
+  \item[\path{qa_controles_autonomes_resume.csv}] QA CHEGD/IR : résumé agrégé.
+  \item[\path{non_blocking_failures.csv}] Journal des étapes non bloquantes en échec (si applicable).
 \end{description}
 
 \subsubsection{Figures}
@@ -1090,7 +1082,7 @@ data/donnees_recoltes_chegd_pelouses.csv
 \end{verbatim}
 
 Le script tolère les variantes orthographiques et les accents manquants grâce à la résolution
-normalisée décrite dans la section Configuration.
+normalisée (\S\,\ref{sec:config}).
 
 \subsection*{Étape 2 — Configurer (optionnel)}
 
@@ -1169,10 +1161,10 @@ results/EPFIP_CHEGD/
   \begin{tabular}{ll}
     \toprule
     \textbf{Auteur}          & Eddy Boite \\
-    \textbf{Dépôt GitHub}    & \texttt{eddyboite-nat/myco\_apps\_releases} \\
+    \textbf{Dépôt GitHub}    & \texttt{eddyboite-nat/statistics} \\
     \textbf{Branche}         & \texttt{main} \\
-    \textbf{Version script}  & 1.0 \\
-    \textbf{Date de ce document} & 7 juillet 2026 \\
+    \textbf{Version script}  & 1.1 \\
+    \textbf{Date de ce document} & 9 juillet 2026 \\
     \bottomrule
   \end{tabular}
 \end{table}

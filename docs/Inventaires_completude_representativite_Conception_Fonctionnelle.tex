@@ -1,0 +1,141 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage{geometry}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\geometry{margin=2.5cm}
+
+\title{Inventaires fongiques -- Sp\'ecification fonctionnelle (ICR)}
+\author{Eddy Boite}
+\date{9 juillet 2026}
+
+\begin{document}
+\maketitle
+
+\section*{Objectif}
+Ce document formalise les exigences fonctionnelles du script \texttt{scripts/Inventaires\_completude\_representativite.R} (v1.4) pour l'analyse de compl\'etude et de repr\'esentativit\'e d'inventaires fongiques.
+
+Fonctions livr\'ees :
+\begin{enumerate}
+  \item courbe temps-esp\`eces,
+  \item ajustements lin\'eaire/hyperbolique (si conditions remplies),
+  \item estimation d'asymptote,
+  \item calcul de \texttt{TEE} et de $Ir = 1 - TEE$,
+  \item fr\'equences d'occurrence par esp\`ece,
+  \item occupation spatiale (si \texttt{placette}),
+  \item CA/AFC (si \texttt{vegan}),
+  \item m\'etriques de pertinence scientifique,
+  \item manifeste final de production.
+\end{enumerate}
+
+\section*{Entr\'ees}
+\subsection*{Fichier principal}
+\texttt{data/observations.csv} (ou \texttt{.txt}/\texttt{.tsv})
+
+\subsection*{Colonnes}
+\begin{itemize}
+  \item Obligatoires : \texttt{site}, \texttt{date}, \texttt{visite\_id}, \texttt{espece}
+  \item Optionnelle : \texttt{placette}
+\end{itemize}
+
+\subsection*{R\`egles fonctionnelles}
+\begin{itemize}
+  \item Parsing date via \texttt{INVENTAIRES\_DATE\_FORMAT} (d\'efaut : \texttt{\%Y-\%m-\%d}).
+  \item D\'eduplication sur \texttt{(site, placette, date, visite\_id, espece)}.
+  \item Visite distincte : \texttt{date + visite\_id} (et \texttt{site} en multi-sites).
+\end{itemize}
+
+\section*{Validation CSV}
+Le contr\^ole de conformit\'e est ex\'ecut\'e avant traitement.
+\begin{itemize}
+  \item \texttt{results/ICR/ICR\_00\_csv\_conformite\_report.csv} (toujours)
+  \item \texttt{results/ICR/ICR\_00\_csv\_conformite\_problems.csv} (si anomalies)
+\end{itemize}
+En mode strict (\texttt{INVENTAIRES\_CSV\_STRICT=TRUE}), la non-conformit\'e est bloquante.
+
+\section*{Sorties attendues}
+\subsection*{Globales (\texttt{results/ICR/})}
+\begin{itemize}
+  \item \texttt{ICR\_donnees\_preparees.csv}
+  \item \texttt{ICR\_resume\_tous\_sites.csv}
+  \item \texttt{ICR\_metrics\_pertinence\_tous\_sites.csv}
+  \item \texttt{ICR\_comparaison\_completude\_sites.png}
+  \item \texttt{ICR\_comparaison\_ir\_sites.png}
+  \item \texttt{ICR\_metrics\_pertinence\_heatmap\_sites.png}
+  \item \texttt{ICR\_metrics\_pertinence\_score\_sites.png}
+\end{itemize}
+
+\subsection*{Par site (\texttt{results/ICR/<site>/})}
+\begin{itemize}
+  \item \texttt{ICR\_01\_courbe\_temps\_especes.csv}
+  \item \texttt{ICR\_02\_tee\_ir.csv}
+  \item \texttt{ICR\_03\_frequence\_especes.csv}
+  \item \texttt{ICR\_04\_resume\_site.csv}
+  \item \texttt{ICR\_07\_metrics\_pertinence.csv}
+  \item \texttt{ICR\_01\_richesse\_par\_visite\_et\_cumul.png}
+  \item \texttt{ICR\_02\_courbe\_temps\_especes\_hyperbole.png}
+  \item \texttt{ICR\_03\_tee\_ir.png}
+  \item \texttt{ICR\_04\_histogramme\_frequences.png}
+  \item \texttt{ICR\_07\_metrics\_pertinence\_dashboard.png}
+\end{itemize}
+
+Sorties conditionnelles :
+\begin{itemize}
+  \item \texttt{ICR\_05\_modeles.csv}
+  \item \texttt{ICR\_06\_occupation\_spatiale.csv}
+  \item \texttt{ICR\_05\_temporel\_vs\_spatial.png}
+  \item \texttt{ICR\_06\_CA\_placettes\_especes.png}
+\end{itemize}
+
+\section*{Indicateurs}
+\subsection*{TEE}
+Proportion d'esp\`eces observ\'ees une seule fois.
+
+\subsection*{Indice de repr\'esentativit\'e}
+\[
+Ir = 1 - TEE
+\]
+Rep\`eres : \texttt{Ir < 0.60} (faible), \texttt{0.60 <= Ir < 0.80} (moyenne), \texttt{Ir >= 0.80} (bonne).
+
+\subsection*{Compl\'etude}
+\[
+\text{Compl\'etude} = \frac{S_{obs}}{S_{asymptote}}
+\]
+Rep\`eres : \texttt{< 0.70} (insuffisante), \texttt{0.70--0.90} (interm\'ediaire), \texttt{>= 0.90} (avanc\'ee).
+
+\section*{Variables d'environnement support\'ees}
+\begin{itemize}
+  \item \texttt{INVENTAIRES\_INPUT\_FILE}
+  \item \texttt{INVENTAIRES\_OUTPUT\_DIR}
+  \item \texttt{INVENTAIRES\_DATE\_FORMAT}
+  \item \texttt{INVENTAIRES\_CSV\_STRICT}
+  \item \texttt{INVENTAIRES\_CSV\_ALLOW\_EXTRA\_COLS}
+  \item \texttt{INVENTAIRES\_AUTO\_RUN}
+\end{itemize}
+
+\section*{Modes d'ex\'ecution}
+Le script peut \^etre ex\'ecut\'e en mode standard (recommand\'e) ou avec des flags internes :
+\begin{itemize}
+  \item \texttt{DEBUG\_MODE = TRUE} : verbosit\'e accrue et affichage d\'etaill\'e des avertissements.
+  \item \texttt{BENCHMARK\_MODE = TRUE} : mesure des temps sur les calculs principaux.
+  \item \texttt{CLEAN\_ENVIRONMENT = TRUE} : nettoyage de l'environnement avant ex\'ecution (usage expert).
+\end{itemize}
+
+Le comportement d'auto-lancement est pilot\'e par \texttt{INVENTAIRES\_AUTO\_RUN} (d\'efaut : \texttt{TRUE}).
+
+\section*{Journalisation fonctionnelle}
+La sortie est journalis\'ee en console (niveaux info/debug/warning), puis un manifeste final indique l'\'etat des livrables :
+\texttt{OK}, \texttt{MANQUANT}, \texttt{OPTIONNEL\_NON\_GENERE}.
+
+Le script applique enfin une politique stricte de nettoyage du fichier parasite \texttt{Rplots.pdf} lorsqu'il est g\'en\'er\'e pendant l'ex\'ecution.
+
+\section*{D\'ependances}
+Requises : \texttt{dplyr}, \texttt{tidyr}, \texttt{ggplot2}, \texttt{purrr}, \texttt{readr}, \texttt{stringr}, \texttt{forcats}, \texttt{tibble}, \texttt{scales}, \texttt{gridExtra}.\\
+Optionnelles : \texttt{minpack.lm} (mod\`ele hyperbolique), \texttt{vegan} (CA/AFC).
+
+\end{document}

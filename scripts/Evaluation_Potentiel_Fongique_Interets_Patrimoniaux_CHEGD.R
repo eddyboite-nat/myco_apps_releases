@@ -1517,6 +1517,137 @@ build_output_dir <- function(base_dir, prefix) {
 }
 
 # -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Mini-spécification — arborescence thématique des résultats.
+# Entrée : `out_dir` (répertoire racine des résultats d'un run).
+# Comportement : crée les sous-répertoires thématiques (formats mélangés).
+# Cas bloquants : aucun `stop()` explicite (erreurs IO propagées).
+# Sortie : vecteur des chemins de dossiers créés.
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+init_thematic_output_dirs <- function(out_dir) {
+  thematic_dirs <- c(
+    file.path(out_dir, "00_data_prepared"),
+    file.path(out_dir, "10_indices_metiers"),
+    file.path(out_dir, "20_syntheses"),
+    file.path(out_dir, "30_statistiques_modeles"),
+    file.path(out_dir, "40_qa_audits"),
+    file.path(out_dir, "50_figures_metier"),
+    file.path(out_dir, "60_figures_statistiques")
+  )
+
+  for (d in thematic_dirs) {
+    dir.create(d, recursive = TRUE, showWarnings = FALSE)
+  }
+
+  thematic_dirs
+}
+
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Mini-spécification — routage d'un artefact vers son sous-répertoire thématique.
+# Entrées :
+#   - filename : nom de fichier (basename).
+# Sortie : dossier thématique relatif de destination (ou NA si non classé).
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+resolve_thematic_relative_dir <- function(filename) {
+  filename_lc <- tolower(filename)
+  ext <- tolower(tools::file_ext(filename))
+
+  if (ext %in% c("png", "pdf")) {
+    if (startsWith(filename_lc, "fig_stat")) {
+      return("60_figures_statistiques")
+    }
+    if (startsWith(filename_lc, "fig")) {
+      return("50_figures_metier")
+    }
+    return(NA_character_)
+  }
+
+  if (ext == "csv") {
+    if (filename_lc == "donnees_brutes_nettoyees.csv") {
+      return("00_data_prepared")
+    }
+
+    if (
+      startsWith(filename_lc, "potentiel_") ||
+      startsWith(filename_lc, "indice_") ||
+      startsWith(filename_lc, "gradient_") ||
+      startsWith(filename_lc, "synthese_") ||
+      startsWith(filename_lc, "niveaux_fiabilite_")
+    ) {
+      return("10_indices_metiers")
+    }
+
+    if (startsWith(filename_lc, "resume_")) {
+      return("20_syntheses")
+    }
+
+    if (
+      startsWith(filename_lc, "stat_") ||
+      startsWith(filename_lc, "obj3_")
+    ) {
+      return("30_statistiques_modeles")
+    }
+
+    if (
+      startsWith(filename_lc, "qa_") ||
+      startsWith(filename_lc, "audit_") ||
+      startsWith(filename_lc, "non_blocking_failures")
+    ) {
+      return("40_qa_audits")
+    }
+
+    return(NA_character_)
+  }
+
+  NA_character_
+}
+
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# Mini-spécification — organisation finale des artefacts par thème.
+# Entrée : `out_dir`.
+# Comportement :
+#   1) crée l'arborescence thématique,
+#   2) déplace/réorganise tous les fichiers (récursif) vers le bon sous-répertoire.
+# Sortie : data.frame de journal des déplacements (source, destination, moved).
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+organize_results_thematically <- function(out_dir) {
+  init_thematic_output_dirs(out_dir)
+
+  files_all <- list.files(out_dir, full.names = TRUE, recursive = TRUE, include.dirs = FALSE)
+  files_all <- files_all[file.info(files_all)$isdir %in% FALSE]
+  files_all <- files_all[basename(files_all) != ".DS_Store"]
+
+  if (length(files_all) == 0) {
+    return(data.frame(source = character(), destination = character(), moved = logical(), stringsAsFactors = FALSE))
+  }
+
+  move_log <- do.call(rbind, lapply(files_all, function(src) {
+    filename <- basename(src)
+    rel_dir <- resolve_thematic_relative_dir(filename)
+
+    if (is.na(rel_dir) || rel_dir == "") {
+      return(data.frame(source = src, destination = NA_character_, moved = FALSE, stringsAsFactors = FALSE))
+    }
+
+    dest_dir <- file.path(out_dir, rel_dir)
+    dir.create(dest_dir, recursive = TRUE, showWarnings = FALSE)
+    dest <- file.path(dest_dir, filename)
+
+    if (normalizePath(dirname(src), winslash = "/", mustWork = FALSE) == normalizePath(dest_dir, winslash = "/", mustWork = FALSE)) {
+      return(data.frame(source = src, destination = dest, moved = FALSE, stringsAsFactors = FALSE))
+    }
+
+    if (file.exists(dest)) {
+      file.remove(dest)
+    }
+
+    moved_ok <- file.rename(src, dest)
+    data.frame(source = src, destination = dest, moved = isTRUE(moved_ok), stringsAsFactors = FALSE)
+  }))
+
+  move_log
+}
+
+# -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # Mini-spécification — helpers de lisibilité graphique.
 # `readable_caption()` : wrap texte de légende ; `theme_caption_readable()` : style standard de caption.
 # Cas bloquants : aucun.
@@ -3932,6 +4063,15 @@ main <- function() {
   log_section("Export des résultats finaux et des fichiers CSV")
   write_outputs(df_clean, summaries, site_metrics, out_dir, cols)
   log_info("Tous les fichiers CSV ont été exportés")
+
+  log_section("Organisation thématique des artefacts")
+  move_log <- organize_results_thematically(out_dir)
+  n_moved <- sum(move_log$moved, na.rm = TRUE)
+  n_failed_moves <- sum(!move_log$moved & !is.na(move_log$destination), na.rm = TRUE)
+  log_info(paste0("Fichiers déplacés vers sous-répertoires thématiques : ", n_moved))
+  if (n_failed_moves > 0) {
+    log_warning_msg(paste0("Déplacements non aboutis : ", n_failed_moves, " fichier(s)"))
+  }
 
   # Afficher les sorties principales dans le log pour référence rapide.
   # Cela inclut les fichiers CSV générés, les figures et les résultats des objectifs de fiabilité.
