@@ -4,6 +4,7 @@
 \usepackage[french]{babel}
 \usepackage{lmodern}
 \usepackage{geometry}
+\usepackage{booktabs}
 \usepackage{longtable}
 \usepackage{array}
 \usepackage{hyperref}
@@ -14,6 +15,8 @@
 \author{Eddy Boite}
 \date{9 juillet 2026 -- v1.4}
 
+\hbadness=10000
+\hfuzz=700pt
 \begin{document}
 \maketitle
 
@@ -196,5 +199,25 @@ Le script applique enfin une politique stricte de nettoyage du fichier parasite 
 \section*{D\'ependances}
 Requises : \texttt{dplyr}, \texttt{tidyr}, \texttt{ggplot2}, \texttt{purrr}, \texttt{readr}, \texttt{stringr}, \texttt{forcats}, \texttt{tibble}, \texttt{scales}, \texttt{gridExtra}.\\
 Optionnelles : \texttt{minpack.lm} (mod\`ele hyperbolique), \texttt{vegan} (CA/AFC).
+
+============================================================================================================================
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{ll}
+    \toprule
+    \textbf{Auteur}          & Eddy Boite \\
+    \textbf{Dépôt GitHub}    & \texttt{eddyboite-nat/myco\_apps\_releases} \\
+    \textbf{Branche}         & \texttt{main} \\
+    \textbf{Version script}  & 1.1 \\
+    \textbf{Date de ce document} & 9 juillet 2026 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Pour toute évolution du script, ouvrir une issue dans le dépôt GitHub
+ou documenter les changements dans le journal \texttt{CHANGELOG.md} du projet.
+
+% ============================================================================================================================
 
 \end{document}
