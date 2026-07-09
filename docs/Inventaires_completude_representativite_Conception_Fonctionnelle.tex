@@ -12,7 +12,7 @@
 
 \title{Inventaires fongiques -- Sp\'ecification fonctionnelle (ICR)}
 \author{Eddy Boite}
-\date{9 juillet 2026}
+\date{9 juillet 2026 -- v1.4}
 
 \begin{document}
 \maketitle
@@ -50,6 +50,24 @@ Fonctions livr\'ees :
   \item Visite distincte : \texttt{date + visite\_id} (et \texttt{site} en multi-sites).
 \end{itemize}
 
+\section*{Configuration centralis\'ee}
+Tous les param\`etres du pipeline sont d\'efinis dans la fonction \texttt{get\_embedded\_config()} et affich\'es dans l'en-t\^ete du script au d\'emarrage. La configuration supporte les surcharges via variables d'environnement \texttt{INVENTAIRES\_*} :
+
+\begin{itemize}
+  \item \texttt{INVENTAIRES\_INPUT\_FILE} : chemin du fichier source
+  \item \texttt{INVENTAIRES\_OUTPUT\_DIR} : r\'epertoire de sortie
+  \item \texttt{INVENTAIRES\_DATE\_FORMAT} : format des dates
+  \item \texttt{INVENTAIRES\_CSV\_STRICT} : mode strict (booléen)
+  \item \texttt{INVENTAIRES\_CSV\_ALLOW\_EXTRA\_COLS} : tolérance colonnes suppl\'ementaires
+  \item \texttt{INVENTAIRES\_FREQ\_BREAKS} : s\'equence des intervalles de fr\'equence
+  \item \texttt{INVENTAIRES\_FREQ\_LABELS} : \'etiquettes des intervalles
+  \item \texttt{INVENTAIRES\_MAKE\_CA} : activer CA/AFC (booléen)
+  \item \texttt{INVENTAIRES\_MIN\_VISITS\_FOR\_MODEL} : seuil de mod\'elisation
+  \item \texttt{INVENTAIRES\_WIDTH}, \texttt{INVENTAIRES\_HEIGHT}, \texttt{INVENTAIRES\_DPI} : param\`etres graphiques
+\end{itemize}
+
+Aucune modification du code source n'est n\'ecessaire : les param\`etres peuvent \^etre adjust\'es par variable d'environnement.
+
 \section*{Validation CSV}
 Le contr\^ole de conformit\'e est ex\'ecut\'e avant traitement.
 \begin{itemize}
@@ -59,37 +77,41 @@ Le contr\^ole de conformit\'e est ex\'ecut\'e avant traitement.
 En mode strict (\texttt{INVENTAIRES\_CSV\_STRICT=TRUE}), la non-conformit\'e est bloquante.
 
 \section*{Sorties attendues}
+\subsection*{Organisation thématique}
+Les résultats sont organisés selon une hiérarchie thématique sous \texttt{results/ICR/} :
+
+\begin{itemize}
+  \item \texttt{00\_data\_quality/} : rapports d'audit CSV et conformité
+  \item \texttt{01\_richesse/}, \texttt{02\_completude\_repr/}, \texttt{03\_frequences/} : analyses par site (réservées)
+  \item \texttt{04\_spatial/}, \texttt{05\_temporal/} : analyses spéciales (réservées)
+  \item \texttt{06\_metrics/} : métriques scientifiques globales
+  \item \texttt{comparisons/} : visualisations comparatives multi-sites
+  \item \texttt{sites/<site\_name>/} : **TOUS les fichiers par site** (organisés en un seul répertoire)
+\end{itemize}
+
 \subsection*{Globales (\texttt{results/ICR/})}
 \begin{itemize}
   \item \texttt{ICR\_donnees\_preparees.csv}
   \item \texttt{ICR\_resume\_tous\_sites.csv}
   \item \texttt{ICR\_metrics\_pertinence\_tous\_sites.csv}
-  \item \texttt{ICR\_comparaison\_completude\_sites.png}
-  \item \texttt{ICR\_comparaison\_ir\_sites.png}
-  \item \texttt{ICR\_metrics\_pertinence\_heatmap\_sites.png}
-  \item \texttt{ICR\_metrics\_pertinence\_score\_sites.png}
+  \item \texttt{ICR\_comparaison\_completude\_sites.png} (dans \texttt{comparisons/})
+  \item \texttt{ICR\_comparaison\_ir\_sites.png} (dans \texttt{comparisons/})
+  \item \texttt{ICR\_metrics\_pertinence\_heatmap\_sites.png} (dans \texttt{comparisons/})
+  \item \texttt{ICR\_metrics\_pertinence\_score\_sites.png} (dans \texttt{comparisons/})
 \end{itemize}
 
-\subsection*{Par site (\texttt{results/ICR/<site>/})}
+\subsection*{Par site (\texttt{results/ICR/sites/<site\_name>/})}
+Tous les fichiers CSV et PNG d'un site sont consolidés dans un seul répertoire :
 \begin{itemize}
-  \item \texttt{ICR\_01\_courbe\_temps\_especes.csv}
-  \item \texttt{ICR\_02\_tee\_ir.csv}
-  \item \texttt{ICR\_03\_frequence\_especes.csv}
+  \item \texttt{ICR\_01\_courbe\_temps\_especes.csv} et graphique PNG
+  \item \texttt{ICR\_02\_tee\_ir.csv} et graphique PNG
+  \item \texttt{ICR\_03\_frequence\_especes.csv} et graphique PNG
   \item \texttt{ICR\_04\_resume\_site.csv}
-  \item \texttt{ICR\_07\_metrics\_pertinence.csv}
-  \item \texttt{ICR\_01\_richesse\_par\_visite\_et\_cumul.png}
-  \item \texttt{ICR\_02\_courbe\_temps\_especes\_hyperbole.png}
-  \item \texttt{ICR\_03\_tee\_ir.png}
-  \item \texttt{ICR\_04\_histogramme\_frequences.png}
-  \item \texttt{ICR\_07\_metrics\_pertinence\_dashboard.png}
-\end{itemize}
-
-Sorties conditionnelles :
-\begin{itemize}
-  \item \texttt{ICR\_05\_modeles.csv}
-  \item \texttt{ICR\_06\_occupation\_spatiale.csv}
-  \item \texttt{ICR\_05\_temporel\_vs\_spatial.png}
-  \item \texttt{ICR\_06\_CA\_placettes\_especes.png}
+  \item \texttt{ICR\_07\_metrics\_pertinence.csv} et graphique PNG
+  \item \texttt{ICR\_05\_modeles.csv} (si conditions remplies)
+  \item \texttt{ICR\_06\_occupation\_spatiale.csv} (si placette)
+  \item \texttt{ICR\_05\_temporel\_vs\_spatial.png} (conditionnelle)
+  \item \texttt{ICR\_06\_CA\_placettes\_especes.png} (si vegan et placette)
 \end{itemize}
 
 \section*{Indicateurs}
@@ -107,6 +129,25 @@ Rep\`eres : \texttt{Ir < 0.60} (faible), \texttt{0.60 <= Ir < 0.80} (moyenne), \
 \text{Compl\'etude} = \frac{S_{obs}}{S_{asymptote}}
 \]
 Rep\`eres : \texttt{< 0.70} (insuffisante), \texttt{0.70--0.90} (interm\'ediaire), \texttt{>= 0.90} (avanc\'ee).
+
+\section*{Logging syst\'ematis\'e}
+Chaque ex\'ecution du script g\'en\'ere un fichier log horodat\'e dans le r\'epertoire \texttt{logs/} du projet :
+
+\begin{itemize}
+  \item \textbf{Format du nom} : \texttt{ICR\_YYYYMMDD\_HHMM.log}
+  \item \textbf{Format des ent\'ees} : \texttt{[YYYY-MM-DD HH:MM:SS] [LEVEL] message}
+  \item \textbf{Niveaux} : \texttt{INFO}, \texttt{DEBUG}, \texttt{WARN}
+\end{itemize}
+
+Les logs enregistrent :
+\begin{enumerate}
+  \item En-t\^ete du script (nom, version, timestamp, répertoire de travail, version R)
+  \item Chaque étape du pipeline (résolution fichier, audit CSV, analyses par site)
+  \item Les parameters de configuration actifs au démarrage
+  \item Le manifeste final des livrables avec statuts (\texttt{OK}, \texttt{MANQUANT}, \texttt{OPTIONNEL\_NON\_GENERE})
+\end{enumerate}
+
+Les avertissements sont également affich\'es en console et dans les logs en niveau \texttt{WARN}.
 
 \section*{Variables d'environnement support\'ees}
 \begin{itemize}
@@ -127,6 +168,24 @@ Le script peut \^etre ex\'ecut\'e en mode standard (recommand\'e) ou avec des fl
 \end{itemize}
 
 Le comportement d'auto-lancement est pilot\'e par \texttt{INVENTAIRES\_AUTO\_RUN} (d\'efaut : \texttt{TRUE}).
+
+\section*{Am\'eliorations du script (v1.4)}
+\subsection*{Phase 1 : Fiabilisation}
+Gestion robuste des formats de fichiers hétérogènes, déduplication intelligente des observations, traitement des dates flexibles, gestion des erreurs CSV granulaire.
+
+\subsection*{Phase 2 : Performance}
+Optimisation du modèle hyperbolique via \texttt{minpack.lm::nlsLM}, calculs vectorisés par site, graphiques pré-calculés en mémoire avant export PNG.
+
+\subsection*{Phase 3 : Graphiques et visualisations}
+Cartes de chaleur multi-sites, tableaux de bord par site (7 graphiques), comparaisons visuelles de complétude, analyses de CA/AFC si \texttt{vegan} disponible.
+
+\subsection*{Phase 4 : Industrialisation}
+\begin{enumerate}
+  \item \textbf{Configuration centralisée} : fonction \texttt{get\_embedded\_config()} avec 14+ paramètres, surchargeable via variables d'environnement
+  \item \textbf{Logging systématisé} : fichiers logs horodatés avec métadonnées d'exécution, manifeste final des livrables
+  \item \textbf{Organisation thématique} : hiérarchie logique /sites/, /comparisons/, répertoires réservés pour extensions futures
+  \item \textbf{Métriques scientifiques} : pertinence des espèces, scores de complétude détaillés, dashboards analytiques
+\end{enumerate}
 
 \section*{Journalisation fonctionnelle}
 La sortie est journalis\'ee en console (niveaux info/debug/warning), puis un manifeste final indique l'\'etat des livrables :

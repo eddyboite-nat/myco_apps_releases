@@ -39,8 +39,27 @@
 # Date : 2024-06-15
 # Version : 1.4 (Phase 1 + Phase 2 + Phase 3 + Phase 4 métriques scientifiques)
 #
+# Configuration centralisée :
+#   - Paramètres principaux du pipeline : `get_embedded_config()`
+#   - Seuils analytiques : `get_embedded_config()$freq_breaks`, `get_embedded_config()$min_visits_for_model`
+#   - Format d'entrée : `get_embedded_config()$csv_required_cols`, `get_embedded_config()$csv_optional_cols`
+#   - Exports graphiques : `get_embedded_config()$width`, `get_embedded_config()$height`, `get_embedded_config()$dpi`
+#
+# Paramètres modifiables (tous dans `get_embedded_config()`) :
+#   - input_file            | Chemin du fichier CSV d'observations (accepte env. var : INVENTAIRES_INPUT_FILE)
+#   - output_dir            | Répertoire racine des résultats (env. var : INVENTAIRES_OUTPUT_DIR)
+#   - date_format           | Format des dates en entrée (env. var : INVENTAIRES_DATE_FORMAT)
+#   - csv_strict_mode       | TRUE=erreur si anomalies CSV; FALSE=continue (env. var : INVENTAIRES_CSV_STRICT)
+#   - csv_allow_extra_cols  | TRUE=accepte colonnes supplémentaires (env. var : INVENTAIRES_CSV_ALLOW_EXTRA_COLS)
+#   - make_ca               | TRUE=Analyse des Correspondances (CA/AFC) si vegan disponible
+#   - min_visits_for_model  | Nombre minimum de visites pour ajuster modèles hyperbolique/linéaire (≥2)
+#   - width, height, dpi    | Dimensions export graphiques PNG (pouces, points/pouce)
+#   - freq_breaks, freq_labels | Classes de fréquence des espèces
+#
 # ===================================================================================================================================
 # Contrôle d'exécution et options globales
+SCRIPT_NAME <- "Inventaires_completude_representativite.R"
+SCRIPT_VERSION <- "1.4"
 IS_INTERACTIVE_SESSION <- interactive()
 CLEAN_ENVIRONMENT <- FALSE  # Mettre à TRUE UNIQUEMENT si exécution isolée requise
 DEBUG_MODE <- FALSE          # Mettre à TRUE pour plus de verbosité et warnings détaillés
@@ -67,8 +86,80 @@ if (isTRUE(DEBUG_MODE)) options(warn = 1)  # Mode debug : afficher tous les warn
 # Configuration packages
 CRAN_REPO <- "https://cloud.r-project.org"
 
-# Fonction utilitaire : vérifie que les packages requis sont installés, sinon génère une erreur avec instructions d'installation
-check_required_packages <- function(pkgs, repos = CRAN_REPO) {
+# ===================================================================================================================================
+# Configuration embarquée (centralisée et modifiable)
+# ===================================================================================================================================
+
+get_embedded_config <- function() {
+  list(
+    # Paramètres d'entrée/sortie (surchargables via variables d'environnement)
+    input_file = Sys.getenv("INVENTAIRES_INPUT_FILE", unset = "data/observations.csv"),
+    output_dir = Sys.getenv("INVENTAIRES_OUTPUT_DIR", unset = "results/ICR"),
+    date_format = Sys.getenv("INVENTAIRES_DATE_FORMAT", unset = "%Y-%m-%d"),
+    
+    # Mode strict/tolérant pour validation CSV
+    csv_strict_mode = {
+      strict_env <- tolower(trimws(Sys.getenv("INVENTAIRES_CSV_STRICT", unset = "TRUE")))
+      !(strict_env %in% c("0", "false", "no", "off"))
+    },
+    csv_allow_extra_cols = {
+      extra_env <- tolower(trimws(Sys.getenv("INVENTAIRES_CSV_ALLOW_EXTRA_COLS", unset = "FALSE")))
+      !(extra_env %in% c("0", "false", "no", "off"))
+    },
+    
+    # Schéma attendu des données
+    csv_required_cols = c("site", "date", "visite_id", "espece"),
+    csv_optional_cols = c("placette"),
+    
+    # Paramètres analytiques : classes de fréquence
+    freq_breaks = c(0, 0.10, 0.25, 0.50, 0.75, 1.00),
+    freq_labels = c("exceptionnelle", "très_rare", "occasionnelle", "fréquente", "constante"),
+    
+    # Paramètres analytiques : modèles et ordination
+    make_ca = TRUE,
+    min_visits_for_model = 5,
+    
+    # Paramètres graphiques
+    width = 10,
+    height = 6,
+    dpi = 300
+  )
+}
+
+get_script_dir <- function() {
+  cmd_args <- commandArgs(trailingOnly = FALSE)
+  file_arg <- grep("^--file=", cmd_args, value = TRUE)
+  if (length(file_arg) > 0) {
+    return(dirname(normalizePath(sub("^--file=", "", file_arg[[1]]), mustWork = FALSE)))
+  }
+  
+  src <- tryCatch(normalizePath(sys.frame(1)$ofile, mustWork = FALSE), error = function(e) NA_character_)
+  if (!is.na(src) && nzchar(src)) dirname(src) else getwd()
+}
+
+resolve_path_from_base <- function(path_value, base_dir) {
+  if (is.null(path_value) || is.na(path_value) || path_value == "") {
+    return(path_value)
+  }
+  if (grepl("^(~|/|[A-Za-z]:)", path_value)) {
+    return(path.expand(path_value))
+  }
+  normalizePath(file.path(base_dir, path_value), mustWork = FALSE)
+}
+
+# Résout un chemin relatif par rapport au répertoire projet ; les chemins absolus sont retournés tels quels
+resolve_path <- function(path, base_dir = PROJECT_DIR) {
+  if (grepl("^(~|/|[A-Za-z]:)", path)) {
+    return(path.expand(path))
+  }
+  normalizePath(file.path(base_dir, path), mustWork = FALSE)
+}
+
+# ===================================================================================================================================
+# Gestion des packages : vérification et chargement automatique
+# ===================================================================================================================================
+
+check_required_packages <- function(pkgs) {
   # Vérification simple de la disponibilité des packages requis
   # Génère une erreur claire avec instructions si packages manquants
   available <- vapply(pkgs, requireNamespace, quietly = TRUE, FUN.VALUE = logical(1))
@@ -94,7 +185,7 @@ suppressPackageStartupMessages({
     "dplyr", "tidyr", "ggplot2", "purrr", "readr", "stringr",
     "forcats", "tibble", "scales", "gridExtra"
   )
-  check_required_packages(required_pkgs, repos = CRAN_REPO)
+  check_required_packages(required_pkgs)
   # Charger tous les packages requis
   library(dplyr)
   library(tidyr)
@@ -126,32 +217,32 @@ SCRIPT_DIR <- local({
 })
 PROJECT_DIR <- dirname(SCRIPT_DIR)
 
-CONFIG <- list(
-  input_file = Sys.getenv("INVENTAIRES_INPUT_FILE", unset = "data/observations.csv"),  # Surchargable via env
-  output_dir = Sys.getenv("INVENTAIRES_OUTPUT_DIR", unset = "results/ICR"),             # Surchargable via env
-  date_format = Sys.getenv("INVENTAIRES_DATE_FORMAT", unset = "%Y-%m-%d"),              # Surchargable via env
-  csv_strict_mode = {
-    strict_env <- tolower(trimws(Sys.getenv("INVENTAIRES_CSV_STRICT", unset = "TRUE")))
-    !(strict_env %in% c("0", "false", "no", "off"))
-  },
-  csv_allow_extra_cols = {
-    extra_env <- tolower(trimws(Sys.getenv("INVENTAIRES_CSV_ALLOW_EXTRA_COLS", unset = "FALSE")))
-    !(extra_env %in% c("0", "false", "no", "off"))
-  },
-  csv_required_cols = c("site", "date", "visite_id", "espece"),
-  csv_optional_cols = c("placette"),
-  freq_breaks = c(0, 0.10, 0.25, 0.50, 0.75, 1.00),  # Bornes des classes de fréquence (en proportion)
-  freq_labels = c("exceptionnelle", "très_rare", "occasionnelle", "fréquente", "constante"),  # Noms des classes
-  make_ca = TRUE,                              # Activer l'ordination CA (nécessite vegan)
-  min_visits_for_model = 5,                   # Nombre minimum de visites pour ajuster les modèles
-  width = 10,                                  # Largeur des graphiques exportés (en pouces)
-  height = 6,                                  # Hauteur des graphiques exportés (en pouces)
-  dpi = 300                                    # Résolution des PNG exportés (points par pouce)
-)
+CONFIG <- get_embedded_config()
 
 # Crée un répertoire (et ses parents) s'il n'existe pas encore
 ensure_dir <- function(path) {
   if (!dir.exists(path)) dir.create(path, recursive = TRUE, showWarnings = FALSE)
+}
+
+# Environnement interne pour stocker le chemin du fichier log et l'heure de début.
+# Initialisé avec log_file et start_time à NULL ; mis à jour par setup_logging().
+.log_env <- new.env(parent = emptyenv())
+.log_env$log_file  <- NULL
+.log_env$start_time <- NULL
+
+# Initialise le système de log :
+#   - crée (si besoin) base_dir/logs/
+#   - crée un fichier log horodaté prefix_YYYYMMDD_HHMM.log
+#   - initialise .log_env$log_file et .log_env$start_time
+setup_logging <- function(base_dir, prefix = "ICR") {
+  timestamp <- format(Sys.time(), "%Y%m%d_%H%M")
+  logs_dir <- file.path(base_dir, "logs")
+  dir.create(logs_dir, recursive = TRUE, showWarnings = FALSE)
+  log_file <- file.path(logs_dir, paste0(prefix, "_", timestamp, ".log"))
+  .log_env$log_file  <- log_file
+  .log_env$start_time <- Sys.time()
+  cat("", file = log_file)  # Crée le fichier vide
+  invisible(log_file)
 }
 
 # Supprime strictement tout fichier Rplots.pdf parasite généré automatiquement par R.
@@ -180,14 +271,65 @@ cleanup_new_rplots_pdf <- function(existed_before = FALSE, mtime_before = as.POS
 
 log_message <- function(level, ...) {
   timestamp <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
-  cat(sprintf("[%s] [%s] %s\n", timestamp, level, sprintf(...)))
+  msg_args <- list(...)
+  
+  # Extraire le premier argument comme format string
+  if (length(msg_args) == 0) {
+    full_msg <- sprintf("[%s] [%s] %s", timestamp, level, "")
+  } else if (is.character(msg_args[[1]])) {
+    # Si le premier arg est un string et il y a d'autres args, utiliser sprintf
+    if (length(msg_args) > 1) {
+      full_msg <- sprintf("[%s] [%s] %s", timestamp, level, do.call(sprintf, msg_args))
+    } else {
+      # Si un seul arg (string), l'utiliser directement
+      full_msg <- sprintf("[%s] [%s] %s", timestamp, level, msg_args[[1]])
+    }
+  } else {
+    # Conversion en string
+    full_msg <- sprintf("[%s] [%s] %s", timestamp, level, paste(msg_args, collapse = " "))
+  }
+  
+  cat(full_msg, "\n")
+  if (!is.null(.log_env$log_file)) {
+    cat(full_msg, "\n", file = .log_env$log_file, append = TRUE)
+  }
 }
 # Fonctions de log spécifiques pour différents niveaux de verbosité (Info, Debug, Warning)
 log_info <- function(...) log_message("INFO", ...)
 
 log_debug <- function(...) log_message("DEBUG", ...)
 
-log_warning <- function(...) warning(sprintf(...), call. = FALSE)
+log_warning <- function(...) {
+  msg <- sprintf(...)
+  full_msg <- sprintf("[%s] [WARN] %s", format(Sys.time(), "%Y-%m-%d %H:%M:%S"), msg)
+  cat(full_msg, "\n", file = stderr())
+  if (!is.null(.log_env$log_file)) {
+    cat(full_msg, "\n", file = .log_env$log_file, append = TRUE)
+  }
+  warning(msg, call. = FALSE)
+}
+
+# Affiche une section délimitée dans les logs avec séparateur visuel
+log_section <- function(title) {
+  sep <- strrep("─", 100)
+  log_info(sep)
+  log_info(sprintf("  %s", title))
+  log_info(sep)
+}
+
+# Affiche un header d'exécution avec infos système et configuration
+log_header <- function(script_name, script_version) {
+  sep <- strrep("═", 100)
+  log_info(sep)
+  log_info(sprintf("  INVENTAIRES FONGIQUES - COMPLÉTUDE & REPRÉSENTATIVITÉ"))
+  log_info(sprintf("  Script: %s (v%s)", script_name, script_version))
+  log_info(sep)
+  log_info(sprintf("Horodatage : %s", format(Sys.time(), "%Y-%m-%d %H:%M:%S")))
+  log_info(sprintf("Version de R : %s", R.version$version.string))
+  log_info(sprintf("Répertoire de travail : %s", getwd()))
+  log_info(sprintf("Fichier log : %s", .log_env$log_file))
+  log_info(sep)
+}
 
 log_file_status <- function(path, optional = FALSE) {
   exists_now <- file.exists(path)
@@ -202,74 +344,68 @@ log_file_status <- function(path, optional = FALSE) {
 }
 
 log_output_manifest <- function(output_dir, site_names = character(0), config = CONFIG) {
-  log_info("================ MANIFESTE DES SORTIES ================")
+  log_info("================ MANIFESTE DES SORTIES (Structure Option A) ================")
 
-  log_info("[MANIFEST] Section globale")
-  global_required <- c(
-    "ICR_00_csv_conformite_report.csv",
-    "ICR_donnees_preparees.csv",
-    "ICR_resume_tous_sites.csv",
-    "ICR_metrics_pertinence_tous_sites.csv",
-    "ICR_comparaison_completude_sites.png",
-    "ICR_comparaison_ir_sites.png",
-    "ICR_metrics_pertinence_heatmap_sites.png",
-    "ICR_metrics_pertinence_score_sites.png"
-  )
-  global_optional <- c(
-    "ICR_00_csv_conformite_problems.csv"
-  )
-  for (fname in global_required) {
-    log_file_status(file.path(output_dir, fname), optional = FALSE)
-  }
-  for (fname in global_optional) {
-    log_file_status(file.path(output_dir, fname), optional = TRUE)
-  }
+  log_info("[MANIFEST] Répertoires thématiques")
+  log_file_status(file.path(output_dir, "00_data_quality"), optional = FALSE)
+  log_file_status(file.path(output_dir, "01_richesse"), optional = FALSE)
+  log_file_status(file.path(output_dir, "02_completude_repr"), optional = FALSE)
+  log_file_status(file.path(output_dir, "03_frequences"), optional = FALSE)
+  log_file_status(file.path(output_dir, "04_modeles"), optional = FALSE)
+  log_file_status(file.path(output_dir, "05_spatial"), optional = FALSE)
+  log_file_status(file.path(output_dir, "06_metrics"), optional = FALSE)
+  log_file_status(file.path(output_dir, "comparisons"), optional = FALSE)
+  log_file_status(file.path(output_dir, "sites"), optional = FALSE)
+
+  log_info("[MANIFEST] Fichiers globaux par thème")
+  log_info("[MANIFEST] - 00_data_quality/")
+  log_file_status(file.path(output_dir, "00_data_quality/ICR_00_csv_conformite_report.csv"), optional = FALSE)
+  log_file_status(file.path(output_dir, "00_data_quality/ICR_donnees_preparees.csv"), optional = FALSE)
+  log_file_status(file.path(output_dir, "00_data_quality/ICR_00_csv_conformite_problems.csv"), optional = TRUE)
+  
+  log_info("[MANIFEST] - comparisons/")
+  log_file_status(file.path(output_dir, "comparisons/ICR_resume_tous_sites.csv"), optional = FALSE)
+  log_file_status(file.path(output_dir, "comparisons/ICR_comparaison_completude_sites.png"), optional = FALSE)
+  log_file_status(file.path(output_dir, "comparisons/ICR_comparaison_ir_sites.png"), optional = FALSE)
+  
+  log_info("[MANIFEST] - 06_metrics/")
+  log_file_status(file.path(output_dir, "06_metrics/ICR_metrics_pertinence_tous_sites.csv"), optional = FALSE)
+  log_file_status(file.path(output_dir, "06_metrics/ICR_metrics_pertinence_heatmap_sites.png"), optional = FALSE)
+  log_file_status(file.path(output_dir, "06_metrics/ICR_metrics_pertinence_score_sites.png"), optional = FALSE)
 
   if (length(site_names) == 0) {
     log_info("[MANIFEST] Aucun site a journaliser.")
-    log_info("========================================================")
+    log_info("================================================================================")
     return(invisible(NULL))
   }
 
-  log_info("[MANIFEST] Section par site")
+  log_info("[MANIFEST] Fichiers par site (tous dans /sites/{site_name}/)")
   for (site_name in site_names) {
     site_slug <- sanitize_filename(site_name)
-    site_dir <- file.path(output_dir, site_slug)
-
-    log_info("[MANIFEST] Site : %s", site_name)
-
-    site_required <- c(
-      "ICR_01_courbe_temps_especes.csv",
-      "ICR_02_tee_ir.csv",
-      "ICR_03_frequence_especes.csv",
-      "ICR_04_resume_site.csv",
-      "ICR_07_metrics_pertinence.csv",
-      "ICR_01_richesse_par_visite_et_cumul.png",
-      "ICR_02_courbe_temps_especes_hyperbole.png",
-      "ICR_03_tee_ir.png",
-      "ICR_04_histogramme_frequences.png",
-      "ICR_07_metrics_pertinence_dashboard.png"
-    )
-
-    site_optional <- c(
-      "ICR_05_modeles.csv",
-      "ICR_06_occupation_spatiale.csv",
-      "ICR_05_temporel_vs_spatial.png"
-    )
-
+    log_info("[MANIFEST] Site: %s", site_name)
+    
+    log_info("[MANIFEST]   - sites/%s/", site_slug)
+    log_file_status(file.path(output_dir, "sites", site_slug, "ICR_01_courbe_temps_especes.csv"), optional = FALSE)
+    log_file_status(file.path(output_dir, "sites", site_slug, "ICR_02_tee_ir.csv"), optional = FALSE)
+    log_file_status(file.path(output_dir, "sites", site_slug, "ICR_03_frequence_especes.csv"), optional = FALSE)
+    log_file_status(file.path(output_dir, "sites", site_slug, "ICR_04_resume_site.csv"), optional = FALSE)
+    log_file_status(file.path(output_dir, "sites", site_slug, "ICR_05_modeles.csv"), optional = TRUE)
+    log_file_status(file.path(output_dir, "sites", site_slug, "ICR_06_occupation_spatiale.csv"), optional = TRUE)
+    log_file_status(file.path(output_dir, "sites", site_slug, "ICR_07_metrics_pertinence.csv"), optional = FALSE)
+    
+    log_info("[MANIFEST]   - Graphiques:")
+    log_file_status(file.path(output_dir, "sites", site_slug, "ICR_01_richesse_par_visite_et_cumul.png"), optional = FALSE)
+    log_file_status(file.path(output_dir, "sites", site_slug, "ICR_02_courbe_temps_especes_hyperbole.png"), optional = FALSE)
+    log_file_status(file.path(output_dir, "sites", site_slug, "ICR_03_tee_ir.png"), optional = FALSE)
+    log_file_status(file.path(output_dir, "sites", site_slug, "ICR_04_histogramme_frequences.png"), optional = FALSE)
+    log_file_status(file.path(output_dir, "sites", site_slug, "ICR_05_temporel_vs_spatial.png"), optional = TRUE)
+    log_file_status(file.path(output_dir, "sites", site_slug, "ICR_07_metrics_pertinence_dashboard.png"), optional = FALSE)
     if (isTRUE(config$make_ca)) {
-      site_optional <- c(site_optional, "ICR_06_CA_placettes_especes.png")
-    }
-
-    for (fname in site_required) {
-      log_file_status(file.path(site_dir, fname), optional = FALSE)
-    }
-    for (fname in site_optional) {
-      log_file_status(file.path(site_dir, fname), optional = TRUE)
+      log_file_status(file.path(output_dir, "sites", site_slug, "ICR_06_CA_placettes_especes.png"), optional = TRUE)
     }
   }
 
-  log_info("========================================================")
+  log_info("================================================================================")
   invisible(NULL)
 }
 
@@ -282,11 +418,24 @@ print_startup_header <- function(config = CONFIG) {
   cat(sep, "\n", sep = "")
   cat("Objectif : automatiser l'analyse de complétude et de représentativité des inventaires mycologiques\n")
   cat(sub_sep, "\n", sep = "")
-  cat(sprintf("Entrée configurée : %s\n", config$input_file))
-  cat(sprintf("Sortie configurée : %s\n", config$output_dir))
-  cat(sprintf("Format de date   : %s\n", config$date_format))
-  cat("Visite distincte : date + visite_id (et site en multi-sites)\n")
+  
+  cat("PARAMÈTRES CENTRALISÉS :\n")
+  cat(sprintf("  input_file              = %s\n", config$input_file))
+  cat(sprintf("  output_dir              = %s\n", config$output_dir))
+  cat(sprintf("  date_format             = %s\n", config$date_format))
+  cat(sprintf("  csv_strict_mode         = %s\n", config$csv_strict_mode))
+  cat(sprintf("  csv_allow_extra_cols    = %s\n", config$csv_allow_extra_cols))
+  cat(sprintf("  csv_required_cols       = %s\n", paste(config$csv_required_cols, collapse = ", ")))
+  cat(sprintf("  csv_optional_cols       = %s\n", paste(config$csv_optional_cols, collapse = ", ")))
+  cat(sprintf("  freq_breaks             = %s\n", paste(round(config$freq_breaks, 2), collapse = ", ")))
+  cat(sprintf("  freq_labels             = %s\n", paste(config$freq_labels, collapse = ", ")))
+  cat(sprintf("  make_ca                 = %s\n", config$make_ca))
+  cat(sprintf("  min_visits_for_model    = %d\n", config$min_visits_for_model))
+  cat(sprintf("  width                   = %d pouces\n", config$width))
+  cat(sprintf("  height                  = %d pouces\n", config$height))
+  cat(sprintf("  dpi                     = %d\n", config$dpi))
   cat(sub_sep, "\n", sep = "")
+  
   cat("Calculs qui seront exécutés (et sorties associées) :\n")
   cat("  1) Préparation/validation des données\n")
   cat("     -> Global CSV : ICR_00_csv_conformite_report.csv\n")
@@ -527,8 +676,36 @@ audit_csv_conformity <- function(df_raw, parse_problems = tibble::tibble(), path
   )
 }
 
+# Organise les sorties par thème analytique (Option A)
+# Retourne le chemin du sous-répertoire thématique en créant celui-ci si nécessaire.
+get_thematic_dir <- function(output_dir, theme) {
+  theme_dir <- file.path(output_dir, theme)
+  ensure_dir(theme_dir)
+  theme_dir
+}
+
+# Crée tous les répertoires thématiques requis
+ensure_thematic_dirs <- function(output_dir) {
+  themes <- c(
+    "00_data_quality",
+    "01_richesse",
+    "02_completude_repr",
+    "03_frequences",
+    "04_modeles",
+    "05_spatial",
+    "06_metrics",
+    "comparisons",
+    "sites"
+  )
+  for (theme in themes) {
+    ensure_dir(file.path(output_dir, theme))
+  }
+  invisible(output_dir)
+}
+
 export_csv_conformity_report <- function(audit, output_dir) {
-  report_path <- file.path(output_dir, "ICR_00_csv_conformite_report.csv")
+  data_quality_dir <- get_thematic_dir(output_dir, "00_data_quality")
+  report_path <- file.path(data_quality_dir, "ICR_00_csv_conformite_report.csv")
   tryCatch(
     readr::write_csv(audit$report, report_path),
     error = function(e) stop("Echec d'ecriture de ICR_00_csv_conformite_report.csv : ", conditionMessage(e), call. = FALSE)
@@ -536,7 +713,7 @@ export_csv_conformity_report <- function(audit, output_dir) {
   log_info("Rapport de conformité CSV exporté : %s", report_path)
 
   if (!is.null(audit$problems) && nrow(audit$problems) > 0) {
-    problems_path <- file.path(output_dir, "ICR_00_csv_conformite_problems.csv")
+    problems_path <- file.path(data_quality_dir, "ICR_00_csv_conformite_problems.csv")
     tryCatch(
       readr::write_csv(audit$problems, problems_path),
       error = function(e) stop("Echec d'ecriture de ICR_00_csv_conformite_problems.csv : ", conditionMessage(e), call. = FALSE)
@@ -1574,7 +1751,8 @@ save_plot <- function(plot_obj, filename, config = CONFIG, formats = c("png")) {
 
 analyze_site <- function(df_site, site_name, output_dir, config = CONFIG) {
   site_slug <- sanitize_filename(site_name)
-  site_dir <- file.path(output_dir, site_slug)
+  # Tous les fichiers du site vont dans /sites/{site_name}/ plutôt qu'à la racine
+  site_dir <- file.path(output_dir, "sites", site_slug)
   ensure_dir(site_dir)
   rplots_path <- file.path(getwd(), "Rplots.pdf")
   rplots_exists_before <- file.exists(rplots_path)
@@ -1816,7 +1994,12 @@ analyze_site <- function(df_site, site_name, output_dir, config = CONFIG) {
     context = paste0("site=", site_name)
   )
 
-  invisible(list(site_summary = site_summary, model_stats = model_stats, scientific_metrics = scientific_metrics))
+  invisible(list(
+    site_summary = site_summary, 
+    model_stats = model_stats, 
+    scientific_metrics = scientific_metrics,
+    site_detail_dir = site_dir
+  ))
 }
 
 run_analysis <- function(config = CONFIG) {
@@ -1831,6 +2014,10 @@ run_analysis <- function(config = CONFIG) {
   output_dir <- resolve_path(config$output_dir)
 
   ensure_dir(output_dir)
+  ensure_thematic_dirs(output_dir)
+  setup_logging(base_dir = PROJECT_DIR, prefix = "ICR")
+  log_header(SCRIPT_NAME, SCRIPT_VERSION)
+  log_section("Initialisation et validation")  
   log_info("Repertoire de sortie global : %s", output_dir)
 
   if (!HAS_MINPACK) {
@@ -1887,11 +2074,12 @@ run_analysis <- function(config = CONFIG) {
   }
 
   df <- prepare_data(df_raw, config = config)
+  data_quality_dir <- get_thematic_dir(output_dir, "00_data_quality")
   tryCatch(
-    readr::write_csv(df, file.path(output_dir, "ICR_donnees_preparees.csv")),
+    readr::write_csv(df, file.path(data_quality_dir, "ICR_donnees_preparees.csv")),
     error = function(e) stop("Echec d'ecriture de ICR_donnees_preparees.csv : ", conditionMessage(e), call. = FALSE)
   )
-  log_debug("CSV ecrit : %s", file.path(output_dir, "ICR_donnees_preparees.csv"))
+  log_debug("CSV ecrit : %s", file.path(data_quality_dir, "ICR_donnees_preparees.csv"))
   log_table_result(
     "global / donnees_preparees",
     df,
@@ -1917,11 +2105,12 @@ run_analysis <- function(config = CONFIG) {
     purrr::map("scientific_metrics") |>
     dplyr::bind_rows()
 
+  comparisons_dir <- get_thematic_dir(output_dir, "comparisons")
   tryCatch(
-    readr::write_csv(site_summaries, file.path(output_dir, "ICR_resume_tous_sites.csv")),
+    readr::write_csv(site_summaries, file.path(comparisons_dir, "ICR_resume_tous_sites.csv")),
     error = function(e) stop("Echec d'ecriture de ICR_resume_tous_sites.csv : ", conditionMessage(e), call. = FALSE)
   )
-  log_debug("CSV ecrit : %s", file.path(output_dir, "ICR_resume_tous_sites.csv"))
+  log_debug("CSV ecrit : %s", file.path(comparisons_dir, "ICR_resume_tous_sites.csv"))
   log_table_result(
     "global / resume_tous_sites",
     site_summaries,
@@ -1931,11 +2120,12 @@ run_analysis <- function(config = CONFIG) {
     )
   )
 
+  metrics_dir <- get_thematic_dir(output_dir, "06_metrics")
   tryCatch(
-    readr::write_csv(site_metrics, file.path(output_dir, "ICR_metrics_pertinence_tous_sites.csv")),
+    readr::write_csv(site_metrics, file.path(metrics_dir, "ICR_metrics_pertinence_tous_sites.csv")),
     error = function(e) stop("Echec d'ecriture de ICR_metrics_pertinence_tous_sites.csv : ", conditionMessage(e), call. = FALSE)
   )
-  log_debug("CSV ecrit : %s", file.path(output_dir, "ICR_metrics_pertinence_tous_sites.csv"))
+  log_debug("CSV ecrit : %s", file.path(metrics_dir, "ICR_metrics_pertinence_tous_sites.csv"))
   log_table_result(
     "global / metrics_pertinence_tous_sites",
     site_metrics,
@@ -1959,8 +2149,8 @@ run_analysis <- function(config = CONFIG) {
       y = "Complétude"
     ) +
     theme_project()
-  save_plot(p_compare, file.path(output_dir, "ICR_comparaison_completude_sites.png"), config)
-  log_info("Resultat graphique genere : %s", file.path(output_dir, "ICR_comparaison_completude_sites.png"))
+  save_plot(p_compare, file.path(comparisons_dir, "ICR_comparaison_completude_sites.png"), config)
+  log_info("Resultat graphique genere : %s", file.path(comparisons_dir, "ICR_comparaison_completude_sites.png"))
 
   # Graphique comparatif de l'indice Ir entre sites avec zones de qualité colorées
   # Zone rouge  : Ir < 0.60 (représentativité faible)
@@ -1987,14 +2177,14 @@ run_analysis <- function(config = CONFIG) {
       y = "Ir final"
     ) +
     theme_project()
-  save_plot(p_ir, file.path(output_dir, "ICR_comparaison_ir_sites.png"), config)
-  log_info("Resultat graphique genere : %s", file.path(output_dir, "ICR_comparaison_ir_sites.png"))
+  save_plot(p_ir, file.path(comparisons_dir, "ICR_comparaison_ir_sites.png"), config)
+  log_info("Resultat graphique genere : %s", file.path(comparisons_dir, "ICR_comparaison_ir_sites.png"))
 
-  save_plot(plot_scientific_metrics_heatmap(site_metrics), file.path(output_dir, "ICR_metrics_pertinence_heatmap_sites.png"), config)
-  log_info("Resultat graphique genere : %s", file.path(output_dir, "ICR_metrics_pertinence_heatmap_sites.png"))
+  save_plot(plot_scientific_metrics_heatmap(site_metrics), file.path(metrics_dir, "ICR_metrics_pertinence_heatmap_sites.png"), config)
+  log_info("Resultat graphique genere : %s", file.path(metrics_dir, "ICR_metrics_pertinence_heatmap_sites.png"))
 
-  save_plot(plot_scientific_metrics_score(site_metrics), file.path(output_dir, "ICR_metrics_pertinence_score_sites.png"), config)
-  log_info("Resultat graphique genere : %s", file.path(output_dir, "ICR_metrics_pertinence_score_sites.png"))
+  save_plot(plot_scientific_metrics_score(site_metrics), file.path(metrics_dir, "ICR_metrics_pertinence_score_sites.png"), config)
+  log_info("Resultat graphique genere : %s", file.path(metrics_dir, "ICR_metrics_pertinence_score_sites.png"))
 
   log_info(
     "Analyse terminée : %d site(s) traité(s), résultats dans : %s",
