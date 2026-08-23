@@ -1,86 +1,227 @@
 \documentclass[11pt,a4paper]{article}
+
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
-\usepackage[french]{babel}
-\usepackage{lmodern}
-\usepackage{geometry}
-\usepackage{booktabs}
-\usepackage{longtable}
-\usepackage{array}
+\usepackage[provide=*,french]{babel}
+\usepackage[a4paper,margin=2.3cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs,longtable,array}
 \usepackage{hyperref}
-\usepackage{amsmath}
-\geometry{margin=2.5cm}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{colortbl}
+\usepackage{graphicx}
+\usepackage{fancyvrb}
+\usepackage{appendix}
+\usepackage{tcolorbox}
+\usepackage{makecell}
+\tcbuselibrary{skins}
+\newcolumntype{L}[1]{p{#1}}
+\newcolumntype{Y}{X}
+\setlength{\emergencystretch}{3em}
 
-\title{Inventaires fongiques -- Sp\'ecification fonctionnelle (ICR)}
-\author{Eddy Boite}
-\date{9 juillet 2026 -- v1.4}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=blue,
+  pdftitle={Conception fonctionnelle - Inventaires completude representativite (ICR)}
+}
+
+% ── Couleurs personnalisées ─────────────────────────────────────────────────────────────────────────────────────────────────
+\definecolor{darkblue}{HTML}{08306B}
+\definecolor{midblue}{HTML}{2171B5}
+\definecolor{lightblue}{HTML}{C6DBEF}
+\definecolor{darkgreen}{HTML}{005A32}
+\definecolor{lightgreen}{HTML}{E5F5E0}
+\definecolor{darkorange}{HTML}{D94801}
+\definecolor{lightorange}{HTML}{FEE6CE}
+\definecolor{darkgray}{HTML}{252525}
+\definecolor{lightgray}{HTML}{F7F7F7}
+\definecolor{warnorange}{HTML}{E65100}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  backgroundcolor=\color{gray!6}
+}
+
+\lstdefinestyle{rstyle}{
+  language=R,
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{midblue}\bfseries,
+  commentstyle=\color{darkgray}\itshape,
+  stringstyle=\color{darkgreen},
+  breaklines=true,
+  backgroundcolor=\color{lightgray},
+  frame=single,
+  rulecolor=\color{lightblue},
+  framesep=4pt,
+  showstringspaces=false
+}
+
+\newtcolorbox{infobox}[1][]{colback=lightblue!30, colframe=midblue, title=#1, fonttitle=\bfseries}
+\newtcolorbox{warnbox}[1][]{colback=lightorange!50, colframe=darkorange, title=#1, fonttitle=\bfseries}
+\newtcolorbox{formulebox}[1][]{colback=lightgreen!40, colframe=darkgreen, title=#1, fonttitle=\bfseries}
+
+\title{Conception Fonctionnelle\\
+\large Inventaires\_completude\_representativite}
+\author{Boite Eddy}
+\date{\today}
 
 \hbadness=10000
-\hfuzz=700pt
+\hfuzz=80pt
 \begin{document}
 \maketitle
 
-\section*{Objectif}
-Ce document formalise les exigences fonctionnelles du script \texttt{scripts/Inventaires\_completude\_representativite.R} (v1.4) pour l'analyse de compl\'etude et de repr\'esentativit\'e d'inventaires fongiques.
+\begin{abstract}
+Ce document présente, selon une structure IMRaD, la conception fonctionnelle du pipeline R
+\texttt{Inventaires\_completude\_representativite.R} (v1.4), dédié à l'analyse de complétude et
+de représentativité d'inventaires fongiques par site. Les méthodes décrivent les exigences
+d'entrée, la configuration centralisée, la validation CSV et les indicateurs calculés
+(TEE, indice de représentativité, complétude). Les résultats formalisent l'organisation
+thématique des sorties, les livrables globaux et par site, le système de journalisation ainsi
+que les améliorations successives du script. La discussion précise l'interprétation des
+indicateurs, les limites opérationnelles et les points de dépannage courants.
+\end{abstract}
+\tableofcontents
+\newpage
 
-Fonctions livr\'ees :
-\begin{enumerate}
-  \item courbe temps-esp\`eces,
-  \item ajustements lin\'eaire/hyperbolique (si conditions remplies),
-  \item estimation d'asymptote,
-  \item calcul de \texttt{TEE} et de $Ir = 1 - TEE$,
-  \item fr\'equences d'occurrence par esp\`ece,
-  \item occupation spatiale (si \texttt{placette}),
-  \item CA/AFC (si \texttt{vegan}),
-  \item m\'etriques de pertinence scientifique,
-  \item manifeste final de production.
+\section{Introduction}
+
+\subsection{À propos}
+Ce document formalise les exigences fonctionnelles du script :
+
+\begin{center}
+  \texttt{scripts/Inventaires\_completude\_representativite.R}
+\end{center}
+
+(v1.4), destiné à l'analyse de complétude et de représentativité d'inventaires fongiques.
+
+\subsection{Objectifs du pipeline}
+
+Le pipeline réalise, pour chaque site :
+
+\begin{enumerate}[label=\arabic*.]
+  \item la courbe temps-espèces,
+  \item les ajustements linéaire/hyperbolique (si conditions remplies),
+  \item l'estimation d'asymptote,
+  \item le calcul de \texttt{TEE} et de $Ir = 1 - TEE$,
+  \item les fréquences d'occurrence par espèce,
+  \item l'occupation spatiale (si \texttt{placette}),
+  \item la CA/AFC (si \texttt{vegan}),
+  \item les métriques de pertinence scientifique,
+  \item le manifeste final de production.
 \end{enumerate}
 
-\section*{Entr\'ees}
-\subsection*{Fichier principal}
+\subsection{Dépendances et pré-requis}
+
+Packages requis : \texttt{dplyr}, \texttt{tidyr}, \texttt{ggplot2}, \texttt{purrr}, \texttt{readr},
+\texttt{stringr}, \texttt{forcats}, \texttt{tibble}, \texttt{scales}, \texttt{gridExtra}.\\
+Packages optionnels : \texttt{minpack.lm} (modèle hyperbolique), \texttt{vegan} (CA/AFC).
+
+\section{Méthodes}
+
+\subsection{Structure attendue des données d'entrée}
+
+\subsubsection{Fichier principal}
 \texttt{data/observations.csv} (ou \texttt{.txt}/\texttt{.tsv})
 
-\subsection*{Colonnes}
+\subsubsection{Colonnes}
 \begin{itemize}
   \item Obligatoires : \texttt{site}, \texttt{date}, \texttt{visite\_id}, \texttt{espece}
   \item Optionnelle : \texttt{placette}
 \end{itemize}
 
-\subsection*{R\`egles fonctionnelles}
+\subsubsection{Règles fonctionnelles}
 \begin{itemize}
-  \item Parsing date via \texttt{INVENTAIRES\_DATE\_FORMAT} (d\'efaut : \texttt{\%Y-\%m-\%d}).
-  \item D\'eduplication sur \texttt{(site, placette, date, visite\_id, espece)}.
+  \item Parsing date via \texttt{INVENTAIRES\_DATE\_FORMAT} (défaut : \texttt{\%Y-\%m-\%d}).
+  \item Déduplication sur \texttt{(site, placette, date, visite\_id, espece)}.
   \item Visite distincte : \texttt{date + visite\_id} (et \texttt{site} en multi-sites).
 \end{itemize}
 
-\section*{Configuration centralis\'ee}
-Tous les param\`etres du pipeline sont d\'efinis dans la fonction \texttt{get\_embedded\_config()} et affich\'es dans l'en-t\^ete du script au d\'emarrage. La configuration supporte les surcharges via variables d'environnement \texttt{INVENTAIRES\_*} :
+\subsection{Configuration centralisée}
+\label{sec:config}
+
+Tous les paramètres du pipeline sont définis dans la fonction \texttt{get\_embedded\_config()} et
+affichés dans l'en-tête du script au démarrage. La configuration supporte les surcharges via
+variables d'environnement \texttt{INVENTAIRES\_*} :
 
 \begin{itemize}
   \item \texttt{INVENTAIRES\_INPUT\_FILE} : chemin du fichier source
-  \item \texttt{INVENTAIRES\_OUTPUT\_DIR} : r\'epertoire de sortie
+  \item \texttt{INVENTAIRES\_OUTPUT\_DIR} : répertoire de sortie
   \item \texttt{INVENTAIRES\_DATE\_FORMAT} : format des dates
   \item \texttt{INVENTAIRES\_CSV\_STRICT} : mode strict (booléen)
-  \item \texttt{INVENTAIRES\_CSV\_ALLOW\_EXTRA\_COLS} : tolérance colonnes suppl\'ementaires
-  \item \texttt{INVENTAIRES\_FREQ\_BREAKS} : s\'equence des intervalles de fr\'equence
-  \item \texttt{INVENTAIRES\_FREQ\_LABELS} : \'etiquettes des intervalles
+  \item \texttt{INVENTAIRES\_CSV\_ALLOW\_EXTRA\_COLS} : tolérance colonnes supplémentaires
+  \item \texttt{INVENTAIRES\_FREQ\_BREAKS} : séquence des intervalles de fréquence
+  \item \texttt{INVENTAIRES\_FREQ\_LABELS} : étiquettes des intervalles
   \item \texttt{INVENTAIRES\_MAKE\_CA} : activer CA/AFC (booléen)
-  \item \texttt{INVENTAIRES\_MIN\_VISITS\_FOR\_MODEL} : seuil de mod\'elisation
-  \item \texttt{INVENTAIRES\_WIDTH}, \texttt{INVENTAIRES\_HEIGHT}, \texttt{INVENTAIRES\_DPI} : param\`etres graphiques
+  \item \texttt{INVENTAIRES\_MIN\_VISITS\_FOR\_MODEL} : seuil de modélisation
+  \item \texttt{INVENTAIRES\_WIDTH}, \texttt{INVENTAIRES\_HEIGHT}, \texttt{INVENTAIRES\_DPI} : paramètres graphiques
 \end{itemize}
 
-Aucune modification du code source n'est n\'ecessaire : les param\`etres peuvent \^etre adjust\'es par variable d'environnement.
+\begin{infobox}[Aucune modification du code source]
+Les paramètres peuvent être ajustés par variable d'environnement, sans toucher au script.
+\end{infobox}
 
-\section*{Validation CSV}
-Le contr\^ole de conformit\'e est ex\'ecut\'e avant traitement.
+\subsection{Validation CSV}
+
+Le contrôle de conformité est exécuté avant traitement.
 \begin{itemize}
   \item \texttt{results/ICR/ICR\_00\_csv\_conformite\_report.csv} (toujours)
   \item \texttt{results/ICR/ICR\_00\_csv\_conformite\_problems.csv} (si anomalies)
 \end{itemize}
-En mode strict (\texttt{INVENTAIRES\_CSV\_STRICT=TRUE}), la non-conformit\'e est bloquante.
 
-\section*{Sorties attendues}
-\subsection*{Organisation thématique}
+\begin{warnbox}[Mode strict]
+En mode strict (\texttt{INVENTAIRES\_CSV\_STRICT=TRUE}), la non-conformité est bloquante.
+\end{warnbox}
+
+\subsection{Indicateurs calculés}
+
+\subsubsection{TEE}
+Proportion d'espèces observées une seule fois.
+
+\subsubsection{Indice de représentativité}
+\begin{formulebox}[Formule]
+\[
+Ir = 1 - TEE
+\]
+\end{formulebox}
+Repères : \texttt{Ir < 0.60} (faible), \texttt{0.60 <= Ir < 0.80} (moyenne), \texttt{Ir >= 0.80} (bonne).
+
+\subsubsection{Complétude}
+\begin{formulebox}[Formule]
+\[
+\text{Complétude} = \frac{S_{obs}}{S_{asymptote}}
+\]
+\end{formulebox}
+Repères : \texttt{< 0.70} (insuffisante), \texttt{0.70--0.90} (intermédiaire), \texttt{>= 0.90} (avancée).
+
+\subsection{Variables d'environnement supportées}
+\begin{itemize}
+  \item \texttt{INVENTAIRES\_INPUT\_FILE}
+  \item \texttt{INVENTAIRES\_OUTPUT\_DIR}
+  \item \texttt{INVENTAIRES\_DATE\_FORMAT}
+  \item \texttt{INVENTAIRES\_CSV\_STRICT}
+  \item \texttt{INVENTAIRES\_CSV\_ALLOW\_EXTRA\_COLS}
+  \item \texttt{INVENTAIRES\_AUTO\_RUN}
+\end{itemize}
+
+\subsection{Modes d'exécution}
+Le script peut être exécuté en mode standard (recommandé) ou avec des flags internes :
+\begin{itemize}
+  \item \texttt{DEBUG\_MODE = TRUE} : verbosité accrue et affichage détaillé des avertissements.
+  \item \texttt{BENCHMARK\_MODE = TRUE} : mesure des temps sur les calculs principaux.
+  \item \texttt{CLEAN\_ENVIRONMENT = TRUE} : nettoyage de l'environnement avant exécution (usage expert).
+\end{itemize}
+Le comportement d'auto-lancement est piloté par \texttt{INVENTAIRES\_AUTO\_RUN} (défaut : \texttt{TRUE}).
+
+\section{Résultats}
+
+\subsection{Organisation thématique des sorties}
 Les résultats sont organisés selon une hiérarchie thématique sous \texttt{results/ICR/} :
 
 \begin{itemize}
@@ -89,10 +230,10 @@ Les résultats sont organisés selon une hiérarchie thématique sous \texttt{re
   \item \texttt{04\_spatial/}, \texttt{05\_temporal/} : analyses spéciales (réservées)
   \item \texttt{06\_metrics/} : métriques scientifiques globales
   \item \texttt{comparisons/} : visualisations comparatives multi-sites
-  \item \texttt{sites/<site\_name>/} : **TOUS les fichiers par site** (organisés en un seul répertoire)
+  \item \texttt{sites/<site\_name>/} : tous les fichiers par site (organisés en un seul répertoire)
 \end{itemize}
 
-\subsection*{Globales (\texttt{results/ICR/})}
+\subsection{Sorties globales (\texttt{results/ICR/})}
 \begin{itemize}
   \item \texttt{ICR\_donnees\_preparees.csv}
   \item \texttt{ICR\_resume\_tous\_sites.csv}
@@ -103,7 +244,7 @@ Les résultats sont organisés selon une hiérarchie thématique sous \texttt{re
   \item \texttt{ICR\_metrics\_pertinence\_score\_sites.png} (dans \texttt{comparisons/})
 \end{itemize}
 
-\subsection*{Par site (\texttt{results/ICR/sites/<site\_name>/})}
+\subsection{Sorties par site (\texttt{results/ICR/sites/<site\_name>/})}
 Tous les fichiers CSV et PNG d'un site sont consolidés dans un seul répertoire :
 \begin{itemize}
   \item \texttt{ICR\_01\_courbe\_temps\_especes.csv} et graphique PNG
@@ -117,72 +258,38 @@ Tous les fichiers CSV et PNG d'un site sont consolidés dans un seul répertoire
   \item \texttt{ICR\_06\_CA\_placettes\_especes.png} (si vegan et placette)
 \end{itemize}
 
-\section*{Indicateurs}
-\subsection*{TEE}
-Proportion d'esp\`eces observ\'ees une seule fois.
+\subsection{Système de logging}
 
-\subsection*{Indice de repr\'esentativit\'e}
-\[
-Ir = 1 - TEE
-\]
-Rep\`eres : \texttt{Ir < 0.60} (faible), \texttt{0.60 <= Ir < 0.80} (moyenne), \texttt{Ir >= 0.80} (bonne).
-
-\subsection*{Compl\'etude}
-\[
-\text{Compl\'etude} = \frac{S_{obs}}{S_{asymptote}}
-\]
-Rep\`eres : \texttt{< 0.70} (insuffisante), \texttt{0.70--0.90} (interm\'ediaire), \texttt{>= 0.90} (avanc\'ee).
-
-\section*{Logging syst\'ematis\'e}
-Chaque ex\'ecution du script g\'en\'ere un fichier log horodat\'e dans le r\'epertoire \texttt{logs/} du projet :
+Chaque exécution du script génère un fichier log horodaté dans le répertoire \texttt{logs/} du projet :
 
 \begin{itemize}
   \item \textbf{Format du nom} : \texttt{ICR\_YYYYMMDD\_HHMM.log}
-  \item \textbf{Format des ent\'ees} : \texttt{[YYYY-MM-DD HH:MM:SS] [LEVEL] message}
+  \item \textbf{Format des entrées} : \texttt{[YYYY-MM-DD HH:MM:SS] [LEVEL] message}
   \item \textbf{Niveaux} : \texttt{INFO}, \texttt{DEBUG}, \texttt{WARN}
 \end{itemize}
 
 Les logs enregistrent :
 \begin{enumerate}
-  \item En-t\^ete du script (nom, version, timestamp, répertoire de travail, version R)
-  \item Chaque étape du pipeline (résolution fichier, audit CSV, analyses par site)
-  \item Les parameters de configuration actifs au démarrage
-  \item Le manifeste final des livrables avec statuts (\texttt{OK}, \texttt{MANQUANT}, \texttt{OPTIONNEL\_NON\_GENERE})
+  \item l'en-tête du script (nom, version, timestamp, répertoire de travail, version R) ;
+  \item chaque étape du pipeline (résolution fichier, audit CSV, analyses par site) ;
+  \item les paramètres de configuration actifs au démarrage ;
+  \item le manifeste final des livrables avec statuts (\texttt{OK}, \texttt{MANQUANT}, \texttt{OPTIONNEL\_NON\_GENERE}).
 \end{enumerate}
 
-Les avertissements sont également affich\'es en console et dans les logs en niveau \texttt{WARN}.
+Les avertissements sont également affichés en console et dans les logs en niveau \texttt{WARN}.
 
-\section*{Variables d'environnement support\'ees}
-\begin{itemize}
-  \item \texttt{INVENTAIRES\_INPUT\_FILE}
-  \item \texttt{INVENTAIRES\_OUTPUT\_DIR}
-  \item \texttt{INVENTAIRES\_DATE\_FORMAT}
-  \item \texttt{INVENTAIRES\_CSV\_STRICT}
-  \item \texttt{INVENTAIRES\_CSV\_ALLOW\_EXTRA\_COLS}
-  \item \texttt{INVENTAIRES\_AUTO\_RUN}
-\end{itemize}
+\subsection{Améliorations du script (v1.4)}
 
-\section*{Modes d'ex\'ecution}
-Le script peut \^etre ex\'ecut\'e en mode standard (recommand\'e) ou avec des flags internes :
-\begin{itemize}
-  \item \texttt{DEBUG\_MODE = TRUE} : verbosit\'e accrue et affichage d\'etaill\'e des avertissements.
-  \item \texttt{BENCHMARK\_MODE = TRUE} : mesure des temps sur les calculs principaux.
-  \item \texttt{CLEAN\_ENVIRONMENT = TRUE} : nettoyage de l'environnement avant ex\'ecution (usage expert).
-\end{itemize}
-
-Le comportement d'auto-lancement est pilot\'e par \texttt{INVENTAIRES\_AUTO\_RUN} (d\'efaut : \texttt{TRUE}).
-
-\section*{Am\'eliorations du script (v1.4)}
-\subsection*{Phase 1 : Fiabilisation}
+\subsubsection{Phase 1 : Fiabilisation}
 Gestion robuste des formats de fichiers hétérogènes, déduplication intelligente des observations, traitement des dates flexibles, gestion des erreurs CSV granulaire.
 
-\subsection*{Phase 2 : Performance}
+\subsubsection{Phase 2 : Performance}
 Optimisation du modèle hyperbolique via \texttt{minpack.lm::nlsLM}, calculs vectorisés par site, graphiques pré-calculés en mémoire avant export PNG.
 
-\subsection*{Phase 3 : Graphiques et visualisations}
+\subsubsection{Phase 3 : Graphiques et visualisations}
 Cartes de chaleur multi-sites, tableaux de bord par site (7 graphiques), comparaisons visuelles de complétude, analyses de CA/AFC si \texttt{vegan} disponible.
 
-\subsection*{Phase 4 : Industrialisation}
+\subsubsection{Phase 4 : Industrialisation}
 \begin{enumerate}
   \item \textbf{Configuration centralisée} : fonction \texttt{get\_embedded\_config()} avec 14+ paramètres, surchargeable via variables d'environnement
   \item \textbf{Logging systématisé} : fichiers logs horodatés avec métadonnées d'exécution, manifeste final des livrables
@@ -190,24 +297,56 @@ Cartes de chaleur multi-sites, tableaux de bord par site (7 graphiques), compara
   \item \textbf{Métriques scientifiques} : pertinence des espèces, scores de complétude détaillés, dashboards analytiques
 \end{enumerate}
 
-\section*{Journalisation fonctionnelle}
-La sortie est journalis\'ee en console (niveaux info/debug/warning), puis un manifeste final indique l'\'etat des livrables :
+\section{Discussion}
+
+\subsection{Journalisation fonctionnelle}
+La sortie est journalisée en console (niveaux info/debug/warning), puis un manifeste final indique l'état des livrables :
 \texttt{OK}, \texttt{MANQUANT}, \texttt{OPTIONNEL\_NON\_GENERE}.
 
-Le script applique enfin une politique stricte de nettoyage du fichier parasite \texttt{Rplots.pdf} lorsqu'il est g\'en\'er\'e pendant l'ex\'ecution.
+Le script applique enfin une politique stricte de nettoyage du fichier parasite \texttt{Rplots.pdf} lorsqu'il est généré pendant l'exécution.
 
-\section*{D\'ependances}
-Requises : \texttt{dplyr}, \texttt{tidyr}, \texttt{ggplot2}, \texttt{purrr}, \texttt{readr}, \texttt{stringr}, \texttt{forcats}, \texttt{tibble}, \texttt{scales}, \texttt{gridExtra}.\\
-Optionnelles : \texttt{minpack.lm} (mod\`ele hyperbolique), \texttt{vegan} (CA/AFC).
+\subsection{Limites et perspectives}
+La disponibilité de certaines sorties dépend de la richesse du jeu de données fourni : sans la
+colonne \texttt{placette}, l'analyse spatiale n'est pas produite ; sans le package
+\texttt{minpack.lm}, l'asymptote hyperbolique n'est pas estimée ; sans le package
+\texttt{vegan}, la CA/AFC n'est pas générée ; en deçà du seuil
+\texttt{INVENTAIRES\_MIN\_VISITS\_FOR\_MODEL}, la modélisation est ignorée. En mode strict, un
+CSV non conforme bloque le pipeline.
 
-============================================================================================================================
+\subsection{Dépannage (FAQ)}
+\begin{description}
+  \item[Le script ne trouve pas le fichier d'entrée.]
+    Vérifier qu'un fichier \texttt{.csv}, \texttt{.txt} ou \texttt{.tsv} est présent dans \texttt{data/}
+    et que son nom correspond à \texttt{INVENTAIRES\_INPUT\_FILE}.
+
+  \item[Colonnes manquantes à l'exécution.]
+    Vérifier que les colonnes obligatoires \texttt{site}, \texttt{date}, \texttt{visite\_id},
+    \texttt{espece} sont présentes avec les noms exacts attendus.
+
+  \item[Le pipeline s'arrête en mode strict.]
+    Consulter \texttt{results/ICR/ICR\_00\_csv\_conformite\_problems.csv} pour identifier les
+    anomalies, ou désactiver temporairement \texttt{INVENTAIRES\_CSV\_STRICT}.
+
+  \item[Pas d'occupation spatiale ni de CA/AFC.]
+    Vérifier la présence de la colonne \texttt{placette} et, pour la CA/AFC, l'installation du
+    package \texttt{vegan}.
+
+  \item[Pas d'asymptote hyperbolique.]
+    Vérifier l'installation du package \texttt{minpack.lm} et que le nombre de visites du site
+    atteint \texttt{INVENTAIRES\_MIN\_VISITS\_FOR\_MODEL}.
+\end{description}
+
+% ============================================================================================================================
+\section*{Contact et versionnement}
+\addcontentsline{toc}{section}{Contact et versionnement}
+% ============================================================================================================================
 
 \begin{table}[htbp]
   \centering
   \begin{tabular}{ll}
     \toprule
     \textbf{Auteur}          & Eddy Boite \\
-    \textbf{Dépôt GitHub}    & \texttt{eddyboite-nat/myco\_apps\_releases} \\
+    \textbf{Dépôt GitHub}    & \texttt{eddyboite-nat/statistics} \\
     \textbf{Branche}         & \texttt{main} \\
     \textbf{Version script}  & 1.1 \\
     \textbf{Date de ce document} & 9 juillet 2026 \\

@@ -1,18 +1,34 @@
 \documentclass[11pt,a4paper]{article}
+
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
-\usepackage[french]{babel}
-\usepackage{lmodern}
-\usepackage{geometry}
-\usepackage{booktabs}
-\usepackage{longtable}
-\usepackage{array}
+\usepackage[provide=*,french]{babel}
+\usepackage[a4paper,margin=2.3cm]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs,longtable,array}
 \usepackage{hyperref}
-\geometry{margin=2.5cm}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{xcolor}
 
-\title{Inventaires fongiques -- Sp\'ecification technique (ICR)}
-\author{Eddy Boite}
-\date{9 juillet 2026 -- v1.4}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=blue,
+  pdftitle={Conception technique - Inventaires completude representativite (ICR)}
+}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  backgroundcolor=\color{gray!6}
+}
+
+\title{Conception Technique\\
+\large Inventaires\_completude\_representativite}
+\author{Boite Eddy}
+\date{\today}
 
 \hbadness=10000
 \hfuzz=700pt
@@ -20,39 +36,113 @@
 \sloppy
 \maketitle
 
-\section*{Vue d'ensemble}
-Ce document d'ecrit l'architecture technique du script
-\texttt{scripts/Inventaires\_completude\_representativite.R} (v1.4).
-Il pr'ecise les contrats d'entr'ee/sortie, la configuration runtime
-et les limites op'erationnelles.
+\begin{abstract}
+Ce document présente la conception technique du pipeline d'analyse de complétude et de
+représentativité d'inventaires fongiques \texttt{Inventaires\_completude\_representativite.R}
+(v1.4). La description adopte un cadre d'ingénierie reproductible : architecture, contrats de
+données, configuration runtime, robustesse opérationnelle et livrables produits. L'objectif est
+de fournir une référence techniquement auditable et réutilisable pour l'analyse d'inventaires
+fongiques par site.
+\end{abstract}
+\tableofcontents
+\newpage
 
-\section*{Architecture logique}
-\subsection*{Blocs principaux}
+\section{Structuration IMRaD adaptée}
+Dans une perspective de publication scientifique, la lecture du document peut
+être organisée selon le schéma IMRaD, adapté à une documentation technique :
+\begin{itemize}[leftmargin=1.2cm]
+  \item \textbf{Introduction} : objectifs techniques et périmètre du script.
+  \item \textbf{Méthodes} : architecture, contrats d'entrée/sortie, configuration runtime, pipeline.
+  \item \textbf{Résultats} : organisation des sorties, livrables et journalisation.
+  \item \textbf{Discussion} : limites connues et robustesse.
+\end{itemize}
+
+\section{Positionnement méthodologique}
+Le pipeline relève d'une approche \textit{data-centric} appliquée à l'écologie descriptive de
+terrain : les indicateurs de complétude et de représentativité sont construits par accumulation
+successive des observations au fil des visites, puis consolidés par des modèles d'ajustement et
+des métriques de pertinence agrégées. Deux objectifs sont poursuivis simultanément :
+\begin{itemize}[leftmargin=1.2cm]
+  \item \textbf{validité analytique} (qualité des ajustements de courbes d'accumulation, robustesse des indicateurs TEE/Ir),
+  \item \textbf{validité opérationnelle} (stabilité des sorties, traçabilité et exploitabilité décisionnelle par site).
+\end{itemize}
+
+\section{Cadre théorique des choix statistiques}
+Le dispositif s'appuie sur la théorie des courbes d'accumulation d'espèces
+(\textit{species accumulation curves}) et sur une estimation empirique du taux d'espèces
+rares. Cette combinaison répond à une double exigence : décrire fidèlement la dynamique de
+découverte des espèces au fil des visites, et estimer une richesse asymptotique théorique
+permettant de quantifier objectivement l'effort d'échantillonnage restant.
+
+Dans ce cadre, la sélection des métriques privilégie :
+\begin{itemize}[leftmargin=1.2cm]
+  \item la \textbf{comparabilité inter-sites} (Ir et complétude bornés dans $[0,1]$),
+  \item la \textbf{sensibilité à la stabilisation de la courbe} (pente terminale, part de nouveauté en fin d'inventaire),
+  \item la \textbf{robustesse à l'absence de données optionnelles} (dégradation contrôlée si \texttt{placette}, \texttt{minpack.lm} ou \texttt{vegan} sont indisponibles),
+  \item la \textbf{traçabilité des décisions} (logs horodatés et manifeste final des livrables).
+\end{itemize}
+
+\section{Objectif technique}
+Ce document décrit l'architecture technique du script
+\texttt{scripts/Inventaires\_completude\_representativite.R} (v1.4).
+Il précise les contrats d'entrée/sortie, la configuration runtime
+et les limites opérationnelles.
+
+\section{Architecture logicielle}
+\subsection{Blocs principaux}
 \begin{enumerate}
-  \item Initialisation et validation de configuration
-  \item R\'esolution du fichier d'entr\'ee
-  \item Lecture auto-d\'elimiteur
-  \item Audit CSV et export de conformit\'e
-  \item Pr\'eparation/nettoyage des donn\'ees
-  \item Analyse par site
-  \item Consolidation multi-sites
-  \item Export des livrables CSV/PNG
-  \item Manifeste de sortie
+  \item Initialisation et validation de la configuration (\texttt{validate\_config()})
+  \item Résolution du fichier d'entrée (\texttt{resolve\_input\_file()})
+  \item Lecture avec détection automatique du délimiteur (\texttt{read\_delim\_auto()})
+  \item Audit de conformité CSV et export du rapport (\texttt{audit\_csv\_conformity()}, \texttt{export\_csv\_conformity\_report()})
+  \item Préparation et nettoyage des données (\texttt{prepare\_data()})
+  \item Analyse par site (\texttt{analyze\_site()} appliquée par \texttt{purrr::map} sur les groupes de site)
+  \item Consolidation multi-sites et graphiques comparatifs
+  \item Manifeste final des livrables (\texttt{log\_output\_manifest()})
 \end{enumerate}
 
-\subsection*{Fonctions cl\'es}
+\subsection{Fonctions clés}
 \begin{itemize}
   \item \textbf{Configuration et logging} : \texttt{get\_embedded\_config()}, \texttt{setup\_logging()}, \texttt{log\_message()}, \texttt{log\_info()}, \texttt{log\_debug()}, \texttt{log\_warning()}, \texttt{log\_header()}, \texttt{log\_section()}
   \item \textbf{R\'esolution et validation} : \texttt{resolve\_path()}, \texttt{resolve\_input\_file()}, \texttt{validate\_config()}, \texttt{check\_required\_packages()}
   \item \textbf{Lecture et audit} : \texttt{read\_delim\_auto()}, \texttt{audit\_csv\_conformity()}, \texttt{export\_csv\_conformity\_report()}
-  \item \textbf{Pr\'eparation} : \texttt{prepare\_data()}, \texttt{deduplicate\_observations()}
+  \item \textbf{Pr\'eparation} : \texttt{prepare\_data()}
   \item \textbf{Analyses univari\'ees} : \texttt{calc\_cumulative\_metrics()}, \texttt{calc\_tee\_ir()}, \texttt{calc\_species\_frequency()}, \texttt{calc\_spatial\_occupancy()}
-  \item \textbf{Mod\'elisation} : \texttt{fit\_linear\_model()}, \texttt{fit\_hyperbolic\_model()}, \texttt{fit\_assymptote()}
-  \item \textbf{M\'etriques avanc\'ees} : \texttt{calc\_scientific\_metrics()}, \texttt{calc\_ca\_analysis()}
+  \item \textbf{Mod\'elisation} : \texttt{fit\_linear\_model()}, \texttt{fit\_hyperbolic\_model()} (asymptote extraite via \texttt{extract\_model\_stats()})
+  \item \textbf{M\'etriques avanc\'ees} : \texttt{calc\_scientific\_metrics()}, \texttt{run\_ca()}
   \item \textbf{Orchestration} : \texttt{analyze\_site()}, \texttt{run\_analysis()}, \texttt{log\_output\_manifest()}, \texttt{ensure\_thematic\_dirs()}
+  \item \textbf{Visualisation} : \texttt{theme\_project()}, \texttt{PALETTE\_PRIMARY} (5 teintes CVD-friendly), \texttt{save\_plot()}, fonctions \texttt{plot\_*()}
 \end{itemize}
 
-\section*{Configuration runtime (CONFIG)}
+\subsection{Points d'entrée}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Le lancement automatique est conditionné par le flag \texttt{AUTO\_RUN} (piloté par \texttt{INVENTAIRES\_AUTO\_RUN}) : en session non interactive (\texttt{Rscript}), \texttt{run\_analysis(CONFIG)} est appelé directement ; en session interactive, un message informe que la fonction est prête à être invoquée manuellement.
+  \item Contrairement au script CHEGD de référence, aucun bloc \texttt{tryCatch} global n'encapsule \texttt{run\_analysis()} : une erreur non capturée localement (ex. \texttt{stop()} de \texttt{validate\_config()} ou \texttt{prepare\_data()}) interrompt l'exécution complète (voir \S\,\ref{sec:robustesse}).
+\end{itemize}
+
+\section{Dépendances techniques}
+\subsection{Packages R}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Requis : \texttt{dplyr}, \texttt{tidyr}, \texttt{ggplot2}, \texttt{purrr}, \texttt{readr}, \texttt{stringr}, \texttt{forcats}, \texttt{tibble}, \texttt{scales}, \texttt{gridExtra}.
+  \item Optionnels : \texttt{minpack.lm} (\texttt{nlsLM}, modèle hyperbolique), \texttt{vegan} (\texttt{cca}, CA/AFC).
+\end{itemize}
+
+\subsection{Comportement d'installation}
+\texttt{check\_required\_packages()} vérifie la disponibilité de chaque package requis via
+\texttt{requireNamespace()}. En cas d'absence, le script s'arrête avec une erreur explicite et
+une commande \texttt{install.packages()} suggérée (pas d'installation automatique). Les
+packages optionnels sont détectés via les indicateurs \texttt{HAS\_VEGAN}/\texttt{HAS\_MINPACK}
+sans bloquer l'exécution : les fonctionnalités correspondantes sont simplement désactivées
+avec un message \texttt{info} explicite.
+
+\section{Contrats d'entrée et de sortie}
+
+\subsection{Contrat d'entrée}
+\texttt{data/observations.csv} (ou \texttt{.txt}/\texttt{.tsv}) avec colonnes obligatoires \texttt{site,date,visite\_id,espece} et optionnelle \texttt{placette}.
+
+Règles : visite distincte \texttt{date + visite\_id} (et \texttt{site} en multi-sites), parsing date strict, déduplication de la clé observation.
+
+\subsection{Configuration runtime (CONFIG)}
 \begin{longtable}{|p{4.2cm}|p{3.1cm}|p{7.0cm}|}
 \hline
 \textbf{Cl\'e} & \textbf{D\'efaut} & \textbf{Description} \\
@@ -71,9 +161,12 @@ et les limites op'erationnelles.
 \hline
 \texttt{csv\_optional\_cols} & \texttt{placette} & Sch\'ema optionnel \\
 \hline
-\texttt{freq\_breaks} & \texttt{0, 1, 2, 5, 10, Inf} & S\'equence des intervalles de fr\'equence \\
+\texttt{freq\_breaks} & \texttt{0, 0.10, 0.25,} & Séquence des intervalles de fréquence \\
+ & \texttt{0.50, 0.75, 1.00} & (proportions de visites, dans $[0,1]$) \\
 \hline
-\texttt{freq\_labels} & \texttt{1, 2, 3-5, 6-10, 10+} & \'Etiquettes des intervalles \\
+\texttt{freq\_labels} & \texttt{exceptionnelle,} & Étiquettes des intervalles \\
+ & \texttt{très\_rare, occasionnelle,} & \\
+ & \texttt{fréquente, constante} & \\
 \hline
 \texttt{make\_ca} & \texttt{TRUE} & Active la CA/AFC si possible \\
 \hline
@@ -88,14 +181,21 @@ et les limites op'erationnelles.
 \end{longtable}
 
 \noindent
-Toutes ces clés supportent les surcharges via variables d'environnement \texttt{INVENTAIRES\_*}. La configuration est affichée dans l'en-t\^ete du script via la fonction \texttt{print\_startup\_header()}.
+Seules cinq clés sont effectivement surchargeables via variables d'environnement dans
+\texttt{get\_embedded\_config()} : \texttt{input\_file}, \texttt{output\_dir}, \texttt{date\_format},
+\texttt{csv\_strict\_mode} et \texttt{csv\_allow\_extra\_cols}. Les clés \texttt{freq\_breaks},
+\texttt{freq\_labels}, \texttt{make\_ca}, \texttt{min\_visits\_for\_model}, \texttt{width},
+\texttt{height} et \texttt{dpi} sont actuellement des constantes du code source (littéraux R) :
+leur modification requiert d'éditer la fonction \texttt{get\_embedded\_config()} elle-même,
+malgré le principe de configuration centralisée. La configuration effective est affichée
+dans l'en-tête du script via la fonction \texttt{print\_startup\_header()}.
 
-Variables d'environnement principales : \texttt{INVENTAIRES\_INPUT\_FILE},
+Variables d'environnement effectivement lues : \texttt{INVENTAIRES\_INPUT\_FILE},
 \texttt{INVENTAIRES\_OUTPUT\_DIR}, \texttt{INVENTAIRES\_DATE\_FORMAT},
-\texttt{INVENTAIRES\_CSV\_STRICT}, \texttt{INVENTAIRES\_MAKE\_CA} et
+\texttt{INVENTAIRES\_CSV\_STRICT}, \texttt{INVENTAIRES\_CSV\_ALLOW\_EXTRA\_COLS} et
 \texttt{INVENTAIRES\_AUTO\_RUN}. Les autres options reprennent les cl\'es de configuration.
 
-\section*{Modes d'ex\'ecution et flags internes}
+\subsection{Modes d'exécution et flags internes}
 Le script expose des flags globaux :
 \begin{itemize}
   \item \texttt{DEBUG\_MODE} (d\'efaut \texttt{FALSE}) : warnings affich\'es en continu et logs d\'etaill\'es.
@@ -103,26 +203,144 @@ Le script expose des flags globaux :
   \item \texttt{CLEAN\_ENVIRONMENT} (d\'efaut \texttt{FALSE}) : purge de l'environnement avant lancement (mode expert).
 \end{itemize}
 
-Le lancement automatique est contr\^ol\'e via \texttt{INVENTAIRES\_AUTO\_RUN} (d\'efaut \texttt{TRUE}).
+Le lancement automatique est contrôlé via \texttt{INVENTAIRES\_AUTO\_RUN} (défaut \texttt{TRUE}).
 
-\section*{Contrat d'entr\'ee}
-\texttt{data/observations.csv} (ou \texttt{.txt}/\texttt{.tsv}) avec colonnes obligatoires \texttt{site,date,visite\_id,espece} et optionnelle \texttt{placette}.
-
-R\`egles : visite distincte \texttt{date + visite\_id} (et \texttt{site} en multi-sites), parsing date strict, d\'eduplication de la cl\'e observation.
-
-\section*{Audit CSV}
-Sorties d'audit :
+\subsection{Audit CSV}
+Sorties d'audit (sous \texttt{results/ICR/00\_data\_quality/}) :
 \begin{itemize}
-  \item \texttt{results/ICR/ICR\_00\_csv\_conformite\_report.csv}
-  \item \texttt{results/ICR/ICR\_00\_csv\_conformite\_problems.csv} (si anomalies)
+  \item \texttt{ICR\_00\_csv\_conformite\_report.csv}
+  \item \texttt{ICR\_00\_csv\_conformite\_problems.csv} (si anomalies de parsing)
 \end{itemize}
 
-En mode strict, toute non-conformit\'e est bloquante.
+En mode strict (\texttt{csv\_strict\_mode = TRUE}, défaut), toute non-conformité (colonne
+manquante, colonne supplémentaire non tolérée, problème de parsing) est bloquante
+(\texttt{stop()}). En mode tolérant (\texttt{FALSE}), un \texttt{log\_warning()} est émis et le
+pipeline se poursuit sur les données telles que lues (voir \S\,\ref{sec:pipeline}).
 
-\section*{Logging syst\'ematis\'e}
-Chaque ex\'ecution g\'en\'ere un fichier log horodat\'e dans le r\'epertoire \texttt{logs/} du projet.
+\section{Modèle de données technique}
 
-\subsection*{Fonctions de logging}
+\subsection{Schéma logique des observations}
+\begin{longtable}{|p{2.4cm}|p{2.6cm}|p{9.3cm}|}
+\hline
+\textbf{Champ} & \textbf{Type} & \textbf{Rôle} \\
+\hline
+\texttt{site} & caractère & Clé de groupement principale ; détermine le découpage \texttt{analyze\_site()} et le sous-répertoire \texttt{sites/<slug>/}. \\
+\hline
+\texttt{date} & date (parsée selon \texttt{date\_format}) & Ordonnancement chronologique des visites ; composant de la clé de déduplication. \\
+\hline
+\texttt{visite\_id} & caractère & Combiné à \texttt{date} pour définir une visite distincte (\texttt{count\_distinct\_visits()}). \\
+\hline
+\texttt{espece} & caractère (normalisé via \texttt{stringr::str\_squish()}) & Unité d'accumulation pour toutes les courbes et indices (TEE, Ir, fréquence). \\
+\hline
+\texttt{placette} & caractère, optionnel & Active \texttt{calc\_spatial\_occupancy()} et \texttt{run\_ca()} si renseignée (non totalement \texttt{NA}/vide) ; sinon les sorties correspondantes sont omises (statut \texttt{OPTIONNEL\_NON\_GENERE}). \\
+\hline
+\end{longtable}
+
+Clé de déduplication appliquée par \texttt{prepare\_data()} : \texttt{(site, placette, date, visite\_id, espece)}.
+
+\subsection{Artefacts intermédiaires}
+\begin{itemize}[leftmargin=1.2cm]
+  \item \textbf{Données préparées} : table nettoyée/dédupliquée, exportée telle quelle (\texttt{ICR\_donnees\_preparees.csv}).
+  \item \textbf{Table des visites} (\texttt{visits\_tbl}) : visites distinctes \texttt{date + visite\_id}, triées chronologiquement, indexées par \texttt{visite\_index}.
+  \item \textbf{Table cumulée} (\texttt{df\_cum}) : une ligne par visite avec \texttt{nb\_especes\_trouvees}, \texttt{nb\_nouvelles}, \texttt{nb\_cumule}.
+  \item \textbf{Table TEE/Ir} (\texttt{df\_tee}) : une ligne par visite avec \texttt{tee} et \texttt{ir}.
+  \item \textbf{Table de fréquences} (\texttt{freq\_tbl}) : une ligne par espèce avec \texttt{prop\_visites} et classe qualitative.
+  \item \textbf{Table d'occupation spatiale} (\texttt{occ\_tbl}, optionnelle) : une ligne par espèce avec \texttt{prop\_placettes}.
+  \item \textbf{Statistiques de modèles} (\texttt{model\_stats}) : R², équation et asymptote pour les modèles linéaire et hyperbolique.
+  \item \textbf{Métriques scientifiques} (\texttt{scientific\_metrics}) : agrégats par site issus de \texttt{calc\_scientific\_metrics()}.
+  \item \textbf{Consolidations globales} : \texttt{site\_summaries} et \texttt{site\_metrics}, obtenues par \texttt{purrr::map()} + \texttt{dplyr::bind\_rows()} sur les résultats de chaque site.
+\end{itemize}
+
+\section{Pipeline technique détaillé}
+\label{sec:pipeline}
+
+\subsection{Phase A --- Ingestion et normalisation}
+\begin{itemize}[leftmargin=1.2cm]
+  \item \texttt{resolve\_input\_file()} : tente le chemin configuré (\texttt{input\_file}/\texttt{INVENTAIRES\_INPUT\_FILE}) ; à défaut, recherche un fichier \texttt{observations.\{csv,txt,tsv\}} sous \texttt{data/} ; \texttt{stop()} explicite si aucun candidat trouvé.
+  \item \texttt{read\_delim\_auto()} : détecte le délimiteur en comptant les occurrences de tabulation, point-virgule et virgule sur la première ligne, puis lit via \texttt{readr::read\_delim()} (locale UTF-8, toutes colonnes en caractère par défaut via \texttt{build\_csv\_colspec()}) ; les problèmes de parsing sont capturés via \texttt{readr::problems()}.
+  \item \texttt{audit\_csv\_conformity()} : calcule colonnes manquantes/supplémentaires, nombre de problèmes de parsing et statut \texttt{CONFORME}/\texttt{NON\_CONFORME} ; \texttt{export\_csv\_conformity\_report()} écrit le rapport dans \texttt{00\_data\_quality/}.
+  \item \texttt{prepare\_data()} : vérifie la présence des colonnes obligatoires, normalise les champs texte, parse les dates, \texttt{stop()} explicite si valeurs manquantes/vides sur \texttt{site}/\texttt{visite\_id}/\texttt{espece}/\texttt{date}, ajoute \texttt{placette = NA\_character\_} si absente, déduplique sur la clé composée et journalise les effectifs avant/après.
+\end{itemize}
+
+\subsubsection{Critères de qualité de données}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Complétude des colonnes obligatoires (arrêt si absentes).
+  \item Validité typologique des dates (arrêt si non parsées selon \texttt{date\_format}).
+  \item Traçabilité des doublons supprimés (nombre de lignes avant/après déduplication journalisé).
+\end{itemize}
+
+\subsection{Phase B --- Indicateurs cumulés et de représentativité}
+
+\subsubsection{Courbe temps-espèces}
+\texttt{calc\_cumulative\_metrics()} trie les visites chronologiquement (\texttt{date}, \texttt{visite\_id}), leur attribue un \texttt{visite\_index}, puis parcourt chaque visite $i$ pour calculer :
+\begin{itemize}[leftmargin=1.2cm]
+  \item \texttt{nb\_especes\_trouvees} : nombre d'espèces observées lors de la visite $i$,
+  \item \texttt{nb\_nouvelles} : cardinal de la différence ensembliste entre les espèces de la visite $i$ et l'ensemble des espèces déjà vues (\texttt{setdiff()}),
+  \item \texttt{nb\_cumule} : cardinal de l'union cumulative des espèces vues jusqu'à $i$ (\texttt{union()}).
+\end{itemize}
+
+\subsubsection{Taux d'espèces exclusives (TEE) et indice de représentativité (Ir)}
+\texttt{calc\_tee\_ir()} considère, pour chaque visite $i$, l'ensemble des espèces vues sur les
+visites $1$ à $i$ :
+$$ TEE_i = \frac{s_{1,i}}{s_{total,i}} \qquad Ir_i = 1 - TEE_i $$
+où $s_{1,i}$ est le nombre d'espèces vues exactement une fois parmi les visites $1..i$, et
+$s_{total,i}$ le nombre d'espèces distinctes vues parmi les visites $1..i$. Repères de
+lecture utilisés dans les graphiques : $Ir < 0.60$ (faible), $0.60 \le Ir < 0.80$ (moyenne),
+$Ir \ge 0.80$ (bonne).
+
+\subsection{Phase C --- Modélisation et complétude}
+\begin{itemize}[leftmargin=1.2cm]
+  \item \textbf{Modèle linéaire} : \texttt{fit\_linear\_model()} ajuste \texttt{stats::lm(nb\_cumule \textasciitilde{} visite\_index)}.
+  \item \textbf{Modèle hyperbolique} (si \texttt{HAS\_MINPACK}) : \texttt{fit\_hyperbolic\_model()} ajuste, via \texttt{minpack.lm::nlsLM} (Levenberg-Marquardt, 500 itérations max), l'équation
+  $$ S(t) = a - \frac{1}{bt + c} $$
+  avec valeurs de départ $a_0 = 1.20 \times \max(\texttt{nb\_cumule})$, $b_0 = 10^{-4}$, $c_0 = 10^{-3}$.
+  \item \textbf{Extraction des statistiques} : \texttt{extract\_model\_stats()} calcule $R^2 = 1 - SS_{res}/SS_{tot}$ ; pour le modèle hyperbolique, l'asymptote verticale est $a$ et l'asymptote horizontale (abscisse théorique d'origine) est $-c/b$.
+  \item \textbf{Complétude} : $\texttt{completude} = \texttt{nb\_cumule}_{max} / a$ (asymptote hyperbolique), non calculée (\texttt{NA}) si $a$ est absent ou $\le 0$. Repères : $< 0.70$ (insuffisante), $0.70$--$0.90$ (intermédiaire), $\ge 0.90$ (avancée).
+  \item \textbf{Condition d'activation} : modélisation déclenchée uniquement si \texttt{nrow(df\_cum) >= config\$min\_visits\_for\_model} (défaut $5$).
+\end{itemize}
+
+\subsection{Phase D --- Fréquences, occupation spatiale et CA/AFC}
+\begin{itemize}[leftmargin=1.2cm]
+  \item \texttt{calc\_species\_frequency()} : $\texttt{prop\_visites} = \texttt{nb\_visites} / \texttt{n\_visites\_totales}$, discrétisé via \texttt{cut(freq\_breaks, freq\_labels, include.lowest = TRUE, right = TRUE)}.
+  \item \texttt{calc\_spatial\_occupancy()} : requiert une colonne \texttt{placette} non entièrement \texttt{NA}/vide ; $\texttt{prop\_placettes} = \texttt{nb\_placettes} / \texttt{n\_placettes\_totales}$ ; retourne \texttt{NULL} sinon.
+  \item \texttt{run\_ca()} : requiert \texttt{HAS\_VEGAN} et des données de placette ; construit une matrice binaire placette $\times$ espèce (\texttt{tidyr::pivot\_wider()}), exige au moins 3 colonnes d'espèces, puis appelle \texttt{vegan::cca()}.
+\end{itemize}
+
+\subsection{Phase E --- Métriques de pertinence scientifique}
+\texttt{calc\_scientific\_metrics()} calcule, par site :
+\begin{itemize}[leftmargin=1.2cm]
+  \item \textbf{Pente terminale} (\texttt{slope\_terminal\_cumul}) : pente d'une régression linéaire sur la fenêtre terminale de $k = \min(5, n_{visites})$ points de la courbe cumulée.
+  \item \textbf{Part de nouveauté terminale} (\texttt{tail\_novelty\_share}) : $\sum \texttt{nb\_nouvelles}_{fen\hat{e}tre} / \sum \texttt{nb\_nouvelles}_{total}$.
+  \item \textbf{TEE/Ir finaux} : dernière valeur (\texttt{dplyr::last()}) des séries \texttt{tee}/\texttt{ir}.
+  \item \textbf{$R^2$ retenu} : celui du modèle hyperbolique si disponible, sinon celui du modèle linéaire.
+  \item \textbf{Corrélation temporel/spatial} (\texttt{spearman\_temporal\_spatial}) : corrélation de Spearman (\texttt{stats::cor(method = "spearman")}) entre \texttt{prop\_visites} et \texttt{prop\_placettes} pour les espèces communes à \texttt{freq\_tbl} et \texttt{occ\_tbl}, calculée uniquement si $n \ge 3$ espèces jointes.
+  \item \textbf{Taux de discordance} (\texttt{discordance\_rate}) : proportion d'espèces pour lesquelles $|\texttt{prop\_visites} - \texttt{prop\_placettes}| > 0.50$.
+  \item \textbf{Score de pertinence} (\texttt{score\_pertinence}) : moyenne pondérée
+  $$ score = 0.35 \cdot Ir_{final} + 0.35 \cdot completude + 0.20 \cdot (1 - \texttt{tail\_novelty\_share}) + 0.10 \cdot R^2_{mod\grave{e}le} $$
+  les composantes manquantes (\texttt{NA}) sont exclues et les poids restants renormalisés.
+  \item \textbf{Classes qualitatives} : \texttt{class\_ir} ($<0.60$ faible, $<0.80$ moyenne, $\ge 0.80$ bonne) et \texttt{class\_completude} ($<0.70$ insuffisante, $<0.90$ intermédiaire, $\ge 0.90$ avancée).
+\end{itemize}
+
+\subsection{Phase F --- Visualisation}
+Toutes les figures partagent \texttt{theme\_project()} et la palette \texttt{PALETTE\_PRIMARY}
+(bleu \texttt{\#0072B2}, orange \texttt{\#E69F00}, vert \texttt{\#009E73}, rouge \texttt{\#D55E00},
+violet \texttt{\#CC79A7} --- palette adaptée au daltonisme). Fonctions principales :
+\texttt{plot\_richness\_over\_time()}, \texttt{plot\_time\_species\_curve()} (annotation de
+l'asymptote hyperbolique), \texttt{plot\_tee\_ir()} (deux panneaux via
+\texttt{gridExtra::grid.arrange()}, zones de couleur $<0.60$/$0.60$--$0.80$/$\ge 0.80$),
+\texttt{plot\_frequency\_hist()}, \texttt{plot\_spatial\_vs\_temporal()} (conditionnelle),
+\texttt{plot\_scientific\_metrics\_site/heatmap/score()}. \texttt{save\_plot()} exporte via
+\texttt{ggplot2::ggsave()} (format PNG dans tous les appels du script, \texttt{width}/\texttt{height}/\texttt{dpi} configurés), avec \texttt{tryCatch} et \texttt{log\_warning()} en cas d'échec d'écriture.
+
+\section{Résultats}
+
+\subsection{Logging systématisé}
+Chaque exécution génère un fichier log horodaté \textbf{sous \texttt{logs/} à la racine du
+projet} (\texttt{PROJECT\_DIR/logs/}, où \texttt{PROJECT\_DIR} est le répertoire parent du
+dossier \texttt{scripts/}) --- et non sous \texttt{results/ICR/} comme les autres livrables,
+puisque \texttt{setup\_logging()} est appelé avec \texttt{base\_dir = PROJECT\_DIR}.
+
+\subsubsection{Fonctions de logging}
 \begin{itemize}
   \item \texttt{setup\_logging(base\_dir, prefix)} : Initialise l'environnement .log\_env et crée le répertoire logs/ ; appelée au démarrage
   \item \texttt{log\_message(level, ...)} : Fonction centrale avec gestion intelligente des format strings
@@ -133,37 +351,37 @@ Chaque ex\'ecution g\'en\'ere un fichier log horodat\'e dans le r\'epertoire \te
   \item \texttt{log\_section(title)} : Affiche un titre de section avec délimiteurs
 \end{itemize}
 
-\subsection*{Format et contenu}
+\subsubsection{Format et contenu}
 \begin{itemize}
-  \item \textbf{Format des ent\'ees} : \texttt{[YYYY-MM-DD HH:MM:SS] [LEVEL] message}
-  \item \textbf{Nom du fichier} : \texttt{logs/ICR\_YYYYMMDD\_HHMM.log}
-  \item \textbf{Contenu} : En-t\^ete du script, métadonnées (timestamp, R version, working dir), progression du pipeline, manifeste final des livrables
+  \item \textbf{Format des entrées} : \texttt{[YYYY-MM-DD HH:MM:SS] [LEVEL] message}
+  \item \textbf{Nom du fichier} : \texttt{PROJECT\_DIR/logs/ICR\_YYYYMMDD\_HHMM.log}
+  \item \textbf{Contenu} : En-tête du script, métadonnées (timestamp, R version, working dir), progression du pipeline, manifeste final des livrables
 \end{itemize}
 
-\section*{Organisation thématique des sorties}
-Les résultats sont organisés selon une hiérarchie prédéfinie sous \texttt{results/ICR/} :
+\subsection{Organisation thématique des sorties}
+Les résultats sont organisés selon une hiérarchie prédéfinie sous \texttt{results/ICR/}
+(créée par \texttt{ensure\_thematic\_dirs()}) ; les noms exacts des répertoires réservés
+(\texttt{04\_modeles}, \texttt{05\_spatial}) sont ceux définis dans le code source :
 
 \begin{verbatim}
 results/ICR/
-  +-- logs/
-  |   `-- ICR_YYYYMMDD_HHMM.log
   +-- 00_data_quality/
   |   +-- ICR_00_csv_conformite_report.csv
-  |   `-- ICR_00_csv_conformite_problems.csv (si anomalies)
+  |   +-- ICR_00_csv_conformite_problems.csv (si anomalies)
+  |   `-- ICR_donnees_preparees.csv
   +-- 01_richesse/ (réservé pour extensions)
   +-- 02_completude_repr/ (réservé)
   +-- 03_frequences/ (réservé)
-  +-- 04_spatial/ (réservé)
-  +-- 05_temporal/ (réservé)
+  +-- 04_modeles/ (réservé)
+  +-- 05_spatial/ (réservé)
   +-- 06_metrics/
-  |   +-- ICR_donnees_preparees.csv
-  |   +-- ICR_resume_tous_sites.csv
-  |   `-- ICR_metrics_pertinence_tous_sites.csv
-  +-- comparisons/
-  |   +-- ICR_comparaison_completude_sites.png
-  |   +-- ICR_comparaison_ir_sites.png
+  |   +-- ICR_metrics_pertinence_tous_sites.csv
   |   +-- ICR_metrics_pertinence_heatmap_sites.png
   |   `-- ICR_metrics_pertinence_score_sites.png
+  +-- comparisons/
+  |   +-- ICR_resume_tous_sites.csv
+  |   +-- ICR_comparaison_completude_sites.png
+  |   `-- ICR_comparaison_ir_sites.png
   `-- sites/
       +-- <site_name>/
       |   +-- ICR_01_courbe_temps_especes.csv
@@ -182,42 +400,47 @@ results/ICR/
       |   `-- ICR_06_CA_placettes_especes.png (si vegan + placette)
       `-- <other_site_name>/
           `-- ...
+
+PROJECT_DIR/logs/
+  `-- ICR_YYYYMMDD_HHMM.log
 \end{verbatim}
 
-\section*{Journalisation et int\'egrit\'e des sorties}
-La journalisation est r\'ealis\'ee en console via \texttt{log\_info()}, \texttt{log\_debug()} et \texttt{log\_warning()}.
+\subsection{Journalisation et intégrité des sorties}
+La journalisation est réalisée en console via \texttt{log\_info()}, \texttt{log\_debug()} et \texttt{log\_warning()}.
 
 En fin de pipeline, \texttt{log\_output\_manifest()} contr\^ole les livrables avec statuts :
 \texttt{OK}, \texttt{MANQUANT}, \texttt{OPTIONNEL\_NON\_GENERE}.
 
-Le script supprime automatiquement tout \texttt{Rplots.pdf} parasite g\'en\'er\'e pendant l'ex\'ecution (niveau site et global).
+Le script supprime automatiquement tout \texttt{Rplots.pdf} parasite généré pendant l'exécution (niveau site et global).
 
-\section*{Livrables}
-\subsection*{Global}
+\subsection{Livrables}
+\subsubsection{Global}
 \begin{itemize}
-  \item \textbf{Métriques} (\texttt{06\_metrics/}) :
-  \texttt{ICR\_donnees\_preparees.csv},
-  \texttt{ICR\_resume\_tous\_sites.csv},
-  \texttt{ICR\_metrics\_pertinence\_tous\_sites.csv}.
+  \item \textbf{Qualité des données} (\texttt{00\_data\_quality/}) :
+  \texttt{ICR\_00\_csv\_conformite\_report.csv},
+  \texttt{ICR\_00\_csv\_conformite\_problems.csv} (optionnel),
+  \texttt{ICR\_donnees\_preparees.csv}.
 
   \item \textbf{Comparaisons} (\texttt{comparisons/}) :
+  \texttt{ICR\_resume\_tous\_sites.csv},
   \texttt{ICR\_comparaison\_completude\_sites.png},
-  \texttt{ICR\_comparaison\_ir\_sites.png},
+  \texttt{ICR\_comparaison\_ir\_sites.png}.
+
+  \item \textbf{Métriques} (\texttt{06\_metrics/}) :
+  \texttt{ICR\_metrics\_pertinence\_tous\_sites.csv},
   \texttt{ICR\_metrics\_pertinence\_heatmap\_sites.png},
   \texttt{ICR\_metrics\_pertinence\_score\_sites.png}.
 \end{itemize}
 
-Audit CSV : rapport de conformité et liste des anomalies dans \texttt{00\_data\_quality/}.
+Logs : \texttt{ICR\_YYYYMMDD\_HHMM.log} (sous \texttt{PROJECT\_DIR/logs/}, hors de \texttt{results/ICR/}).
 
-Logs : \texttt{ICR\_YYYYMMDD\_HHMM.log} (dans \texttt{logs/}).
-
-\subsection*{Par site (\texttt{sites/<site\_name>/})}
+\subsubsection{Par site (\texttt{sites/<site\_name>/})}
 Fichiers CSV par site : courbe temps-espèces, TEE/IR, fréquences,
 résumé de site et métriques de pertinence, avec les graphiques PNG associés.
 
 Sorties conditionnelles : \texttt{ICR\_05\_modeles.csv}, \texttt{ICR\_06\_occupation\_spatiale.csv}, \texttt{ICR\_05\_temporel\_vs\_spatial.png}, \texttt{ICR\_06\_CA\_placettes\_especes.png}.
 
-\section*{Flux d'ex\'ecution}
+\subsection{Flux d'exécution}
 \begin{verbatim}
 run_analysis(CONFIG)
   -> validate_config()
@@ -236,12 +459,149 @@ run_analysis(CONFIG)
   -> log_output_manifest()
 \end{verbatim}
 
-\section*{D\'ependances}
-Requises : \texttt{dplyr}, \texttt{tidyr}, \texttt{ggplot2}, \texttt{purrr}, \texttt{readr}, \texttt{stringr}, \texttt{forcats}, \texttt{tibble}, \texttt{scales}, \texttt{gridExtra}.\\
-Optionnelles : \texttt{minpack.lm} (hyperbolique), \texttt{vegan} (CA/AFC).
+\section{Robustesse et gestion d'erreurs}
+\label{sec:robustesse}
 
-\section*{Am\'eliorations techniques (v1.4)}
-\subsection*{Phase 1 : Fiabilisation}
+\subsection{Niveaux de protection}
+\begin{itemize}[leftmargin=1.2cm]
+  \item \texttt{validate\_config()} : vérifie la présence et le type de chacune des clés de configuration (\texttt{stop()} explicite sinon), notamment la monotonie de \texttt{freq\_breaks}, la cohérence de longueur avec \texttt{freq\_labels} et \texttt{min\_visits\_for\_model >= 2}.
+  \item \texttt{prepare\_data()} : contrôle du schéma et des valeurs manquantes/vides sur \texttt{site}/\texttt{visite\_id}/\texttt{espece}/\texttt{date} (\texttt{stop()} explicite, message ciblant la colonne en cause).
+  \item \texttt{tryCatch} locaux dans \texttt{analyze\_site()} : chaque tentative d'ajustement (\texttt{fit\_linear\_model()}, \texttt{fit\_hyperbolic\_model()}) et d'analyse CA/AFC (\texttt{run\_ca()}) est isolée ; un échec est journalisé via \texttt{log\_warning()} et n'interrompt ni le site ni le pipeline.
+  \item \texttt{tryCatch} sur chaque écriture CSV (\texttt{readr::write\_csv()}) : un échec d'écriture provoque un \texttt{stop()} explicite mentionnant le fichier concerné (contrairement aux échecs de modélisation, jugés non recouvrables).
+  \item \textbf{Absence de \texttt{tryCatch} global} : à la différence du script CHEGD de référence (qui encapsule son point d'entrée principal), \texttt{run\_analysis()} n'est pas protégée globalement ; toute erreur de validation amont (configuration, CSV non conforme en mode strict, données invalides) interrompt l'exécution complète du script.
+\end{itemize}
+
+\subsection{Fallbacks notables}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Package \texttt{minpack.lm} absent $\Rightarrow$ pas de modèle hyperbolique ni de complétude (valeurs \texttt{NA}), message \texttt{log\_info()} explicite au démarrage.
+  \item Package \texttt{vegan} absent, ou colonne \texttt{placette} absente/vide $\Rightarrow$ pas de CA/AFC (\texttt{ICR\_06\_CA\_placettes\_especes.png} non généré).
+  \item \texttt{nb\_visites < min\_visits\_for\_model} $\Rightarrow$ pas de modélisation pour le site concerné (\texttt{ICR\_05\_modeles.csv} non généré).
+  \item Absence de colonne \texttt{placette} $\Rightarrow$ pas d'occupation spatiale (\texttt{occ\_tbl} \texttt{NULL}), pas de graphique spatio-temporel, et corrélation \texttt{spearman\_temporal\_spatial} non calculée.
+\end{itemize}
+
+\subsection{Politique de sévérité des anomalies}
+\begin{longtable}{|p{2.0cm}|p{6.0cm}|p{6.3cm}|}
+\hline
+\textbf{Niveau} & \textbf{Déclencheurs typiques} & \textbf{Comportement effectif} \\
+\hline
+INFO & Package optionnel absent, mode d'exécution, volumétrie des données & Message informatif, aucune interruption \\
+\hline
+ALERTE & CSV non conforme en mode tolérant, échec d'ajustement de modèle, échec CA/AFC & \texttt{log\_warning()} (console + fichier + \texttt{stderr}), le pipeline se poursuit avec livrable(s) correspondant(s) marqué(s) \texttt{OPTIONNEL\_NON\_GENERE} \\
+\hline
+ERREUR & Colonne obligatoire absente, valeurs manquantes sur les champs clés, CSV non conforme en mode strict, échec d'écriture d'un CSV & \texttt{stop()} : arrêt immédiat de l'exécution \\
+\hline
+\end{longtable}
+
+\section{Contrôles qualité et non-régression}
+
+\subsection{Indicateurs d'assurance qualité (QA) réellement exportés}
+\begin{itemize}[leftmargin=1.2cm]
+  \item \texttt{ICR\_00\_csv\_conformite\_report.csv} : statut \texttt{CONFORME}/\texttt{NON\_CONFORME}, colonnes manquantes/supplémentaires, nombre de problèmes de parsing.
+  \item \texttt{ICR\_00\_csv\_conformite\_problems.csv} (optionnel) : détail des problèmes \texttt{readr::problems()}.
+  \item Manifeste des livrables (\texttt{log\_output\_manifest()}) : statuts \texttt{OK}/\texttt{MANQUANT}/\texttt{OPTIONNEL\_NON\_GENERE} par fichier attendu, journalisés en fin d'exécution.
+  \item \texttt{class\_ir}/\texttt{class\_completude} dans \texttt{ICR\_07\_metrics\_pertinence.csv} : classes qualitatives directement exploitables pour un contrôle de cohérence.
+\end{itemize}
+
+\subsection{Critères techniques d'acceptation}
+\begin{enumerate}
+  \item Exécution sans erreur fatale pour un CSV conforme au schéma attendu.
+  \item Génération complète des sorties CSV/figures attendues par site et au global (manifeste sans statut \texttt{MANQUANT} non justifié).
+  \item Log horodaté présent sous \texttt{PROJECT\_DIR/logs/}.
+  \item Cohérence des indicateurs TEE/Ir/complétude avec leurs seuils documentés (bornes $[0,1]$).
+\end{enumerate}
+
+\subsection{Stratégie de tests recommandée}
+\begin{itemize}[leftmargin=1.2cm]
+  \item \textbf{Tests unitaires} : \texttt{calc\_tee\_ir()}, \texttt{calc\_cumulative\_metrics()}, \texttt{calc\_species\_frequency()} et \texttt{calc\_scientific\_metrics()} sur des jeux synthétiques à richesse connue (valeurs de TEE/Ir/score calculables à la main).
+  \item \textbf{Tests d'intégration} : exécution complète sur un jeu de données réduit, avec et sans colonne \texttt{placette}.
+  \item \textbf{Tests de non-régression} : comparaison des CSV clés (\texttt{ICR\_04\_resume\_site.csv}, \texttt{ICR\_07\_metrics\_pertinence.csv}) avec des instantanés de référence versionnés.
+  \item \textbf{Tests de robustesse} : dates ambiguës, doublons volontaires, sites avec un nombre de visites proche ou inférieur à \texttt{min\_visits\_for\_model}, absence simulée de \texttt{minpack.lm}/\texttt{vegan}.
+\end{itemize}
+
+\subsection{Matrice de validation des artefacts}
+\begin{longtable}{|p{3.5cm}|p{5.2cm}|p{5.6cm}|}
+\hline
+\textbf{Artefact} & \textbf{Règle de validation} & \textbf{Preuve attendue} \\
+\hline
+Ingestion (\texttt{ICR\_donnees\_preparees.csv}) & Aucune valeur manquante sur \texttt{site}/\texttt{visite\_id}/\texttt{espece}/\texttt{date} & Comptage avant/après déduplication journalisé \\
+\hline
+Courbe temps-espèces (\texttt{ICR\_01}) & \texttt{nb\_cumule} croissant (ou stable) avec \texttt{visite\_index} & Contrôle de monotonie \\
+\hline
+TEE/Ir (\texttt{ICR\_02}) & $TEE_i, Ir_i \in [0,1]$ pour toute visite $i$ & Bornage vérifiable directement sur le CSV \\
+\hline
+Fréquences (\texttt{ICR\_03}) & Classes cohérentes avec \texttt{freq\_breaks}/\texttt{freq\_labels} & Recoupement \texttt{cut()} manuel sur \texttt{prop\_visites} \\
+\hline
+Modèles (\texttt{ICR\_05}, si activés) & $R^2 \in [0,1]$, asymptote $> \max(\texttt{nb\_cumule})$ & Comparaison directe aux données observées \\
+\hline
+Pertinence scientifique (\texttt{ICR\_07}) & $\texttt{score\_pertinence} \in [0,1]$, classes \texttt{class\_ir}/\texttt{class\_completude} cohérentes avec les seuils documentés & Recalcul manuel de la moyenne pondérée \\
+\hline
+\end{longtable}
+
+\subsection{Menaces à la validité}
+\begin{itemize}[leftmargin=1.2cm]
+  \item \textbf{Interne} : dépendance forte à la qualité de saisie de \texttt{visite\_id}/\texttt{date} (une erreur de saisie fusionne ou scinde artificiellement des visites).
+  \item \textbf{Externe} : transférabilité limitée si le protocole d'échantillonnage (nombre de visites, granularité de \texttt{placette}) diffère fortement d'un site à l'autre ; les comparaisons inter-sites doivent en tenir compte.
+  \item \textbf{De conclusion} : prudence sur la complétude/Ir des sites dont le nombre de visites est proche du seuil \texttt{min\_visits\_for\_model}, où les estimations restent statistiquement fragiles.
+\end{itemize}
+
+\section{Complexité et performances (qualitatives)}
+\begin{itemize}[leftmargin=1.2cm]
+  \item \texttt{calc\_cumulative\_metrics()}/\texttt{calc\_tee\_ir()} : implémentées via une boucle explicite sur les visites (\texttt{for} sur \texttt{seq\_len(nrow(visits\_tbl))}) avec un filtrage cumulatif à chaque itération, soit un coût approximativement $O(v^2)$ par site dans le pire cas ($v$ = nombre de visites) — acceptable pour les volumes usuels d'un inventaire de terrain, mais à surveiller pour des séries de visites très longues.
+  \item Le commentaire d'en-tête du script (Phase 2, v1.2) mentionne une \og{}vectorisation des calculs cumulés\fg{} ; l'implémentation actuelle conserve toutefois une boucle explicite par visite pour ces deux fonctions — écart entre intention documentée et code effectif à conserver à l'esprit lors d'une future refactorisation.
+  \item \texttt{calc\_species\_frequency()}/\texttt{calc\_spatial\_occupancy()} : agrégations vectorisées \texttt{dplyr}, coût proche de $O(n)$ sur le nombre d'observations.
+  \item \texttt{fit\_hyperbolic\_model()} : coût dominé par les itérations de Levenberg-Marquardt (500 au maximum), généralement négligeable devant les boucles ci-dessus pour les tailles de site habituelles.
+  \item \texttt{BENCHMARK\_MODE} : \texttt{bench\_time()} chronomètre \texttt{calc\_cumulative\_metrics()}, \texttt{calc\_tee\_ir()} et \texttt{calc\_species\_frequency()} par site lorsqu'activé.
+\end{itemize}
+
+\subsection{Pistes d'optimisation}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Vectoriser \texttt{calc\_cumulative\_metrics()}/\texttt{calc\_tee\_ir()} (cumul par opérations ensemblistes vectorisées plutôt que boucle explicite) pour les sites à très grand nombre de visites.
+  \item Réutiliser \texttt{freq\_tbl}/\texttt{occ\_tbl} déjà calculées comme entrées directes de \texttt{calc\_scientific\_metrics()} sans recalcul intermédiaire.
+  \item Limiter la recréation des répertoires thématiques réservés lorsqu'ils restent vides d'une exécution à l'autre.
+\end{itemize}
+
+\section{Sécurité, conformité et exploitation}
+
+\subsection{Sécurité des données}
+Le script opère exclusivement sur des fichiers locaux (aucun appel réseau, aucune
+transmission de données). Les journaux et les CSV générés peuvent contenir des noms de
+sites potentiellement sensibles (localisation d'espèces protégées) : leur diffusion doit
+suivre la politique de confidentialité du projet.
+
+\subsection{Conformité et bonnes pratiques}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Aucune dépendance à des secrets ou identifiants (pas de connexion externe).
+  \item Chemins résolus de manière relative au projet (\texttt{resolve\_path()}), limitant les risques de chemins absolus non maîtrisés.
+  \item Traçabilité des sorties via le manifeste (\texttt{log\_output\_manifest()}) et les logs horodatés.
+\end{itemize}
+
+\subsection{Procédure opératoire standard (POS)}
+\begin{enumerate}
+  \item Vérifier la présence et le schéma du fichier d'entrée (\texttt{data/observations.csv}).
+  \item Exécuter le script (\texttt{Rscript} ou session interactive).
+  \item Contrôler le log généré et le rapport de conformité CSV.
+  \item Diffuser les exports CSV/PNG validés aux parties prenantes.
+  \item Archiver le run (log + rapport de conformité + CSV consolidés) pour traçabilité.
+\end{enumerate}
+
+\section{Réplicabilité et transparence scientifique}
+Le script ne génère pas actuellement de manifeste de run structuré (type JSON) ; seul le
+manifeste texte des livrables (\texttt{log\_output\_manifest()}) et le fichier log horodaté
+assurent la traçabilité. Pour renforcer la réplicabilité inter-campagnes, un manifeste de
+run \texttt{run\_manifest.json} pourrait consigner :
+\begin{itemize}[leftmargin=1.2cm]
+  \item \texttt{run\_id}, \texttt{timestamp\_start}, \texttt{timestamp\_end} ;
+  \item \texttt{r\_version}, versions des packages \texttt{dplyr}/\texttt{ggplot2}/\texttt{minpack.lm}/\texttt{vegan} ;
+  \item \texttt{input\_file}, empreinte (hash) du fichier d'entrée ;
+  \item \texttt{config\_effective} (valeurs réelles de \texttt{CONFIG} après surcharge par variables d'environnement) ;
+  \item \texttt{outputs\_generated} (liste des fichiers effectivement produits) ;
+  \item \texttt{qa\_summary} (statut de conformité CSV, nombre de sites traités).
+\end{itemize}
+
+\section{Discussion}
+
+\subsection{Améliorations techniques (v1.4)}
+\subsubsection{Phase 1 : Fiabilisation}
 \begin{itemize}
   \item D\'etection automatique du d\'elimiteur (CSV/TSV/TXT)
   \item Parsing flexible des dates via format configurable
@@ -249,15 +609,15 @@ Optionnelles : \texttt{minpack.lm} (hyperbolique), \texttt{vegan} (CA/AFC).
   \item Gestion granulaire des erreurs CSV (colonne manquante, type invalide, etc.)
 \end{itemize}
 
-\subsection*{Phase 2 : Performance}
+\subsubsection{Phase 2 : Performance}
 \begin{itemize}
   \item Optimisation du modèle hyperbolique : \texttt{minpack.lm::nlsLM} avec détection de convergence
-  \item Calculs vectorisés par site (pas de boucle implicite)
+  \item Calculs cumulés intentionnellement documentés comme \og{}vectorisés\fg{} dans l'en-tête du script ; l'implémentation effective conserve une boucle explicite par visite (voir \S\,\ref{sec:robustesse} et la section Complexité et performances)
   \item M\'emorisation des graphiques ggplot2 avant export PNG
   \item Cache des analyses de CA/AFC conditionnelle
 \end{itemize}
 
-\subsection*{Phase 3 : Graphiques et visualisations}
+\subsubsection{Phase 3 : Graphiques et visualisations}
 \begin{itemize}
   \item Cartes de chaleur multi-sites (heatmap) avec échelle de couleur
   \item Tableaux de bord par site (7 graphiques dans une grille)
@@ -265,22 +625,56 @@ Optionnelles : \texttt{minpack.lm} (hyperbolique), \texttt{vegan} (CA/AFC).
   \item Analyses de CA/AFC si \texttt{vegan} disponible et placette présente
 \end{itemize}
 
-\subsection*{Phase 4 : Industrialisation}
+\subsubsection{Phase 4 : Industrialisation}
 \begin{enumerate}
-  \item \textbf{Configuration centralis\'ee} : \texttt{get\_embedded\_config()} avec 14+ param\`etres
-  \item \textbf{Logging syst\'ematis\'e} : \texttt{setup\_logging()} + fonctions log\_*() avec fichiers horodat\'es
-  \item \textbf{Organisation th\'ematique} : hi\'erarchie logique /sites/, /06\_metrics/, /00\_data\_quality/, /comparisons/
-  \item \textbf{M\'etriques avanc\'ees} : calcul de pertinence scientifique, dashboards analytiques, manifeste final
+  \item \textbf{Configuration centralisée} : \texttt{get\_embedded\_config()} avec 14+ paramètres
+  \item \textbf{Logging systématisé} : \texttt{setup\_logging()} + fonctions log\_*() avec fichiers horodatés
+  \item \textbf{Organisation thématique} : hiérarchie logique /sites/, /06\_metrics/, /00\_data\_quality/, /comparisons/
+  \item \textbf{Métriques avancées} : calcul de pertinence scientifique, dashboards analytiques, manifeste final
 \end{enumerate}
 
-\section*{Limites connues}
+\subsection{Limites connues}
 \begin{itemize}
-  \item Sans \texttt{placette}, pas d'analyse spatiale.
-  \item Sans \texttt{minpack.lm}, pas d'asymptote hyperbolique.
-  \item Si \texttt{nb\_visites < min\_visits\_for\_model}, pas de mod\'elisation.
-  \item En mode strict, un CSV non conforme bloque le pipeline.
+  \item Sans \texttt{placette}, pas d'analyse spatiale ni de CA/AFC, et la corrélation temporel/spatial de \texttt{calc\_scientific\_metrics()} n'est pas calculée.
+  \item Sans \texttt{minpack.lm}, pas d'asymptote hyperbolique ni de complétude associée ; le score de pertinence se rabat alors sur le $R^2$ du modèle linéaire.
+  \item Si \texttt{nb\_visites < min\_visits\_for\_model}, pas de modélisation pour le site (impact direct sur \texttt{completude} et \texttt{score\_pertinence}).
+  \item En mode strict (défaut), un CSV non conforme bloque tout le pipeline sans possibilité de reprise partielle.
+  \item Absence de \texttt{tryCatch} global autour de \texttt{run\_analysis()} : une erreur de configuration ou de données en amont interrompt l'exécution complète plutôt que de permettre un traitement partiel des sites valides.
+  \item Les clés \texttt{freq\_breaks}, \texttt{freq\_labels}, \texttt{make\_ca}, \texttt{min\_visits\_for\_model}, \texttt{width}, \texttt{height} et \texttt{dpi} ne sont pas surchargeables par variable d'environnement, contrairement à ce que suggère le principe de configuration centralisée.
 \end{itemize}
 
+\section{Protocole de référence}
+Les indicateurs implémentés (courbe temps-espèces, taux d'espèces exclusives, indice de
+représentativité) s'appuient sur les principes présentés dans le cours \og{}Cours 24
+Inventaires\fg{} du Diplôme Universitaire de Mycologie 2026 (Professeur Pierre-Arthur
+Moreau, Université de Lille, UFR3S PHAR, diapositives 25 à 48), qui formalise la logique
+d'accumulation d'espèces au fil des visites et l'estimation de la représentativité
+d'un inventaire de terrain. Contrairement au protocole CHEGD de Sellier (module fiabilité
+du script de référence), aucun protocole normatif externe spécifique n'est requis ici : le
+script est entièrement autonome et ne dépend d'aucun classeur ou référentiel externe.
+
+\section{Évolutions techniques recommandées}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Ajouter un \texttt{tryCatch} global autour de \texttt{run\_analysis()} pour aligner la robustesse sur le script CHEGD de référence et éviter l'arrêt complet sur une erreur isolée.
+  \item Vectoriser \texttt{calc\_cumulative\_metrics()}/\texttt{calc\_tee\_ir()} pour supprimer la boucle explicite par visite et réduire la complexité quadratique observée.
+  \item Exposer \texttt{freq\_breaks}/\texttt{freq\_labels}/\texttt{min\_visits\_for\_model} par variable d'environnement, en cohérence avec le principe de configuration centralisée déjà appliqué aux autres clés.
+  \item Générer un manifeste de run structuré (\texttt{run\_manifest.json}) pour la traçabilité inter-campagnes (voir \S\,Réplicabilité et transparence scientifique).
+  \item Ajouter une suite de tests unitaires sur les formules métier (TEE, Ir, complétude, score de pertinence) afin de sécuriser les futures refactorisations.
+\end{itemize}
+
+\section{Références bibliographiques}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Moreau, P.-A. \textit{Cours 24 --- Inventaires}. Diplôme Universitaire de Mycologie 2026, Université de Lille (UFR3S PHAR), diapositives 25--48.
+  \item Colwell, R.K. \& Coddington, J.A. (1994). Estimating terrestrial biodiversity through extrapolation. \textit{Philosophical Transactions of the Royal Society B}, 345(1311), 101--118.
+  \item Wickham, H. (2016). \textit{ggplot2: Elegant Graphics for Data Analysis}. Springer.
+  \item Wickham, H., \& Grolemund, G. (2017). \textit{R for Data Science}. O'Reilly.
+  \item Oksanen, J. et al. \textit{vegan: Community Ecology Package}. Paquet R (analyse de correspondance CA/AFC).
+  \item Elzhov, T.V., Mullen, K.M., Spiess, A.-N., \& Bolker, B. \textit{minpack.lm: R Interface to the Levenberg-Marquardt Nonlinear Least-Squares Algorithm}. Paquet R.
+\end{itemize}
+
+% ============================================================================================================================
+\section*{Contact et versionnement}
+\addcontentsline{toc}{section}{Contact et versionnement}
 % ============================================================================================================================
 
 \begin{table}[htbp]
@@ -288,9 +682,9 @@ Optionnelles : \texttt{minpack.lm} (hyperbolique), \texttt{vegan} (CA/AFC).
   \begin{tabular}{ll}
     \toprule
     \textbf{Auteur}          & Eddy Boite \\
-    \textbf{Dépôt GitHub}    & \texttt{eddyboite-nat/myco\_apps\_releases} \\
+    \textbf{Dépôt GitHub}    & \texttt{eddyboite-nat/statistics} \\
     \textbf{Branche}         & \texttt{main} \\
-    \textbf{Version script}  & 1.1 \\
+    \textbf{Version script}  & 1.4 \\
     \textbf{Date de ce document} & 9 juillet 2026 \\
     \bottomrule
   \end{tabular}
@@ -299,6 +693,6 @@ Optionnelles : \texttt{minpack.lm} (hyperbolique), \texttt{vegan} (CA/AFC).
 Pour toute évolution du script, ouvrir une issue dans le dépôt GitHub
 ou documenter les changements dans le journal \texttt{CHANGELOG.md} du projet.
 
-% % ============================================================================================================================
+% ============================================================================================================================
 
 \end{document}
