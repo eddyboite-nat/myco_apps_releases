@@ -23,7 +23,7 @@
 #   - Rscript app.R          : lance le serveur Shiny (choisit un port libre, ouvre le navigateur).
 #   - source("app.R")        : définit l'objet `app` sans démarrer le serveur (usage interactif).
 #
-# Auteur : Eddy Boite
+# Auteur : Eddy Boite (RNF, SMF, FongiFrance)
 # Version : 1.0
 # ===============================================================================================================================================================================================
 
