@@ -1,5 +1,32 @@
 #!/usr/bin/env Rscript
 
+# ===============================================================================================================================================================================================
+# Application Shiny — Lanceur des outils MycoApps (Inventaires, CHEGD)
+# ===============================================================================================================================================================================================
+# But :
+#   - Fournir une interface Shiny locale pour lancer les scripts d'analyse mycologique du dépôt
+#     (Inventaires_completude_representativite.R, Evaluation_Potentiel_Fongique_Interets_Patrimoniaux_CHEGD.R).
+#   - Exécuter les scripts en arrière-plan (processx) et suivre leur progression via les logs.
+#   - Permettre la consultation des logs (logs/) et des résultats produits (results/<app_id>/).
+#
+# Entrées :
+#   - Scripts R du dossier scripts/ (icr_script, chegd_script).
+#   - Fichiers de données du dossier data/ (dont le jeu par défaut CHEGD).
+#
+# Sorties :
+#   - Fichiers de logs dans logs/.
+#   - Résultats (CSV, graphiques, etc.) dans results/<app_id>/.
+#
+# Dépendances : shiny, processx, later
+#
+# Usage :
+#   - Rscript app.R          : lance le serveur Shiny (choisit un port libre, ouvre le navigateur).
+#   - source("app.R")        : définit l'objet `app` sans démarrer le serveur (usage interactif).
+#
+# Auteur : Eddy Boite
+# Version : 1.0
+# ===============================================================================================================================================================================================
+
 suppressPackageStartupMessages({
   if (!requireNamespace("shiny", quietly = TRUE)) {
     stop("Package R requis manquant : shiny. Installez-le avec install.packages('shiny').", call. = FALSE)
